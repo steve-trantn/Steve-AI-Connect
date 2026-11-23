@@ -84,7 +84,9 @@ function New-Link($text, $font, $color) {
 }
 # kind: primary | gold | ghost (outlined) | seg (segmented toggle)
 function Set-ButtonLook($b, [string]$kind, [bool]$on = $false) {
-  $b.Tag = $kind
+  # the kind is kept in AccessibleDescription, NOT in Tag: Tag belongs to the button's owner (the CAD launch
+  # buttons keep their card there, and a click with a lost Tag failed with "array index evaluated to null")
+  $b.AccessibleDescription = $kind
   if (-not $b.Enabled) {
     $b.BackColor = $Pal.disabled; $b.ForeColor = $Pal.faint; $b.FlatAppearance.BorderColor = $Pal.disabledLine; return
   }
@@ -103,7 +105,7 @@ function New-Button($text, [string]$kind = 'ghost') {
   $b.Text = $text; $b.Font = $Fnt.btn; $b.FlatStyle = 'Flat'; $b.Cursor = 'Hand'; $b.UseMnemonic = $false
   $b.FlatAppearance.BorderSize = 1
   # disabled flat buttons get grey text from Windows; re-apply our colours when the state changes
-  $b.add_EnabledChanged({ Set-ButtonLook $this ([string]$this.Tag) ($this.BackColor -eq $Pal.accentBtn) })
+  $b.add_EnabledChanged({ Set-ButtonLook $this ([string]$this.AccessibleDescription) ($this.BackColor -eq $Pal.accentBtn) })
   Set-ButtonLook $b $kind
   return $b
 }
@@ -976,6 +978,28 @@ $form.add_Shown({
   Show-Page 'home'; Show-Step (Get-FirstOpenStep)
   $form.ActiveControl = $(switch ($script:Step) { 1 { $bAuto } 2 { $cadLaunch[$script:CadList[0]].go } default { $bOpen } })
   $timer.Start()
+  if ($env:STEVECAD_SELFTEST) {
+    # Self-test: click every button of the guided page for real (with STEVECAD_DRYRUN no CAD / AI is started),
+    # after the timer's refresh has run, and write PASS / FAIL lines to the file named by STEVECAD_SELFTEST.
+    $res = New-Object Collections.ArrayList
+    $try = { param($name, [scriptblock]$act) try { & $act; [void]$res.Add("PASS  $name") } catch { [void]$res.Add("FAIL  $name : $($_.Exception.Message)") } }
+    & $try 'timer refresh x2' { Update-RunState; Update-RunState }
+    foreach ($c in $script:CadList) {
+      $l = $cadLaunch[$c]
+      if (-not $l.list.Count) { [void]$res.Add("SKIP  Khởi động $c (chưa cài)"); continue }
+      & $try "Tag nút Khởi động $c còn nguyên" { if (-not ($l.go.Tag -is [hashtable]) -or $l.go.Tag.key -ne $c) { throw "Tag = '$($l.go.Tag)'" } }
+      & $try "bấm Khởi động $c" { Show-Step 2; $l.go.PerformClick() }
+      if ($l.list.Count -gt 1) { & $try "đổi phiên bản $c" { $l.cb.SelectedIndex = $l.list.Count - 1; $l.cb.SelectedIndex = 0 } }
+    }
+    foreach ($n0 in 1, 2, 3) { & $try "chuyển bước $n0" { Show-Step $n0 } }
+    & $try 'Tiếp tục / Quay lại' { Show-Step 2; $bNext.PerformClick(); $bBack.PerformClick() }
+    foreach ($c in $segs.Keys) { if ($segs[$c].Enabled) { & $try "chọn trợ lý $c" { $segs[$c].PerformClick() } } }
+    & $try 'bấm Mở Steve AI' { Show-Step 3; $bOpen.PerformClick() }
+    & $try 'mở trang nâng cao và quay về' { Show-Page 'conn'; Show-Page 'home' }
+    & $try 'tab Công cụ & tìm kiếm' { Show-Page 'tools'; $search.Text = 'kich thuoc'; $search.Text = ''; Show-Page 'home' }
+    [IO.File]::WriteAllLines($env:STEVECAD_SELFTEST, [string[]]$res, (New-Object Text.UTF8Encoding $false))
+    $form.Close(); return
+  }
   if ($env:STEVECAD_SNAPSHOT) {   # README screenshots: render the form itself (never the screen)
     if ($env:STEVECAD_SNAPPAGE) { Show-Page $env:STEVECAD_SNAPPAGE }
     if ($env:STEVECAD_SNAPSTEP) { Show-Step ([int]$env:STEVECAD_SNAPSTEP) }

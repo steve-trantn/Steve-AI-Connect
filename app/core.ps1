@@ -249,6 +249,7 @@ function Get-CadLauncher([string]$cad, [string]$Id = '') {
 function Start-Cad([string]$cad, [string]$Id = '') {
   $l = Get-CadLauncher $cad $Id
   if (-not $l) { throw "Không tìm thấy file chạy $($script:CadLabel[$cad])." }
+  if ($env:STEVECAD_DRYRUN) { Write-Log "DRYRUN Start-Cad $cad -> $($l.label)" 'ok'; return }   # self-test: no CAD is started
   try { Repair-CadAddon } catch {}
   if ($l.args) { Start-Process $l.file -ArgumentList $l.args -WorkingDirectory $l.dir } else { Start-Process $l.file -WorkingDirectory $l.dir }
   Set-Setting "Launch_$cad" $l.id
@@ -620,6 +621,10 @@ function Write-CadLisp {
   $t = $t.Replace('@CUIX@', $menu)
   New-Item -ItemType Directory -Force $script:AppHome | Out-Null
   [IO.File]::WriteAllText($script:CadLisp, $t, [Text.Encoding]::ASCII)
+  # SteveAI.mnl next to SteveAI.cuix: ZWCAD / AutoCAD load a menu's .mnl into every drawing together with the
+  # menu, which the CAD remembers across restarts. Unlike the Startup Suite, the CAD never rewrites it on exit.
+  $l = $script:CadLisp -replace '\\', '/'
+  [IO.File]::WriteAllText(($script:CadMenu -replace '\.cuix$', '.mnl'), ";; Steve AI Connect: lenh AI / STEVEAI, nap cung menu Steve AI`r`n;; *steveai-from-menu*: SteveAI.lsp must not load the menu again (it is loading now)`r`n(if (findfile `"$l`") (progn (setq *steveai-from-menu* T) (load `"$l`")))`r`n(princ)`r`n", [Text.Encoding]::ASCII)
 }
 
 # Adds SteveAI.lsp to the Startup Suite of ZWCAD / AutoCAD and loads it into a running session.
@@ -654,7 +659,7 @@ function Remove-CadAddon {
       if ($all -match 'SteveAI\.lsp$') { Set-StartupList $k @($all | Where-Object { $_ -notmatch 'SteveAI\.lsp$' }) }
     }
   }
-  Remove-Item $script:CadLisp -Force -ErrorAction SilentlyContinue
+  Remove-Item $script:CadLisp, ($script:CadMenu -replace '\.cuix$', '.mnl') -Force -ErrorAction SilentlyContinue
   Remove-CadMenu
   Set-Setting 'CadAddon' @()
 }
@@ -662,6 +667,8 @@ function Remove-CadAddon {
 # added while the CAD was open is lost. Put it back when that CAD is not running (GUI start, before Start-Cad).
 function Repair-CadAddon {
   if (-not (Test-Path $script:CadLisp)) { return }
+  # installs from before SteveAI.mnl existed: write it (with the current lsp / menu) so AI loads with the menu
+  if (-not (Test-Path ($script:CadMenu -replace '\.cuix$', '.mnl'))) { try { Write-CadLisp } catch {} }
   foreach ($cad in @(Get-Setting 'CadAddon' @())) {
     if (-not $cad -or (Get-CadProcess $cad).Count -or (Test-CadAddon $cad)) { continue }
     foreach ($k in Get-StartupKeys $cad) { Set-StartupList $k (@(Get-StartupList $k) + $script:CadLisp) }
@@ -680,6 +687,7 @@ function Start-SteveAI([string]$Client = '', [string]$Skill = '') {
   $a = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$l`""
   if ($Client) { $a += " -Client $Client" }
   if ($Skill) { $a += " -Skill $Skill" }
+  if ($env:STEVECAD_DRYRUN) { Write-Log "DRYRUN Start-SteveAI $Client $Skill" 'ok'; return }   # self-test
   Start-Process (Join-Path $PSHOME 'powershell.exe') -ArgumentList $a -WindowStyle Hidden
 }
 

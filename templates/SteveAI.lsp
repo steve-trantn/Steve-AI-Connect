@@ -107,7 +107,12 @@
     )
   )
 )
-(vl-catch-all-apply 'steveai-menu nil)
+;; Loaded by SteveAI.mnl, the menu is being loaded right now: loading it again from here crashed ZWCAD
+;; (heap corruption on start). So only load the menu when this file was loaded some other way.
+(if *steveai-from-menu*
+  (setq *steveai-from-menu* nil)
+  (vl-catch-all-apply 'steveai-menu nil)
+)
 
 (princ "\nSteve AI: go AI (hoac bam tab ribbon Steve AI) de mo tro ly AI.")
 (princ)
