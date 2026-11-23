@@ -1,6 +1,6 @@
 @echo off
 chcp 65001 >nul
-title Steve CAD-AI Connect - Uninstall
+title Steve AI Connect - Uninstall
 rem Chay tu ban sao trong TEMP de xoa duoc thu muc cai dat (ke ca chinh file nay).
 set "T=%TEMP%\SteveCADConnect-uninstall"
 if /i not "%~dp0"=="%T%\" (
@@ -13,7 +13,7 @@ if /i not "%~dp0"=="%T%\" (
   start "" "%T%\Uninstall.cmd"
   exit /b
 )
-echo Go toan bo Steve CAD-AI Connect: ngat ZWCAD/AutoCAD/ADSCivil khoi moi tro ly AI,
+echo Go toan bo Steve AI Connect: ngat ZWCAD/AutoCAD/ADSCivil khoi moi tro ly AI,
 echo tat tu nap ADSCivil 2026, xoa server, shortcut va muc trong Settings ^> Apps.
 echo.
 choice /m "Tiep tuc"

@@ -4,7 +4,7 @@ title Gemini CAD AI
 cd /d "%~dp0"
 if not defined GEMINI_API_KEY if not exist "%~dp0.env" (
   echo Chua co GEMINI_API_KEY. Lay key tai https://aistudio.google.com/apikey
-  echo roi mo Steve CAD-AI Connect, dan key vao o Gemini va bam Connect.
+  echo roi mo Steve AI Connect, buoc 1 bam "dan API key" o dong Gemini CLI.
   pause
   exit /b 1
 )

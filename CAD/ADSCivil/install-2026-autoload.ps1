@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Bring the ADSCivil 2027 AI assistant (MCP) to ADSCivil 2026 and load it at every ZWCAD start.
-  Usually run by Steve CAD-AI Connect, which finds the folders and asks for admin rights.
+  Usually run by Steve AI Connect, which finds the folders and asks for admin rights.
 
 .DESCRIPTION
   Install:
@@ -70,7 +70,7 @@ try {
     }
     Write-Host ""
     Write-Host "XONG. Mo ADSCivil 2026: dong lenh hien 'ADSCivil AI: da nap...'. Go ADSAI de mo tro ly."
-    Write-Host "Luu y: cai lai ADSCivil 2026 se ghi de ZWCAD.lsp - khi do bam Connect lai trong Steve CAD-AI Connect."
+    Write-Host "Luu y: cai lai ADSCivil 2026 se ghi de ZWCAD.lsp - khi do bam Connect lai trong Steve AI Connect."
   }
 } catch {
   Write-Host ""

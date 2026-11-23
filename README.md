@@ -1,16 +1,16 @@
-# Steve CAD-AI Connect
+# Steve AI Connect
 
 **Kết nối ZWCAD · AutoCAD · ADSCivil với Claude · ChatGPT · Gemini bằng một cú bấm.**
 
 Sau khi kết nối, bạn chỉ cần trò chuyện với trợ lý AI và nó sẽ **điều khiển trực tiếp phần mềm CAD đang mở**: đọc layer và đối tượng, vẽ, sửa, chèn block, chạy lệnh, tra tiêu chuẩn TCVN (với ADSCivil)... Việc kết nối dùng **MCP** (Model Context Protocol).
 
-![Steve CAD-AI Connect](docs/screenshot.png)
+![Steve AI Connect](docs/screenshot.png)
 
 > **Liên hệ hỗ trợ:** Steve Tran | 0987 779 228
 
 ## Dùng thế nào
 
-1. **Tải về:** vào trang [**Releases**](https://github.com/steve-trantn/Steve-AI-Connect/releases/latest), tải file **`Steve-CAD-AI-Connect-Setup-*.exe`** (một file duy nhất, có thể gửi qua Zalo, email, USB).
+1. **Tải về:** vào trang [**Releases**](https://github.com/steve-trantn/Steve-AI-Connect/releases/latest), tải file **`Steve-AI-Connect-Setup-*.exe`** (một file duy nhất, có thể gửi qua Zalo, email, USB).
 2. **Bấm đúp file exe.** Công cụ tự cài (không cần quyền admin), tạo shortcut trên Desktop rồi mở ra ở thẻ **Bắt đầu**, dẫn bạn đi qua 3 bước. Bước nào xong có dấu ✓ xanh, lần sau mở công cụ sẽ vào thẳng bước còn dang dở.
    - **Bước 1 · Kết nối** (làm một lần): công cụ tự tìm phần mềm CAD và trợ lý AI có trên máy. Bấm **Kết nối tự động**. Máy chưa có trợ lý AI thì công cụ chỉ chỗ tải Claude Code.
    - **Bước 2 · Mở phần mềm CAD:** chọn phiên bản (máy có nhiều bản, ví dụ ADSCivil 2026 và 2027, thì chọn trong danh sách xổ xuống) rồi bấm **Khởi động**. CAD mở xong, công cụ tự chuyển sang bước 3.
@@ -38,13 +38,13 @@ Câu hỏi để thử (ZWCAD, AutoCAD):
 | IFC | "Đặt cống về toạ độ X=..., Y=..., góc 30°, đặt layer theo tên cống và lý trình rồi xuất IFC 4.3." |
 | PDF | "Đọc bản vẽ cống trong D:\cong.pdf và dựng mô hình 3D." |
 
-Kết nối xong có thể đóng công cụ, khởi động lại máy cũng không mất kết nối. Công cụ tạo shortcut **Steve CAD-AI Connect** trên Desktop và trong Start menu để mở lại khi cần.
+Kết nối xong có thể đóng công cụ, khởi động lại máy cũng không mất kết nối. Công cụ tạo shortcut **Steve AI Connect** trên Desktop và trong Start menu để mở lại khi cần.
 
 | Muốn | Làm |
 |---|---|
 | Ngắt kết nối | Thẻ **Kết nối (nâng cao)**: tích chọn mục muốn ngắt, bấm **Ngắt kết nối** |
 | Kiểm tra | Mở phần mềm CAD, bấm **Kiểm tra**: công cụ đọc thử danh sách layer của bản vẽ đang mở |
-| Gỡ bỏ | **Tùy chọn nâng cao → Gỡ cài đặt**, hoặc chạy `Uninstall.cmd`, hoặc vào *Settings → Apps → Steve CAD-AI Connect → Uninstall* |
+| Gỡ bỏ | **Tùy chọn nâng cao → Gỡ cài đặt**, hoặc chạy `Uninstall.cmd`, hoặc vào *Settings → Apps → Steve AI Connect → Uninstall* |
 
 > File exe chưa có chữ ký số nên Windows SmartScreen có thể cảnh báo "Windows protected your PC": bấm **More info → Run anyway** (Thông tin thêm → Vẫn chạy).
 
@@ -106,7 +106,7 @@ ChatGPT bản web không dùng được vì chỉ nhận MCP server từ xa qua 
 ## Dòng lệnh (cho IT, cài hàng loạt)
 
 ```bat
-Steve-CAD-AI-Connect-Setup-v4.0.0.exe -Connect                                           :: cai + ket noi, khong mo giao dien
+Steve-AI-Connect-Setup-v4.0.0.exe -Connect                                           :: cai + ket noi, khong mo giao dien
 powershell -ExecutionPolicy Bypass -File app\SteveCADConnect.ps1 -Connect                 :: moi CAD + moi tro ly co tren may
 powershell -ExecutionPolicy Bypass -File app\SteveCADConnect.ps1 -Connect -Cad zwcad -Client codex,claude -Test
 powershell -ExecutionPolicy Bypass -File app\SteveCADConnect.ps1 -Connect -Ads2026 -GeminiKey <key>
@@ -135,7 +135,7 @@ powershell -ExecutionPolicy Bypass -File app\SteveCADConnect.ps1 -Uninstall
 ## Cấu trúc
 
 ```
-Steve CAD-AI Connect.cmd    bấm đúp để mở công cụ
+Steve AI Connect.cmd    bấm đúp để mở công cụ
 Uninstall.cmd               gỡ toàn bộ
 LICENSE, NOTICE             giấy phép Apache 2.0 và thông tin ghi nguồn
 app/                        SteveCADConnect.ps1 (dòng lệnh), gui.ps1 (giao diện), core.ps1, SteveAI.ps1 (mở cửa sổ AI), cadmenu.ps1 (tab ribbon)
@@ -144,7 +144,7 @@ CAD/AutoCAD/                lời dặn AI cho AutoCAD
 server/                     Steve CAD MCP (ZWCAD, AutoCAD)
 CAD/ADSCivil/               lời dặn AI, tự nạp ADSCivil 2026 (ads-ai-autoload.lsp, install-2026-autoload.ps1)
 templates/                  lời dặn chung, SteveAI.lsp (lệnh AI, STEVEAI trong CAD), launcher Gemini
-build/                      build-exe.ps1 + SteveCADSetup.cs: đóng gói thành dist\Steve-CAD-AI-Connect-Setup-<version>.exe
+build/                      build-exe.ps1 + SteveCADSetup.cs: đóng gói thành dist\Steve-AI-Connect-Setup-<version>.exe
 ```
 
 ## Liên hệ
@@ -155,12 +155,12 @@ Báo lỗi hoặc góp ý: gọi trực tiếp, hoặc mở [Issue](https://gith
 
 ## Bản quyền và ghi nguồn
 
-Steve CAD-AI Connect (gồm Steve AI và Steve CAD MCP trong thư mục `server/`) © 2026 **Steve Tran**, phát hành theo giấy phép [Apache 2.0](LICENSE).
+Steve AI Connect (gồm Steve AI và Steve CAD MCP trong thư mục `server/`) © 2026 **Steve Tran**, phát hành theo giấy phép [Apache 2.0](LICENSE).
 
 Bạn được dùng miễn phí, sửa và chia sẻ lại, kể cả trong công việc thương mại, **với điều kiện ghi nguồn**: giữ nguyên file [NOTICE](NOTICE) trong mọi bản sao hoặc bản sửa, và ghi rõ tác giả khi giới thiệu. Dòng ghi nguồn có thể dán:
 
 ```text
-Dựa trên Steve CAD-AI Connect của Steve Tran - https://github.com/steve-trantn/Steve-AI-Connect (giấy phép Apache 2.0).
+Dựa trên Steve AI Connect của Steve Tran - https://github.com/steve-trantn/Steve-AI-Connect (giấy phép Apache 2.0).
 ```
 
 Trong công cụ cũng có sẵn: **⚙ Tùy chọn nâng cao → Giới thiệu & ghi nguồn → Chép thông tin ghi nguồn**. Trích dẫn trong tài liệu, báo cáo: dùng nút **Cite this repository** ở trang GitHub (file [CITATION.cff](CITATION.cff)).

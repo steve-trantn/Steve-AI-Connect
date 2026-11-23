@@ -4,8 +4,8 @@
   trỏ sẵn vào thư mục làm việc Steve-CAD-AI, đã nối với ZWCAD / AutoCAD / ADSCivil.
 
 .DESCRIPTION
-  Gọi từ shortcut "Steve AI", từ lệnh STEVEAI trong ZWCAD/AutoCAD, hoặc từ Steve CAD-AI Connect.
-    -Client claudecode|codex|gemini   (mặc định: trợ lý đã chọn trong Steve CAD-AI Connect)
+  Gọi từ shortcut "Steve AI", từ lệnh STEVEAI trong ZWCAD/AutoCAD, hoặc từ Steve AI Connect.
+    -Client claudecode|codex|gemini   (mặc định: trợ lý đã chọn trong Steve AI Connect)
     -Skill <tên skill>                (mở và chạy ngay skill, ví dụ cong-3d)
 #>
 param([string]$Client = '', [string]$Skill = '')
@@ -26,11 +26,11 @@ try {
     $Client = @($script:LaunchClients | Where-Object { $exe[$_] } | Select-Object -First 1)[0]
   }
   if (-not $Client) {
-    Show-Msg "Máy chưa có trợ lý AI dạng cửa sổ lệnh (Claude Code, ChatGPT Codex hoặc Gemini CLI).`n`nMở Steve CAD-AI Connect, chọn trợ lý rồi bấm Connect.`n`nHỗ trợ: $($script:Contact)"
+    Show-Msg "Máy chưa có trợ lý AI dạng cửa sổ lệnh (Claude Code, ChatGPT Codex hoặc Gemini CLI).`n`nMở Steve AI Connect và bấm “Kết nối tự động” ở bước 1.`n`nHỗ trợ: $($script:Contact)"
     exit 1
   }
   if ($Client -eq 'gemini' -and -not (Test-GeminiKey)) {
-    Show-Msg "Gemini chưa có API key.`n`nMở Steve CAD-AI Connect, dán key vào ô Gemini rồi bấm Connect.`nLấy key miễn phí: https://aistudio.google.com/apikey"
+    Show-Msg "Gemini chưa có API key.`n`nMở Steve AI Connect, ở bước 1 bấm “dán API key” tại dòng Gemini CLI.`nLấy key miễn phí: https://aistudio.google.com/apikey"
     exit 1
   }
   New-Item -ItemType Directory -Force $script:Workspace | Out-Null

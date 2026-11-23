@@ -1,4 +1,4 @@
-﻿# Steve CAD-AI Connect - giao diện (WinForms). Dot-sourced by SteveCADConnect.ps1 after core.ps1.
+﻿# Steve AI Connect - giao diện (WinForms). Dot-sourced by SteveCADConnect.ps1 after core.ps1.
 # Three pages:
 #   Bắt đầu        - daily use: start a CAD (pick the version when several are installed), open Steve AI
 #   Kết nối        - one-time setup: which CAD talks to which assistant, log
@@ -149,33 +149,21 @@ $form = New-Object Windows.Forms.Form
 $form.Text = "$($script:AppName) $($script:Version)"
 $form.AutoScaleMode = 'None'
 $form.StartPosition = 'CenterScreen'; $form.FormBorderStyle = 'FixedSingle'; $form.MaximizeBox = $false
-$form.ClientSize = New-Object Drawing.Size (S $W), (S (60 + 44 + $HPage + 32))
+$form.ClientSize = New-Object Drawing.Size (S $W), (S (44 + $HPage + 32))
 $form.Font = $Fnt.n; $form.BackColor = $Pal.page; $form.ForeColor = $Pal.text
 try { $form.Icon = New-AppIcon } catch {}
 $tip = New-Object Windows.Forms.ToolTip; $tip.AutoPopDelay = 15000; $tip.InitialDelay = 400
 $script:Conn = @{}; $script:AiChoices = @(); $script:AiPick = ''
 
-# header: app badge, name, what it connects; version + theme switch on the right
-$head = Put (New-Object Windows.Forms.Panel) 0 0 $W 60; $head.BackColor = $Pal.header
-$logo = Put (New-Object Windows.Forms.PictureBox) 18 12 36 36; $logo.SizeMode = 'Zoom'; $logo.BackColor = [Drawing.Color]::Transparent
-try { $logo.Image = (New-AppIcon).ToBitmap() } catch {}
-$h1 = Put (New-Label $script:AppName $Fnt.h1 $Pal.onAccent) 64 8 360 26
-$h2 = Put (New-Label 'ZWCAD · AutoCAD · ADSCivil  ⇄  Claude · ChatGPT · Gemini' $Fnt.s $Pal.headSub) 65 33 420 18
-$themeBtn = Put (New-Object Windows.Forms.Button) ($W - 52) 14 34 32
-$themeBtn.FlatStyle = 'Flat'; $themeBtn.FlatAppearance.BorderSize = 0; $themeBtn.Cursor = 'Hand'; $themeBtn.TabStop = $false
-$themeBtn.BackColor = $Pal.header; $themeBtn.FlatAppearance.MouseOverBackColor = (Rgb 40 52 72); $themeBtn.ForeColor = $Pal.onAccent
-$themeBtn.Font = New-Object Drawing.Font 'Segoe UI Symbol', 12; $themeBtn.Text = $(if ($script:Dark) { '☀' } else { '☾' })
-$tip.SetToolTip($themeBtn, $(if ($script:Dark) { 'Chuyển sang giao diện sáng' } else { 'Chuyển sang giao diện tối' }))
-$hv = Put (New-Label $script:Version $Fnt.s $Pal.headMuted) ($W - 160) 22 100 18; $hv.TextAlign = 'TopRight'
-$head.Controls.AddRange(@($logo, $h1, $h2, $themeBtn, $hv)); $form.Controls.Add($head)
-$themeBtn.add_Click({
-  Set-Setting 'Theme' $(if ($script:Dark) { 'light' } else { 'dark' })
-  Start-Process (Join-Path $PSHOME 'powershell.exe') -ArgumentList "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -STA -File `"$(Join-Path $PSScriptRoot 'SteveCADConnect.ps1')`"" -WindowStyle Hidden
-  $form.Close()
+# No header band inside the window: the Windows title bar already shows the icon, the name and the version.
+# On Windows 11 the title bar takes the app's dark navy (DWM caption colour), so it reads as the app's header.
+$form.add_HandleCreated({
+  try { $cap = [int]($Pal.header.R) -bor ([int]($Pal.header.G) -shl 8) -bor ([int]($Pal.header.B) -shl 16); [void][SteveCad.Win]::DwmSetWindowAttribute($form.Handle, 35, [ref]$cap, 4) } catch {}
+  try { $txt = 0x00FFFFFF; [void][SteveCad.Win]::DwmSetWindowAttribute($form.Handle, 36, [ref]$txt, 4) } catch {}
 })
 
 # tab bar
-$nav = Put (New-Object Windows.Forms.Panel) 0 60 $W 44; $nav.BackColor = $Pal.surface
+$nav = Put (New-Object Windows.Forms.Panel) 0 0 $W 44; $nav.BackColor = $Pal.surface
 $navLine = Put (New-Object Windows.Forms.Panel) 0 43 $W 1; $navLine.BackColor = $Pal.line
 $ink = New-Object Windows.Forms.Panel; $ink.BackColor = $Pal.accent
 $nav.Controls.AddRange(@($navLine, $ink)); $form.Controls.Add($nav)
@@ -188,10 +176,23 @@ function New-Tab($key, $text, $x, $w) {
 $tabHome  = New-Tab 'home' 'Bắt đầu' 14 104
 # the advanced connect page has no tab: it opens from ⚙ Tùy chọn nâng cao (footer), people new to this never need it
 $tabTools = New-Tab 'tools' 'Công cụ & Skill' 122 160
+# right side of the tab bar: what it connects, and the light / dark switch
+$tagline = Put (New-Label 'ZWCAD · AutoCAD · ADSCivil  ⇄  Claude · ChatGPT · Gemini' $Fnt.s $Pal.faint) ($W - 412) 13 350 18; $tagline.TextAlign = 'TopRight'
+$themeBtn = Put (New-Object Windows.Forms.Button) ($W - 50) 6 34 32
+$themeBtn.FlatStyle = 'Flat'; $themeBtn.FlatAppearance.BorderSize = 0; $themeBtn.Cursor = 'Hand'; $themeBtn.TabStop = $false
+$themeBtn.BackColor = $Pal.surface; $themeBtn.FlatAppearance.MouseOverBackColor = $Pal.accentSoft; $themeBtn.ForeColor = $Pal.muted
+$themeBtn.Font = New-Object Drawing.Font 'Segoe UI Symbol', 11; $themeBtn.Text = $(if ($script:Dark) { '☀' } else { '☾' })
+$tip.SetToolTip($themeBtn, $(if ($script:Dark) { 'Chuyển sang giao diện sáng' } else { 'Chuyển sang giao diện tối' }))
+$nav.Controls.AddRange(@($tagline, $themeBtn))
+$themeBtn.add_Click({
+  Set-Setting 'Theme' $(if ($script:Dark) { 'light' } else { 'dark' })
+  Start-Process (Join-Path $PSHOME 'powershell.exe') -ArgumentList "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -STA -File `"$(Join-Path $PSScriptRoot 'SteveCADConnect.ps1')`"" -WindowStyle Hidden
+  $form.Close()
+})
 
 $pages = @{}
 foreach ($pk in 'home', 'conn', 'tools') {   # not $k: PowerShell names ignore case, $k would overwrite the DPI scale $K
-  $p = Put (New-Object Windows.Forms.Panel) 0 104 $W $HPage; $p.BackColor = $Pal.page; $p.Visible = $false
+  $p = Put (New-Object Windows.Forms.Panel) 0 44 $W $HPage; $p.BackColor = $Pal.page; $p.Visible = $false
   $form.Controls.Add($p); $pages[$pk] = $p
 }
 $pgHome = $pages.home; $pgConn = $pages.conn; $pgTools = $pages.tools
@@ -205,7 +206,7 @@ function Show-Page($which) {
 }
 
 # footer
-$foot = Put (New-Object Windows.Forms.Panel) 0 (104 + $HPage) $W 32; $foot.BackColor = $Pal.surface
+$foot = Put (New-Object Windows.Forms.Panel) 0 (44 + $HPage) $W 32; $foot.BackColor = $Pal.surface
 $footLine = Put (New-Object Windows.Forms.Panel) 0 0 $W 1; $footLine.BackColor = $Pal.line
 $fl1 = Put (New-Link 'Thư mục làm việc AI' $Fnt.s $Pal.accent) 16 8 132 18
 $fl1.add_LinkClicked({ New-Item -ItemType Directory -Force $script:Workspace | Out-Null; Start-Process explorer.exe $script:Workspace })
@@ -228,7 +229,7 @@ function New-SmallDialog([string]$title, [int]$w, [int]$h) {
 }
 function Show-Coffee {
   $d = New-SmallDialog 'Mời Steve ly cà phê' 360 404
-  $t1 = Put (New-Label 'Steve CAD-AI Connect miễn phí cho mọi người.' $Fnt.b $Pal.text) 20 16 320 22
+  $t1 = Put (New-Label 'Steve AI Connect miễn phí cho mọi người.' $Fnt.b $Pal.text) 20 16 320 22
   $t2 = Put (New-Label 'Nếu công cụ giúp ích cho công việc của bạn, có thể mời Steve một ly cà phê để có thêm động lực làm tiếp. Cảm ơn bạn!' $Fnt.n $Pal.muted) 20 40 320 56
   $qrFile = Join-Path $PSScriptRoot 'donate-qr.png'
   $pb = Put (New-Object Windows.Forms.PictureBox) 70 102 220 220; $pb.SizeMode = 'Zoom'; $pb.BackColor = [Drawing.Color]::White
@@ -236,10 +237,11 @@ function Show-Coffee {
   $t3 = Put (New-Label 'Quét bằng MoMo hoặc app ngân hàng bất kỳ' $Fnt.s $Pal.muted) 20 328 320 18; $t3.TextAlign = 'TopCenter'
   $ok = Put (New-Button 'Đóng') 130 356 100 34; $ok.DialogResult = 'OK'
   $d.Controls.AddRange(@($t1, $t2, $pb, $t3, $ok)); $d.AcceptButton = $ok; $d.CancelButton = $ok
-  if ($script:BuildOnly) { return $d }   # screenshots
+  [void]$d.ShowDialog($form)
+  if ($pb.Image) { $pb.Image.Dispose() }
 }
 # credit text people paste when they reuse or share the tool (Apache 2.0 asks them to keep the NOTICE)
-function Get-CreditText { "Dựa trên Steve CAD-AI Connect $($script:Version) của Steve Tran - $($script:RepoUrl) (giấy phép Apache 2.0)." }
+function Get-CreditText { "Dựa trên Steve AI Connect $($script:Version) của Steve Tran - $($script:RepoUrl) (giấy phép Apache 2.0)." }
 function Show-About {
   $d = New-SmallDialog 'Giới thiệu & ghi nguồn' 480 318
   $logo2 = Put (New-Object Windows.Forms.PictureBox) 20 18 44 44; $logo2.SizeMode = 'Zoom'; try { $logo2.Image = (New-AppIcon).ToBitmap() } catch {}
@@ -254,7 +256,6 @@ function Show-About {
   $cp.add_Click({ [Windows.Forms.Clipboard]::SetText((Get-CreditText)); $msg.Text = '✓ Đã chép, dán (Ctrl+V) vào bài viết.' })
   $ok = Put (New-Button 'Đóng') 360 272 100 34; $ok.DialogResult = 'OK'
   $d.Controls.AddRange(@($logo2, $a1, $a2, $a3, $a4, $tb, $cp, $msg, $ok)); $d.AcceptButton = $ok; $d.CancelButton = $ok
-  if ($script:BuildOnly) { return $d }   # screenshots
   [void]$d.ShowDialog($form)
 }
 
@@ -263,7 +264,7 @@ $menu = New-Object Windows.Forms.ContextMenuStrip; $menu.Font = $Fnt.n; $menu.Sh
 $menu.BackColor = $Pal.surface; $menu.ForeColor = $Pal.text
 $mi26 = New-Object Windows.Forms.ToolStripMenuItem 'ADSCivil 2026: tự nạp trợ lý ADSAI khi khởi động'; $mi26.CheckOnClick = $true
 $miScript = New-Object Windows.Forms.ToolStripMenuItem 'Cho AI chạy script Python trong ZWCAD/AutoCAD (nâng cao)'; $miScript.CheckOnClick = $true
-$bUninstall = New-Object Windows.Forms.ToolStripMenuItem 'Gỡ cài đặt Steve CAD-AI Connect…'
+$bUninstall = New-Object Windows.Forms.ToolStripMenuItem 'Gỡ cài đặt Steve AI Connect…'
 $miConn = New-Object Windows.Forms.ToolStripMenuItem 'Kết nối từng mục, kiểm tra, ngắt kết nối, nhật ký…'
 $miConn.ForeColor = $Pal.text; [void]$menu.Items.Add($miConn); [void]$menu.Items.Add((New-Object Windows.Forms.ToolStripSeparator))
 $miConn.add_Click({ $menu.Close(); Show-Page 'conn' })
@@ -966,7 +967,7 @@ $form.add_HandleCreated({
 $form.add_Shown({
   Set-DarkScroll $lv; Set-DarkScroll $log
   try { Update-View } catch { Write-Log "Lỗi đọc trạng thái: $($_.Exception.Message)" 'error' }
-  if ($script:FirstRun) { try { Install-Self; Write-Log 'Đã tạo shortcut Steve CAD-AI Connect và Steve AI trên Desktop.' 'detail' } catch {} }
+  if ($script:FirstRun) { try { Install-Self; Write-Log 'Đã tạo shortcut Steve AI Connect và Steve AI trên Desktop.' 'detail' } catch {} }
   try { Repair-CadAddon } catch {}
   try { Fill-Launchers } catch { Write-Log "Lỗi tìm phiên bản CAD: $($_.Exception.Message)" 'error' }
   $script:Shown = $true
@@ -982,13 +983,20 @@ $form.add_Shown({
   if ($env:STEVECAD_SNAPSHOT) {   # README screenshots: render the form itself (never the screen)
     if ($env:STEVECAD_SNAPPAGE) { Show-Page $env:STEVECAD_SNAPPAGE }
     if ($env:STEVECAD_SNAPSTEP) { Show-Step ([int]$env:STEVECAD_SNAPSTEP) }
-    if ($env:STEVECAD_SNAPDIALOG) {   # render a dialog (about | coffee) instead of the main window
-      $script:BuildOnly = $true
-      $dl = @($(if ($env:STEVECAD_SNAPDIALOG -eq 'about') { Show-About } else { Show-Coffee }))[-1]
-      $dl.StartPosition = 'Manual'; $dl.Location = New-Object Drawing.Point -3000, 0; $dl.Show(); [System.Windows.Forms.Application]::DoEvents()
-      $b2 = New-Object Drawing.Bitmap $dl.Width, $dl.Height
-      $dl.DrawToBitmap($b2, (New-Object Drawing.Rectangle 0, 0, $dl.Width, $dl.Height)); $b2.Save($env:STEVECAD_SNAPSHOT, [Drawing.Imaging.ImageFormat]::Png)
-      $dl.Close(); $form.Close(); return
+    if ($env:STEVECAD_SNAPDIALOG) {
+      # open the dialog exactly as a click does (ShowDialog), capture it from a timer, then close everything
+      $script:SnapTimer = New-Object Windows.Forms.Timer; $script:SnapTimer.Interval = 1200
+      $script:SnapTimer.add_Tick({
+        $script:SnapTimer.Stop()
+        $dl = @([Windows.Forms.Application]::OpenForms | Where-Object { $_ -ne $form })[0]
+        if ($dl) {
+          $b2 = New-Object Drawing.Bitmap $dl.Width, $dl.Height
+          $dl.DrawToBitmap($b2, (New-Object Drawing.Rectangle 0, 0, $dl.Width, $dl.Height)); $b2.Save($env:STEVECAD_SNAPSHOT, [Drawing.Imaging.ImageFormat]::Png); $dl.Close()
+        }
+      })
+      $script:SnapTimer.Start()
+      if ($env:STEVECAD_SNAPDIALOG -eq 'about') { Show-About } else { Show-Coffee }
+      $form.Close(); return
     }
     if ($env:STEVECAD_SNAPPICK) { $cadTile.zwcad.chk.Checked = $true; $aiTile.claudecode.chk.Checked = $true }
     $form.Refresh(); [System.Windows.Forms.Application]::DoEvents(); Start-Sleep -Milliseconds 300

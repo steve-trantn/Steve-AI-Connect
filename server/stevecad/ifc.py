@@ -362,7 +362,7 @@ def export_ifc(path: str, schema: str = "IFC4", handles: list[str] | None = None
     now = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
     head = ["ISO-10303-21;", "HEADER;",
             "FILE_DESCRIPTION(('ViewDefinition [DesignTransferView]'),'2;1');",
-            f"FILE_NAME({s_(os.path.basename(path))},'{now}',({s_(author or 'Steve CAD-AI Connect')}),(''),"
+            f"FILE_NAME({s_(os.path.basename(path))},'{now}',({s_(author or 'Steve AI Connect')}),(''),"
             f"'Steve CAD MCP {__version__}','Steve CAD MCP {__version__}','');",
             f"FILE_SCHEMA(('{sch}'));", "ENDSEC;", "DATA;"]
     body_lines = [f"#{i + 1}= {ln}" for i, ln in enumerate(st.lines)]

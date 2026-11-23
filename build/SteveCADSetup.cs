@@ -1,4 +1,4 @@
-// Steve CAD-AI Connect - Setup.exe
+// Steve AI Connect - Setup.exe
 // One file to send to other people. It carries the whole tool (payload.zip, embedded resource),
 // unpacks it into %LOCALAPPDATA%\SteveCADConnect\tool (per user, no admin rights) and opens the tool,
 // which starts on step 1 "Kết nối". Built by build\build-exe.ps1 with the C# compiler that ships with
@@ -14,10 +14,10 @@ using System.Reflection;
 using System.Threading;
 using System.Windows.Forms;
 
-[assembly: AssemblyTitle("Steve CAD-AI Connect")]
-[assembly: AssemblyDescription("Cài đặt Steve CAD-AI Connect: nối ZWCAD, AutoCAD, ADSCivil với Claude, ChatGPT, Gemini")]
+[assembly: AssemblyTitle("Steve AI Connect")]
+[assembly: AssemblyDescription("Cài đặt Steve AI Connect: nối ZWCAD, AutoCAD, ADSCivil với Claude, ChatGPT, Gemini")]
 [assembly: AssemblyCompany("Steve Tran")]
-[assembly: AssemblyProduct("Steve CAD-AI Connect")]
+[assembly: AssemblyProduct("Steve AI Connect")]
 [assembly: AssemblyCopyright("© 2026 Steve Tran · 0987 779 228")]
 [assembly: AssemblyVersion("@VERSION@.0")]
 [assembly: AssemblyFileVersion("@VERSION@.0")]
@@ -62,8 +62,8 @@ static class Program
         catch (Exception ex)
         {
             if (splash != null) splash.Hide();
-            MessageBox.Show("Không cài được Steve CAD-AI Connect:\n\n" + ex.Message + "\n\nCần hỗ trợ: " + Contact,
-                "Steve CAD-AI Connect", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show("Không cài được Steve AI Connect:\n\n" + ex.Message + "\n\nCần hỗ trợ: " + Contact,
+                "Steve AI Connect", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return 1;
         }
         finally { if (splash != null) splash.Close(); }
@@ -105,11 +105,11 @@ static class Program
     {
         var f = new Form();
         f.FormBorderStyle = FormBorderStyle.None; f.StartPosition = FormStartPosition.CenterScreen;
-        f.ShowInTaskbar = true; f.Text = "Steve CAD-AI Connect"; f.TopMost = true;
+        f.ShowInTaskbar = true; f.Text = "Steve AI Connect"; f.TopMost = true;
         f.BackColor = Color.FromArgb(15, 23, 42); f.AutoScaleMode = AutoScaleMode.Dpi;
         f.ClientSize = new Size(440, 120);
         try { f.Icon = Icon.ExtractAssociatedIcon(Assembly.GetExecutingAssembly().Location); } catch { }
-        var t1 = new Label(); t1.Text = "Steve CAD-AI Connect"; t1.ForeColor = Color.White; t1.Font = new Font("Segoe UI Semibold", 14f);
+        var t1 = new Label(); t1.Text = "Steve AI Connect"; t1.ForeColor = Color.White; t1.Font = new Font("Segoe UI Semibold", 14f);
         t1.SetBounds(24, 18, 400, 32); t1.BackColor = Color.Transparent;
         var t2 = new Label(); t2.Text = "Đang cài đặt… cửa sổ chính sẽ tự mở sau vài giây."; t2.ForeColor = Color.FromArgb(255, 196, 0);
         t2.Font = new Font("Segoe UI", 10f); t2.SetBounds(26, 56, 400, 24); t2.BackColor = Color.Transparent;

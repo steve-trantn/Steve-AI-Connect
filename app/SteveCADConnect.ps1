@@ -1,6 +1,6 @@
 ﻿<#
 .SYNOPSIS
-  Steve CAD-AI Connect - kết nối ZWCAD, AutoCAD, ADSCivil với Claude, ChatGPT (Codex), Gemini qua MCP.
+  Steve AI Connect - kết nối ZWCAD, AutoCAD, ADSCivil với Claude, ChatGPT (Codex), Gemini qua MCP.
 
 .DESCRIPTION
   Không tham số: mở giao diện (chọn CAD + trợ lý AI, Kết nối / Kiểm tra / Ngắt kết nối, mở Steve AI, xem danh sách tool).

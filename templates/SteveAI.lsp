@@ -1,6 +1,6 @@
 ;; ========================================================
 ;; Steve AI - lenh mo tro ly AI tu ZWCAD / AutoCAD.
-;; File nay do Steve CAD-AI Connect tao va tu nap (Startup Suite).
+;; File nay do Steve AI Connect tao va tu nap (Startup Suite).
 ;; Ho tro: Steve Tran | 0987 779 228
 ;;
 ;;   AI               lenh tat: mo ngay tro ly AI mac dinh
@@ -9,7 +9,7 @@
 ;;   STEVEAI-CLAUDE / STEVEAI-CODEX / STEVEAI-GEMINI
 ;;   STEVEAI-SKILL    chon mot skill roi mo AI chay skill do
 ;;   AI-<SKILL>       chay ngay mot skill, vi du AI-CONG-3D
-;;   STEVECAD         mo Steve CAD-AI Connect (ket noi, danh sach tool)
+;;   STEVECAD         mo Steve AI Connect (ket noi, danh sach tool)
 ;;   Tab ribbon "Steve AI" (file SteveAI.cuix) duoc nap tu dong.
 ;; ========================================================
 (setq *steveai-launcher* "@LAUNCHER@")
@@ -24,7 +24,7 @@
 
 (defun steveai-run (client skill / args)
   (if (not (findfile *steveai-launcher*))
-    (princ "\nSteve AI: khong thay bo mo AI. Mo Steve CAD-AI Connect va bam Ket noi lai.")
+    (princ "\nSteve AI: khong thay bo mo AI. Mo Steve AI Connect va bam Ket noi lai.")
     (progn
       (setq args "")
       (if client (setq args (strcat args " -Client " client)))
@@ -70,8 +70,8 @@
 
 (defun c:STEVECAD ()
   (if (findfile *steveai-connect*)
-    (progn (steveai-ps *steveai-connect* "") (princ "\nSteve AI: dang mo Steve CAD-AI Connect..."))
-    (princ "\nSteve AI: khong thay Steve CAD-AI Connect. Cai lai tu GitHub steve-trantn/Steve-AI-Connect.")
+    (progn (steveai-ps *steveai-connect* "") (princ "\nSteve AI: dang mo Steve AI Connect..."))
+    (princ "\nSteve AI: khong thay Steve AI Connect. Cai lai tu GitHub steve-trantn/Steve-AI-Connect.")
   )
   (princ)
 )

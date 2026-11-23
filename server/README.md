@@ -7,7 +7,7 @@ python run.py --cad zwcad   [--progid ZWCAD.Application.2026] [--allow-script]
 python run.py --cad autocad [--allow-script]
 ```
 
-Thư viện cần: `requirements.txt` (mcp, pywin32, pillow, pdfminer.six, pypdfium2). Steve CAD-AI Connect tự cài và đăng ký server cho các trợ lý AI.
+Thư viện cần: `requirements.txt` (mcp, pywin32, pillow, pdfminer.six, pypdfium2). Steve AI Connect tự cài và đăng ký server cho các trợ lý AI.
 
 ## Thiết kế
 
@@ -20,7 +20,7 @@ Thư viện cần: `requirements.txt` (mcp, pywin32, pillow, pdfminer.six, pypdf
 - **Một tool sửa bản vẽ = một bước UNDO.** Không gom khi người dùng đang dở lệnh hoặc UNDO đang tắt.
 - **Lọc trong CAD:** lọc theo loại hoặc layer dùng selection set có bộ lọc DXF, nên CAD tự lọc và chỉ đối tượng khớp mới qua COM. Gọi COM sang ZWCAD tốn khoảng 4 ms mỗi lần, nên cách này nhanh hơn hàng chục lần so với duyệt từng đối tượng.
 - **Gắn nhãn tool:** chỉ đọc (`readOnlyHint`) hoặc phá huỷ (`destructiveHint`), để trợ lý AI tự hỏi người dùng trước khi xoá hoặc lưu.
-- **`run_script` mặc định tắt:** chỉ bật bằng `--allow-script` hoặc ô tích trong Steve CAD-AI Connect.
+- **`run_script` mặc định tắt:** chỉ bật bằng `--allow-script` hoặc ô tích trong Steve AI Connect.
 - Thông báo lỗi bằng tiếng Việt.
 - **Chữ TCVN3/VNI:** chữ trong bản vẽ dùng font cũ (.VnTime, VNI-Times) được giải mã sang Unicode, để AI đọc được.
 - **Ảnh chụp đúng kích thước** trên màn hình đặt tỉ lệ 125% hay 150% (server khai báo DPI-aware).
@@ -68,7 +68,7 @@ Khối không còn đúng công thức được xuất dạng hộp bao (`Boundi
 
 ## Skill
 
-Mỗi skill là một tệp `skills/<tên>/SKILL.md`, viết quy trình nhiều bước cho AI. Server đưa skill ra dưới dạng MCP prompt và qua tool `get_skill`. Steve CAD-AI Connect còn chép skill vào `Steve-CAD-AI\.claude\skills` để Claude Code dùng như skill gốc. Thêm skill mới chỉ cần thêm một thư mục.
+Mỗi skill là một tệp `skills/<tên>/SKILL.md`, viết quy trình nhiều bước cho AI. Server đưa skill ra dưới dạng MCP prompt và qua tool `get_skill`. Steve AI Connect còn chép skill vào `Steve-CAD-AI\.claude\skills` để Claude Code dùng như skill gốc. Thêm skill mới chỉ cần thêm một thư mục.
 
 ## Tool
 

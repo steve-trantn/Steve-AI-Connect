@@ -1,8 +1,8 @@
-﻿# Steve CAD-AI Connect - core logic shared by the GUI and the command line.
+﻿# Steve AI Connect - core logic shared by the GUI and the command line.
 # Dot-source this file. Set $script:LogSink / $script:ConfirmSink to redirect messages and questions.
 
 $ErrorActionPreference = 'Stop'
-$script:AppName   = 'Steve CAD-AI Connect'
+$script:AppName   = 'Steve AI Connect'
 $script:AppId     = 'SteveCADConnect'
 $script:Root      = Split-Path $PSScriptRoot
 $script:Version   = (Get-Content (Join-Path $script:Root 'VERSION') -ErrorAction SilentlyContinue | Select-Object -First 1)
@@ -682,7 +682,7 @@ function Install-Self {
     # copy over the old files instead of deleting the folder: the GUI (or a CAD-launched Steve AI)
     # may be running from it, and Windows will not delete a folder that is a process's current directory
     New-Item -ItemType Directory -Force $script:ToolDir | Out-Null
-    $items = 'app', 'CAD', 'server', 'templates', 'VERSION', 'README.md', 'LICENSE', 'NOTICE', 'Uninstall.cmd', 'Steve CAD-AI Connect.cmd'
+    $items = 'app', 'CAD', 'server', 'templates', 'VERSION', 'README.md', 'LICENSE', 'NOTICE', 'Uninstall.cmd', 'Steve AI Connect.cmd'
     Get-ChildItem $script:ToolDir -Force | Where-Object { $items -notcontains $_.Name } | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
     foreach ($i in $items) {
       $p = Join-Path $script:Root $i
@@ -708,6 +708,8 @@ function Install-Self {
   }
   # "Steve AI": opens the AI terminal window in the workspace (replaces the v2 "Gemini CAD AI" shortcut)
   Remove-Item (Join-Path ([Environment]::GetFolderPath('Desktop')) 'Gemini CAD AI.lnk') -Force -ErrorAction SilentlyContinue
+  # the product was called "Steve CAD-AI Connect" before v1.0.1: drop the shortcuts with the old name
+  foreach ($d0 in [Environment]::GetFolderPath('Desktop'), [Environment]::GetFolderPath('Programs')) { Remove-Item (Join-Path $d0 'Steve CAD-AI Connect.lnk') -Force -ErrorAction SilentlyContinue }
   foreach ($l in @((Join-Path ([Environment]::GetFolderPath('Desktop')) 'Steve AI.lnk'), (Join-Path ([Environment]::GetFolderPath('Programs')) 'Steve AI.lnk'))) {
     $s = $sh.CreateShortcut($l)
     $s.TargetPath = Join-Path $PSHOME 'powershell.exe'
@@ -854,7 +856,7 @@ function Invoke-Uninstall {
   Write-Log "== UNINSTALL: gỡ toàn bộ $($script:AppName)" 'title'
   Invoke-Disconnect $script:CadList $script:ClientList $true
   $desk = [Environment]::GetFolderPath('Desktop'); $progs = [Environment]::GetFolderPath('Programs')
-  foreach ($l in "$desk\$($script:AppName).lnk", "$progs\$($script:AppName).lnk", "$desk\Gemini CAD AI.lnk", "$desk\Steve AI.lnk", "$progs\Steve AI.lnk") { Remove-Item $l -Force -ErrorAction SilentlyContinue }
+  foreach ($l in "$desk\$($script:AppName).lnk", "$progs\$($script:AppName).lnk", "$desk\Gemini CAD AI.lnk", "$desk\Steve AI.lnk", "$progs\Steve AI.lnk", "$desk\Steve CAD-AI Connect.lnk", "$progs\Steve CAD-AI Connect.lnk") { Remove-Item $l -Force -ErrorAction SilentlyContinue }
   try { Remove-CadAddon; Write-Log "  Đã gỡ lệnh STEVEAI khỏi ZWCAD/AutoCAD (Startup Suite)." } catch { Write-Log "  Lỗi gỡ STEVEAI: $($_.Exception.Message)" 'error' }
   Remove-Item "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\$($script:AppId)" -Recurse -Force -ErrorAction SilentlyContinue
   if (Test-Path $script:AppHome) { Remove-Item $script:AppHome -Recurse -Force -ErrorAction SilentlyContinue; Write-Log "  Đã xóa $script:AppHome" }

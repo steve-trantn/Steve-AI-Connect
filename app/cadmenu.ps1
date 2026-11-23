@@ -1,4 +1,4 @@
-﻿# Steve CAD-AI Connect - tab ribbon "Steve AI" cho ZWCAD / AutoCAD (file partial SteveAI.cuix).
+﻿# Steve AI Connect - tab ribbon "Steve AI" cho ZWCAD / AutoCAD (file partial SteveAI.cuix).
 # Dot-sourced by core.ps1. The .cuix is a zip of XML parts (same layout as the ADSCivil menus).
 # Every button macro first loads SteveAI.lsp when the drawing does not have it yet (LISP is per drawing).
 
@@ -51,7 +51,7 @@ function Write-CadMenu {
     Add-Btn "SK$i" $s.name "$d ($c)" $c $lbl $gold $dark
   }
   Add-Btn 'SKILL'  'Chọn skill…'     'Chọn một skill trong danh sách rồi mở AI chạy skill đó (STEVEAI-SKILL)' 'STEVEAI-SKILL' '≡' $gold $dark
-  Add-Btn 'CONN'   "Kết nối"         'Mở Steve CAD-AI Connect: kết nối CAD với AI, xem danh sách tool (STEVECAD)' 'STEVECAD' 'S' $blue $white
+  Add-Btn 'CONN'   "Kết nối"         'Mở Steve AI Connect: kết nối CAD với AI, xem danh sách tool (STEVECAD)' 'STEVECAD' 'S' $blue $white
   Add-Btn 'HELP'   'Hướng dẫn'       "Các lệnh Steve AI và liên hệ hỗ trợ: $($script:Contact) (STEVEAI-HELP)" 'STEVEAI-HELP' '?' ([Drawing.Color]::FromArgb(95, 99, 104)) $white
 
   $hdr = '<?xml version="1.0"?>'
@@ -100,7 +100,7 @@ $body
   $skillIds = @($btn.Keys | Where-Object { $_ -like 'SK*' -and $_ -ne 'SKILL' })
   $pAi = & $panel 'AI' 'Trợ lý AI' ((& $rbtn 'OPEN' 'LargeWithText') + (& $stack 'AI' @('CLAUDE', 'CODEX', 'GEMINI')))
   $pSk = & $panel 'SKILL' 'Skill' ((($skillIds | ForEach-Object { & $rbtn $_ 'LargeWithText' }) -join '') + (& $stack 'SK' @('SKILL')))
-  $pCn = & $panel 'CONN' 'Steve CAD-AI Connect' ((& $rbtn 'CONN' 'LargeWithText') + (& $stack 'CN' @('HELP')))
+  $pCn = & $panel 'CONN' 'Steve AI Connect' ((& $rbtn 'CONN' 'LargeWithText') + (& $stack 'CN' @('HELP')))
   $refs = foreach ($p in 'AI', 'SKILL', 'CONN') { "      <RibbonPanelSourceReference UID=`"RBN_SAI_PR_$p`" PanelId=`"RBN_SAI_P_$p`" ResizeStyle=`"Default`">`r`n        $rev`r`n      </RibbonPanelSourceReference>" }
   $ribbon = @"
 $hdr

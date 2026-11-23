@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
-  Đóng gói Steve CAD-AI Connect thành MỘT file exe để gửi cho người khác:
-    dist\Steve-CAD-AI-Connect-Setup-<version>.exe
+  Đóng gói Steve AI Connect thành MỘT file exe để gửi cho người khác:
+    dist\Steve-AI-Connect-Setup-<version>.exe
   Dùng trình biên dịch C# có sẵn trong Windows (.NET Framework 4.x), không cần cài thêm gì.
 .EXAMPLE
   powershell -ExecutionPolicy Bypass -File build\build-exe.ps1
@@ -18,7 +18,7 @@ Add-Type -AssemblyName System.IO.Compression, System.IO.Compression.FileSystem, 
 try {
   # 1. payload: the same files Install-Self copies, without caches
   $stage = Join-Path $work 'payload'
-  $items = 'app', 'CAD', 'server', 'templates', 'VERSION', 'README.md', 'LICENSE', 'NOTICE', 'Uninstall.cmd', 'Steve CAD-AI Connect.cmd'
+  $items = 'app', 'CAD', 'server', 'templates', 'VERSION', 'README.md', 'LICENSE', 'NOTICE', 'Uninstall.cmd', 'Steve AI Connect.cmd'
   foreach ($i in $items) {
     $p = Join-Path $root $i
     if (Test-Path $p -PathType Container) {
@@ -68,7 +68,7 @@ try {
   $csc = Join-Path $fw 'csc.exe'
   $src = Join-Path $work 'SteveCADSetup.cs'
   [IO.File]::WriteAllText($src, ([IO.File]::ReadAllText((Join-Path $PSScriptRoot 'SteveCADSetup.cs')).Replace('@VERSION@', $num)), (New-Object Text.UTF8Encoding $true))
-  $out = Join-Path $dist "Steve-CAD-AI-Connect-Setup-$ver.exe"
+  $out = Join-Path $dist "Steve-AI-Connect-Setup-$ver.exe"
   $cscArgs = @('/nologo', '/target:winexe', '/optimize+', '/platform:anycpu', "/out:$out", "/win32icon:$ico",
                "/resource:$zip,payload.zip", "/reference:$fw\System.IO.Compression.dll", "/reference:$fw\System.IO.Compression.FileSystem.dll",
                '/reference:System.Windows.Forms.dll', '/reference:System.Drawing.dll', $src)
