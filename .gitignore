@@ -1,0 +1,19 @@
+# secrets
+.env
+*.env
+
+# backups
+*.bak
+*.bak-*
+
+# proprietary ADSCivil binaries / data - copied from the local install by the scripts, never committed
+*.zrx
+*.exe
+*.dll
+*.sqlite
+AdsAI/
+__pycache__/
+*.pyc
+
+# build output
+dist/

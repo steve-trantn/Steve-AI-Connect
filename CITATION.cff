@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "Nếu bạn dùng lại hoặc dựa trên công cụ này, vui lòng ghi nguồn như sau. / If you use or build on this tool, please cite it as below."
+title: "Steve CAD-AI Connect"
+abstract: "Kết nối ZWCAD, AutoCAD, ADSCivil với Claude, ChatGPT (Codex), Gemini qua MCP; trợ lý Steve AI làm việc trực tiếp trên bản vẽ."
+type: software
+authors:
+  - family-names: "Tran"
+    given-names: "Steve"
+version: "1.0.0"
+date-released: "2026-11-23"
+license: Apache-2.0
+repository-code: "https://github.com/steve-trantn/Steve-AI-Connect"
+url: "https://github.com/steve-trantn/Steve-AI-Connect"
+keywords:
+  - CAD
+  - ZWCAD
+  - AutoCAD
+  - ADSCivil
+  - MCP
+  - AI

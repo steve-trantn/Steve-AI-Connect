@@ -1,0 +1,113 @@
+;; ========================================================
+;; Steve AI - lenh mo tro ly AI tu ZWCAD / AutoCAD.
+;; File nay do Steve CAD-AI Connect tao va tu nap (Startup Suite).
+;; Ho tro: Steve Tran | 0987 779 228
+;;
+;;   AI               lenh tat: mo ngay tro ly AI mac dinh
+;;   STEVEAI          mo cua so AI (CL = Claude, CO = Codex, G = Gemini, Enter = mac dinh)
+;;   STEVEAI-OPEN     mo ngay tro ly mac dinh
+;;   STEVEAI-CLAUDE / STEVEAI-CODEX / STEVEAI-GEMINI
+;;   STEVEAI-SKILL    chon mot skill roi mo AI chay skill do
+;;   AI-<SKILL>       chay ngay mot skill, vi du AI-CONG-3D
+;;   STEVECAD         mo Steve CAD-AI Connect (ket noi, danh sach tool)
+;;   Tab ribbon "Steve AI" (file SteveAI.cuix) duoc nap tu dong.
+;; ========================================================
+(setq *steveai-launcher* "@LAUNCHER@")
+(setq *steveai-connect* "@CONNECT@")
+(setq *steveai-cuix* "@CUIX@")
+(setq *steveai-skills* '(@SKILLS@))
+
+(defun steveai-ps (file extra)
+  (startapp "powershell.exe"
+    (strcat "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -STA -File \"" file "\"" extra))
+)
+
+(defun steveai-run (client skill / args)
+  (if (not (findfile *steveai-launcher*))
+    (princ "\nSteve AI: khong thay bo mo AI. Mo Steve CAD-AI Connect va bam Ket noi lai.")
+    (progn
+      (setq args "")
+      (if client (setq args (strcat args " -Client " client)))
+      (if skill (setq args (strcat args " -Skill " skill)))
+      (steveai-ps *steveai-launcher* args)
+      (princ (strcat "\nSteve AI: dang mo cua so AI" (if skill (strcat " - skill " skill) "") "..."))
+    )
+  )
+  (princ)
+)
+
+(defun c:STEVEAI ( / k)
+  (initget "CLaude COdex Gemini")
+  (setq k (getkword "\nSteve AI - chon tro ly [CLaude/COdex/Gemini] <Enter = mac dinh>: "))
+  (steveai-run (cond ((= k "CLaude") "claudecode") ((= k "COdex") "codex") ((= k "Gemini") "gemini")) nil)
+)
+;; AI: lenh tat, mo ngay tro ly mac dinh (go AI + Enter)
+(defun c:AI () (steveai-run nil nil))
+(defun c:STEVEAI-OPEN () (steveai-run nil nil))
+(defun c:STEVEAI-CLAUDE () (steveai-run "claudecode" nil))
+(defun c:STEVEAI-CODEX () (steveai-run "codex" nil))
+(defun c:STEVEAI-GEMINI () (steveai-run "gemini" nil))
+
+(defun c:STEVEAI-SKILL ( / i s k)
+  (if (null *steveai-skills*)
+    (princ "\nSteve AI: chua co skill nao.")
+    (progn
+      (setq i 0)
+      (princ "\nCac skill co san:")
+      (foreach s *steveai-skills*
+        (setq i (1+ i))
+        (princ (strcat "\n  " (itoa i) ". " (car s) " - " (cadr s)))
+      )
+      (initget 6)
+      (setq k (getint (strcat "\nChon skill [1-" (itoa i) "]: ")))
+      (if (and k (<= k i))
+        (steveai-run nil (car (nth (1- k) *steveai-skills*)))
+      )
+    )
+  )
+  (princ)
+)
+
+(defun c:STEVECAD ()
+  (if (findfile *steveai-connect*)
+    (progn (steveai-ps *steveai-connect* "") (princ "\nSteve AI: dang mo Steve CAD-AI Connect..."))
+    (princ "\nSteve AI: khong thay Steve CAD-AI Connect. Cai lai tu GitHub steve-trantn/Steve-AI-Connect.")
+  )
+  (princ)
+)
+
+(defun c:STEVEAI-HELP ()
+  (alert (strcat "Steve AI - tro ly AI cho ZWCAD / AutoCAD / ADSCivil\n\n"
+                 "AI               mo ngay cua so chat voi AI\n"
+                 "STEVEAI          chon tro ly (Claude / Codex / Gemini) roi mo\n"
+                 "STEVEAI-SKILL    chay mot skill (vi du dung cong 3D)\n"
+                 "STEVECAD         ket noi / xem danh sach tool\n\n"
+                 "Ho tro: Steve Tran - 0987 779 228"))
+  (princ)
+)
+
+;;@SKILLCMDS@
+
+;; Ribbon tab "Steve AI": load the partial menu once (the CAD remembers it afterwards)
+(defun steveai-menu ( / mgs found r)
+  (if (and (/= *steveai-cuix* "") (findfile *steveai-cuix*))
+    (progn
+      (vl-load-com)
+      (setq mgs (vla-get-MenuGroups (vlax-get-acad-object)))
+      (vlax-for g mgs (if (= (strcase (vla-get-Name g)) "STEVEAI") (setq found T)))
+      (if (not found)
+        (progn
+          (setq r (vl-catch-all-apply 'vla-Load (list mgs *steveai-cuix*)))
+          (if (vl-catch-all-error-p r)
+            (princ (strcat "\nSteve AI: chua nap duoc tab ribbon (" (vl-catch-all-error-message r) "). Go CUILOAD va chon " *steveai-cuix*))
+            (princ "\nSteve AI: da them tab ribbon Steve AI.")
+          )
+        )
+      )
+    )
+  )
+)
+(vl-catch-all-apply 'steveai-menu nil)
+
+(princ "\nSteve AI: go AI (hoac bam tab ribbon Steve AI) de mo tro ly AI.")
+(princ)
