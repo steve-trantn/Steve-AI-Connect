@@ -24,13 +24,12 @@ function S([double]$v) { [int][Math]::Round($v * $script:K) }
 function Put($c, $x, $y, $w, $h) { $c.SetBounds((S $x), (S $y), (S $w), (S $h)); return $c }
 
 # ---------- theme ----------
-# Setting 'Theme': 'dark' | 'light' | '' (follow Windows: Settings > Personalization > Colors)
+# Setting 'Theme': 'dark' | 'light'. Dark by default; the ☀ / ☾ button on the tab bar switches and remembers it.
 function Get-ThemeName {
   $t = [string](Get-Setting 'Theme' '')
   if ($env:STEVECAD_THEME) { $t = $env:STEVECAD_THEME }   # screenshots
   if ($t -in 'dark', 'light') { return $t }
-  try { if ((Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize' -ErrorAction Stop).AppsUseLightTheme -eq 0) { return 'dark' } } catch {}
-  return 'light'
+  return 'dark'
 }
 $script:Theme = Get-ThemeName
 $script:Dark = $script:Theme -eq 'dark'

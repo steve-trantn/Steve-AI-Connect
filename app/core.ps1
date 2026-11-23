@@ -708,7 +708,7 @@ function Install-Self {
   }
   # "Steve AI": opens the AI terminal window in the workspace (replaces the v2 "Gemini CAD AI" shortcut)
   Remove-Item (Join-Path ([Environment]::GetFolderPath('Desktop')) 'Gemini CAD AI.lnk') -Force -ErrorAction SilentlyContinue
-  # the product was called "Steve CAD-AI Connect" before v1.0.1: drop the shortcuts with the old name
+  # the product was called "Steve CAD-AI Connect" in early builds: drop the shortcuts with the old name
   foreach ($d0 in [Environment]::GetFolderPath('Desktop'), [Environment]::GetFolderPath('Programs')) { Remove-Item (Join-Path $d0 'Steve CAD-AI Connect.lnk') -Force -ErrorAction SilentlyContinue }
   foreach ($l in @((Join-Path ([Environment]::GetFolderPath('Desktop')) 'Steve AI.lnk'), (Join-Path ([Environment]::GetFolderPath('Programs')) 'Steve AI.lnk'))) {
     $s = $sh.CreateShortcut($l)
