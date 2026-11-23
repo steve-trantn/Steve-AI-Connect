@@ -271,6 +271,61 @@ function Find-Codex {
   if ($cx -and (Test-Path $cx)) { return $cx }
   return $null
 }
+
+# ---------- logos of the AI assistants ----------
+# Taken from the installed apps (their own exe icon), like the CAD logos; Gemini CLI is only a Node.js script
+# with no icon, so its official logo ships in app\logos\gemini.png. Returns a file path (exe or png) or $null.
+$script:AiIconCache = @{}
+function Get-AiIconSource([string]$client) {
+  if ($script:AiIconCache.ContainsKey($client)) { return $script:AiIconCache[$client] }
+  $claudeApp = {
+    $p = Get-AppxPackage Claude -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($p -and (Test-Path (Join-Path $p.InstallLocation 'app\Claude.exe'))) { return (Join-Path $p.InstallLocation 'app\Claude.exe') }
+    $d = Join-Path $env:LOCALAPPDATA 'AnthropicClaude'
+    if (Test-Path "$d\claude.exe") { return "$d\claude.exe" }
+    return $null
+  }
+  $f = $null
+  switch ($client) {
+    'claude'     { $f = & $claudeApp }
+    'claudecode' { $e = Find-Exe 'claude'; $f = if ($e -and $e -match '\.exe$') { $e } else { & $claudeApp } }
+    'codex'      {
+      $p = Get-AppxPackage OpenAI.Codex -ErrorAction SilentlyContinue | Select-Object -First 1
+      # the GUI: the app's flat logo, white on a dark theme, black on a light one (the exe icon is dark grey,
+      # nearly invisible on dark); elsewhere (CAD ribbon) the exe icon
+      $alt = if ($script:IsGui) { if ($script:Dark) { 'altform-unplated' } else { 'altform-lightunplated' } } else { '' }
+      $png = if ($p -and $alt) { Join-Path $p.InstallLocation "assets\Square44x44Logo.targetsize-96_$alt.png" }
+      $f = if ($png -and (Test-Path $png)) { $png } elseif ($p -and (Test-Path (Join-Path $p.InstallLocation 'app\ChatGPT.exe'))) { Join-Path $p.InstallLocation 'app\ChatGPT.exe' } else { Find-Codex }
+    }
+    'gemini'     { $f = Join-Path $PSScriptRoot 'logos\gemini.png' }
+  }
+  if ($f -and -not (Test-Path $f)) { $f = $null }
+  $script:AiIconCache[$client] = $f
+  return $f
+}
+# A square bitmap of $px pixels from an exe's icon or a png, or $null.
+Add-Type -Namespace SteveCad -Name Icon -MemberDefinition @'
+[DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern uint PrivateExtractIcons(string f, int i, int cx, int cy, IntPtr[] h, int[] id, uint n, uint flags);
+[DllImport("user32.dll")] public static extern bool DestroyIcon(IntPtr h);
+'@ -ErrorAction SilentlyContinue
+function Get-IconBitmap([string]$file, [int]$px) {
+  if (-not $file -or -not (Test-Path $file)) { return $null }
+  Add-Type -AssemblyName System.Drawing
+  try {
+    if ($file -match '\.png$') {
+      $bytes = [IO.File]::ReadAllBytes($file)   # read into memory: Image.FromFile would keep the file locked
+      $src = [Drawing.Image]::FromStream((New-Object IO.MemoryStream (, $bytes)))
+    } else {
+      $h = New-Object IntPtr[] 1; $id = New-Object int[] 1; $ask = [Math]::Max(32, [Math]::Min(256, $px))
+      if ([SteveCad.Icon]::PrivateExtractIcons($file, 0, $ask, $ask, $h, $id, 1, 0) -eq 0 -or $h[0] -eq [IntPtr]::Zero) { return $null }
+      $src = ([Drawing.Icon]::FromHandle($h[0])).ToBitmap(); [void][SteveCad.Icon]::DestroyIcon($h[0])
+    }
+    $b = New-Object Drawing.Bitmap $px, $px
+    $g = [Drawing.Graphics]::FromImage($b); $g.InterpolationMode = 'HighQualityBicubic'; $g.SmoothingMode = 'AntiAlias'; $g.PixelOffsetMode = 'HighQuality'
+    $g.Clear([Drawing.Color]::Transparent); $g.DrawImage($src, 0, 0, $px, $px); $g.Dispose(); $src.Dispose()
+    return $b
+  } catch { return $null }
+}
 function Get-ClaudeDesktopConfigs {
   $list = @()
   Get-ChildItem (Join-Path $env:LOCALAPPDATA 'Packages') -Directory -Filter 'Claude_*' -ErrorAction SilentlyContinue |
@@ -665,7 +720,8 @@ function New-AppIcon {
   $g.Clear([Drawing.Color]::Transparent)
   $path = New-Object Drawing.Drawing2D.GraphicsPath
   $r = 14; $path.AddArc(0, 0, $r, $r, 180, 90); $path.AddArc(63 - $r, 0, $r, $r, 270, 90); $path.AddArc(63 - $r, 63 - $r, $r, $r, 0, 90); $path.AddArc(0, 63 - $r, $r, $r, 90, 90); $path.CloseFigure()
-  $g.FillPath((New-Object Drawing.SolidBrush ([Drawing.Color]::FromArgb(255, 16, 94, 168))), $path)
+  # ZWCAD-style blue gradient (sampled from the ZWCAD icon): white S and gold AI stand out on it
+  $g.FillPath((New-Object Drawing.Drawing2D.LinearGradientBrush (New-Object Drawing.Point 0, 0), (New-Object Drawing.Point 64, 64), ([Drawing.Color]::FromArgb(24, 150, 250)), ([Drawing.Color]::FromArgb(0, 88, 228))), $path)
   $f = New-Object Drawing.Font 'Segoe UI', 25, ([Drawing.FontStyle]::Bold), ([Drawing.GraphicsUnit]::Pixel)
   $sf = New-Object Drawing.StringFormat; $sf.Alignment = 'Center'; $sf.LineAlignment = 'Center'
   $g.DrawString('S', $f, [Drawing.Brushes]::White, (New-Object Drawing.RectangleF 0, 2, 40, 40), $sf)

@@ -15,5 +15,8 @@ credit: "Based on Steve AI Connect by Steve Tran
 (https://github.com/steve-trantn/Steve-AI-Connect)".
 
 ZWCAD, AutoCAD, ADSCivil, Claude, ChatGPT/Codex and Gemini are trademarks of
-their respective owners. This repository contains no files of those products;
-the tool uses the copies installed on the user's computer.
+their respective owners. This repository contains no program files of those products;
+the tool uses the copies installed on the user's computer. The product logos
+shown in the tool are read from those installed programs, except the Gemini
+logo (app/logos/gemini.png), which belongs to Google and is included only to
+show that the tool works with Gemini.

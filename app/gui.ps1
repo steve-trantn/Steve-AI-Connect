@@ -281,18 +281,13 @@ $miScript.add_CheckedChanged({ if (-not $script:Filling) { Set-Setting 'AllowScr
 #   1 Kết nối (one click, everything found on the PC)  ->  2 Mở phần mềm CAD  ->  3 Hỏi AI
 # The page opens on the first step that is not done yet; finished steps show a green check.
 # =====================================================================
-# real program icons (the installed exe's own icon), falls back to a lettered badge
+# real program icons (the installed exe's own icon, or the shipped Gemini logo), falls back to a lettered badge.
+# For an AI assistant pass $file = '' and the key (claude, claudecode, codex, gemini): the source is looked up.
 function Get-ProgramImage([string]$file, [string]$key, [int]$size) {
   $px = S $size
-  if ($file -and (Test-Path $file)) {
-    try {
-      $h = New-Object IntPtr[] 1; $id = New-Object int[] 1
-      $ask = [Math]::Max(32, [Math]::Min(256, $px))
-      if ([SteveCad.Win]::PrivateExtractIcons($file, 0, $ask, $ask, $h, $id, 1, 0) -gt 0 -and $h[0] -ne [IntPtr]::Zero) {
-        $bmp = ([Drawing.Icon]::FromHandle($h[0])).ToBitmap(); [void][SteveCad.Win]::DestroyIcon($h[0]); return $bmp
-      }
-    } catch {}
-  }
+  if (-not $file -and $key -in $script:ClientList) { $file = Get-AiIconSource $key }
+  $bmp = Get-IconBitmap $file $px
+  if ($bmp) { return $bmp }
   $b = $Badge[$key]; if (-not $b) { $b = @('?', $Pal.faint, $Pal.onAccent) }
   $ms = New-Object IO.MemoryStream (, (New-MenuIcon $b[0] $b[1] $b[2] $px))
   return [Drawing.Image]::FromStream($ms)
@@ -569,7 +564,9 @@ $aiIn = $ai.inner
 $lAi = Put (New-Label 'Trợ lý' $Fnt.s $Pal.muted) 18 14 60 18
 $segs = @{}; $sx = 18
 foreach ($c in $script:LaunchClients) {
-  $b = Put (New-Button $script:ClientLabel[$c] 'seg') $sx 34 150 34; $b.Name = $c
+  $segText = @{ claudecode = 'Claude Code'; codex = 'ChatGPT'; gemini = 'Gemini CLI' }[$c]   # short, fits on one line
+  $b = Put (New-Button ('  ' + $segText) 'seg') $sx 34 150 34; $b.Name = $c
+  $b.Image = Get-ProgramImage '' $c 18; $b.ImageAlign = 'MiddleLeft'; $b.TextImageRelation = 'ImageBeforeText'; $b.Padding = New-Object Windows.Forms.Padding (S 10), 0, (S 6), 0
   $b.add_Click({ $script:AiPick = $this.Name; Set-Setting 'DefaultAI' $this.Name; Update-Segs; Update-AiReady })
   $aiIn.Controls.Add($b); $segs[$c] = $b; $sx += 156
 }

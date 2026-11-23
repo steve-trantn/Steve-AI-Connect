@@ -27,7 +27,7 @@ function ConvertTo-Xml([string]$s) { [Security.SecurityElement]::Escape($s) }
 
 function Write-CadMenu {
   Add-Type -AssemblyName System.IO.Compression, System.Drawing
-  $blue = [Drawing.Color]::FromArgb(16, 94, 168); $gold = [Drawing.Color]::FromArgb(255, 196, 0)
+  $blue = [Drawing.Color]::FromArgb(0, 104, 236); $gold = [Drawing.Color]::FromArgb(255, 196, 0)
   $dark = [Drawing.Color]::FromArgb(32, 33, 36); $white = [Drawing.Color]::White
   $lisp = $script:CadLisp -replace '\\', '/'
   # macro: load SteveAI.lsp into this drawing if needed, then run the command
@@ -138,7 +138,18 @@ $($refs -join "`r`n")
     $parts["$n.cui"] = "$hdr`r`n<$n $ns />`r`n"
   }
   $images = [ordered]@{}
-  foreach ($b in $btn.Values) { foreach ($sz in 16, 32) { $images["SAI_$($b.id)$sz.png"] = New-MenuIcon $b.ico $b.bg $b.fg $sz } }
+  # the assistants' buttons use their real logos (installed apps / shipped Gemini logo), the others a lettered icon
+  $aiOf = @{ CLAUDE = 'claudecode'; CODEX = 'codex'; GEMINI = 'gemini' }
+  foreach ($b in $btn.Values) {
+    foreach ($sz in 16, 32) {
+      $png = $null
+      if ($aiOf[$b.id]) {
+        $bm = Get-IconBitmap (Get-AiIconSource $aiOf[$b.id]) $sz
+        if ($bm) { $ms = New-Object IO.MemoryStream; $bm.Save($ms, [Drawing.Imaging.ImageFormat]::Png); $bm.Dispose(); $png = $ms.ToArray() }
+      }
+      $images["SAI_$($b.id)$sz.png"] = $(if ($png) { , $png } else { , (New-MenuIcon $b.ico $b.bg $b.fg $sz) })
+    }
+  }
 
   $stamp = (Get-Date).ToString('yyyy-MM-ddTHH:mm:ss.fffffffzzz')
   $info = "<?xml version=`"1.0`" encoding=`"utf-8`"?>`r`n<MenuPackageParts>`r`n" + ((@($parts.Keys) + 'Menu_Package_Info.xml' + @($images.Keys) | ForEach-Object { "  <PartData PartData_Name=`"/$_`" PartData_Modified=`"$stamp`" />" }) -join "`r`n") + "`r`n</MenuPackageParts>`r`n"

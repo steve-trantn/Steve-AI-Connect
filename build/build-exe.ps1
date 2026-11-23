@@ -39,7 +39,7 @@ try {
     $k = $n / 64.0; $r = [Math]::Max(3, 14 * $k); $m = $n - 1
     $path = New-Object Drawing.Drawing2D.GraphicsPath
     $path.AddArc(0, 0, $r, $r, 180, 90); $path.AddArc($m - $r, 0, $r, $r, 270, 90); $path.AddArc($m - $r, $m - $r, $r, $r, 0, 90); $path.AddArc(0, $m - $r, $r, $r, 90, 90); $path.CloseFigure()
-    $g.FillPath((New-Object Drawing.SolidBrush ([Drawing.Color]::FromArgb(16, 94, 168))), $path)
+    $g.FillPath((New-Object Drawing.Drawing2D.LinearGradientBrush (New-Object Drawing.Point 0, 0), (New-Object Drawing.Point ($n + 1), ($n + 1)), ([Drawing.Color]::FromArgb(24, 150, 250)), ([Drawing.Color]::FromArgb(0, 88, 228))), $path)
     $sf = New-Object Drawing.StringFormat; $sf.Alignment = 'Center'; $sf.LineAlignment = 'Center'
     $f1 = New-Object Drawing.Font 'Segoe UI', ([float](25 * $k)), ([Drawing.FontStyle]::Bold), ([Drawing.GraphicsUnit]::Pixel)
     $g.DrawString('S', $f1, [Drawing.Brushes]::White, (New-Object Drawing.RectangleF 0, (2 * $k), (40 * $k), (40 * $k)), $sf)
