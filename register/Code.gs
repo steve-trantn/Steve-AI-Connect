@@ -6,7 +6,8 @@
  *   {action:'send',   email}                                         -> gửi mã 6 số qua email
  *   {action:'verify', email, code, name?, phone?, consent?, news?, version?}
  *        -> {ok:true, name}; email mới mà chưa có họ tên/SĐT -> {ok:false, error:'profile'} (mã vẫn còn hiệu lực)
- * error: email | wait | limit | quota | code | expired | profile | busy | server
+ *   {action:'feature', email, kind, cad, title, desc, version}        -> ghi vào sheet 'YeuCau'
+ * error: many | empty | email | wait | limit | quota | code | expired | profile | busy | server
  * 'send' trả lời giống nhau dù email đã đăng ký hay chưa, để không ai dò được danh sách.
  */
 var SHEET = 'DangKy';
@@ -27,6 +28,7 @@ function doPost(e) {
     if (email.length > 120 || !/^[a-z0-9][a-z0-9._%+\-]*@[a-z0-9\-]+(\.[a-z0-9\-]+)*\.[a-z]{2,}$/.test(email)) return out_({ ok: false, error: 'email' });
     if (q.action === 'send') return out_(send_(email));
     if (q.action === 'verify') return out_(verify_(email, q));
+    if (q.action === 'feature') return out_(feature_(email, q));
     return out_({ ok: false, error: 'server' });
   } catch (err) {
     console.error(err);
@@ -82,9 +84,27 @@ function verify_(email, q) {
   return { ok: true, name: name };
 }
 
-function sheet_() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet(), sh = ss.getSheetByName(SHEET);
-  if (!sh) { sh = ss.insertSheet(SHEET); sh.appendRow(HEAD); sh.setFrozenRows(1); }
+// Đề xuất tính năng. Email ở đây do người gửi tự khai (không qua mã), cột "Đã đăng ký" chỉ cho biết email có trong danh sách.
+var SHEET2 = 'YeuCau';
+var HEAD2 = ['Gửi lúc', 'Email', 'Họ và tên', 'Đã đăng ký', 'Loại', 'Dùng với', 'Tên tính năng', 'Mô tả', 'Phiên bản', 'Trạng thái', 'Ghi chú của Steve'];
+function feature_(email, q) {
+  var txt = function (v, n) { return String(v || '').replace(/[\x00-\x08\x0b-\x1f]/g, ' ').trim().slice(0, n); };
+  var title = txt(q.title, 120), desc = txt(q.desc, 3000);
+  if (title.length < 5 || desc.length < 15) return { ok: false, error: 'empty' };
+  var c = CacheService.getScriptCache(), k = 'f' + hash_(email);   // 5 đề xuất mỗi email, 200 tổng cộng, trong 6 giờ
+  var n = Number(c.get(k) || 0), all = Number(c.get('fall') || 0);
+  if (n >= 5 || all >= 200) return { ok: false, error: 'many' };
+  var users = sheet_(), row = find_(users, email), name = row ? String(users.getRange(row, 3).getValue()) : '';
+  sheet_(SHEET2, HEAD2).appendRow([new Date(), "'" + email, "'" + name, row ? 'Có' : 'Không', "'" + txt(q.kind, 40), "'" + txt(q.cad, 20),
+    "'" + title, "'" + desc, "'" + txt(q.version, 20), 'Mới', '']);
+  c.put(k, String(n + 1), 21600); c.put('fall', String(all + 1), 21600);
+  return { ok: true };
+}
+
+function sheet_(name, head) {
+  name = name || SHEET; head = head || HEAD;
+  var ss = SpreadsheetApp.getActiveSpreadsheet(), sh = ss.getSheetByName(name);
+  if (!sh) { sh = ss.insertSheet(name); sh.appendRow(head); sh.setFrozenRows(1); }
   return sh;
 }
 function find_(sh, email) {
@@ -102,4 +122,4 @@ function hash_(s) {
 function out_(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
 
 /** Chạy hàm này một lần trong trình soạn Apps Script để cấp quyền (Sheet + gửi mail) và tạo sheet. */
-function caiDat() { sheet_(); Logger.log('Còn gửi được ' + MailApp.getRemainingDailyQuota() + ' mail hôm nay.'); }
+function caiDat() { sheet_(); sheet_(SHEET2, HEAD2); Logger.log('Còn gửi được ' + MailApp.getRemainingDailyQuota() + ' mail hôm nay.'); }

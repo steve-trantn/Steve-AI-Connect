@@ -26,6 +26,7 @@ $script:RegErrors = @{
   code = 'Mã chưa đúng. Kiểm tra lại email.'; expired = 'Mã đã hết hạn hoặc nhập sai quá nhiều lần. Bấm gửi mã mới.'
   profile = 'Email này chưa đăng ký. Điền họ tên, SĐT, tích đồng ý rồi bấm Xác nhận lại.'
   busy = 'Máy chủ đang bận. Thử lại sau ít giây.'; server = 'Máy chủ đăng ký gặp lỗi. Thử lại sau.'
+  many = 'Bạn đã gửi nhiều đề xuất rồi. Thử lại sau vài giờ.'; empty = 'Điền tên và mô tả tính năng.'
   network = 'Không kết nối được máy chủ đăng ký. Kiểm tra mạng Internet.'
 }
 # these are not the user's fault: they may start the trial

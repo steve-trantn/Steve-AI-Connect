@@ -4,6 +4,7 @@
 #   Kết nối        - one-time setup: which CAD talks to which assistant, log
 #   Công cụ & Skill - searchable list of the MCP tools and skills
 . (Join-Path $PSScriptRoot 'catalog.ps1')
+. (Join-Path $PSScriptRoot 'update.ps1')
 
 # crisp text on high-DPI screens (we scale every coordinate ourselves), dark title bar, dark scrollbars
 Add-Type -Namespace SteveCad -Name Win -MemberDefinition @'
@@ -185,6 +186,10 @@ $themeBtn.BackColor = $Pal.surface; $themeBtn.FlatAppearance.MouseOverBackColor 
 $themeBtn.Font = New-Object Drawing.Font 'Segoe UI Symbol', 11; $themeBtn.Text = $(if ($script:Dark) { '☀' } else { '☾' })
 $tip.SetToolTip($themeBtn, $(if ($script:Dark) { 'Chuyển sang giao diện sáng' } else { 'Chuyển sang giao diện tối' }))
 $nav.Controls.AddRange(@($tagline, $themeBtn))
+# replaces the tagline when a newer release exists (update.ps1)
+$updLink = Put (New-Link '' $Fnt.s $Pal.gold) ($W - 412) 13 350 18; $updLink.TextAlign = 'TopRight'; $updLink.Visible = $false
+$updLink.add_LinkClicked({ if ($script:NewRelease -and -not $script:Busy) { Show-Update $script:NewRelease } })
+$nav.Controls.Add($updLink)
 $themeBtn.add_Click({
   Set-Setting 'Theme' $(if ($script:Dark) { 'light' } else { 'dark' })
   Start-Process (Join-Path $PSHOME 'powershell.exe') -ArgumentList "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -STA -File `"$(Join-Path $PSScriptRoot 'SteveCADConnect.ps1')`"" -WindowStyle Hidden
@@ -209,14 +214,14 @@ function Show-Page($which) {
 # footer
 $foot = Put (New-Object Windows.Forms.Panel) 0 (44 + $HPage) $W 32; $foot.BackColor = $Pal.surface
 $footLine = Put (New-Object Windows.Forms.Panel) 0 0 $W 1; $footLine.BackColor = $Pal.line
-$fl1 = Put (New-Link 'Thư mục làm việc AI' $Fnt.s $Pal.accent) 16 8 132 18
+$fl1 = Put (New-Link 'Thư mục làm việc AI' $Fnt.s $Pal.accent) 16 8 124 18
 $fl1.add_LinkClicked({ New-Item -ItemType Directory -Force $script:Workspace | Out-Null; Start-Process explorer.exe $script:Workspace })
-$fl2 = Put (New-Link 'GitHub' $Fnt.s $Pal.accent) 156 8 52 18
-$fl2.add_LinkClicked({ Start-Process $script:RepoUrl })
-$adv = Put (New-Link '⚙  Tùy chọn nâng cao' $Fnt.s $Pal.accent) 216 8 150 18
+$fl2 = Put (New-Link '✎  Đề xuất tính năng' $Fnt.s $Pal.accent) 142 8 124 18
+$fl2.add_LinkClicked({ Show-Feature })
+$adv = Put (New-Link '⚙  Tùy chọn nâng cao' $Fnt.s $Pal.accent) 268 8 134 18
 $fl3 = Put (New-Label "Hỗ trợ: $($script:Contact)" $Fnt.s $Pal.muted) ($W - 226) 8 210 18; $fl3.TextAlign = 'TopRight'
 # a small, quiet "buy me a coffee" in the footer; the QR only shows when someone clicks it
-$coffee = Put (New-Link '☕  Mời Steve ly cà phê' $Fnt.s $Pal.muted) 374 8 150 18
+$coffee = Put (New-Link '☕  Mời Steve ly cà phê' $Fnt.s $Pal.muted) 404 8 130 18
 $coffee.add_LinkClicked({ Show-Coffee })
 $foot.Controls.AddRange(@($footLine, $fl1, $fl2, $adv, $coffee, $fl3)); $form.Controls.Add($foot)
 
@@ -277,6 +282,11 @@ $miConn.ForeColor = $Pal.text; [void]$menu.Items.Add($miConn); [void]$menu.Items
 $miConn.add_Click({ $menu.Close(); Show-Page 'conn' })
 foreach ($m in $mi26, $miScript) { $m.ForeColor = $Pal.text; [void]$menu.Items.Add($m) }
 [void]$menu.Items.Add((New-Object Windows.Forms.ToolStripSeparator))
+$miUpd = New-Object Windows.Forms.ToolStripMenuItem 'Kiểm tra bản cập nhật…'; $miUpd.ForeColor = $Pal.text; [void]$menu.Items.Add($miUpd)
+$miUpd.add_Click({ $menu.Close(); if (-not $script:Busy) { Invoke-UpdateCheckNow } })
+$miAuto = New-Object Windows.Forms.ToolStripMenuItem 'Tự động cập nhật khi có bản mới'; $miAuto.CheckOnClick = $true; $miAuto.ForeColor = $Pal.text
+$miAuto.Checked = [bool](Get-Setting 'AutoUpdate' $false); [void]$menu.Items.Add($miAuto)
+$miAuto.add_Click({ Set-Setting 'AutoUpdate' ([bool]$miAuto.Checked) })
 $miAbout = New-Object Windows.Forms.ToolStripMenuItem 'Giới thiệu & ghi nguồn…'; $miAbout.ForeColor = $Pal.text; [void]$menu.Items.Add($miAbout)
 $miAbout.add_Click({ $menu.Close(); Show-About })
 $bUninstall.ForeColor = $Pal.red; [void]$menu.Items.Add($bUninstall)
@@ -972,6 +982,7 @@ $form.add_Shown({
   Set-DarkScroll $lv; Set-DarkScroll $log
   try { Update-View } catch { Write-Log "Lỗi đọc trạng thái: $($_.Exception.Message)" 'error' }
   if ($script:FirstRun) { try { Install-Self; Write-Log 'Đã tạo shortcut Steve AI Connect và Steve AI trên Desktop.' 'detail' } catch {} }
+  if ($script:FirstRun -and -not $env:STEVECAD_SELFTEST) { Invoke-Busy { Update-Installed } }
   try { Repair-CadAddon } catch {}
   try { Fill-Launchers } catch { Write-Log "Lỗi tìm phiên bản CAD: $($_.Exception.Message)" 'error' }
   # one-time registration (email code). Not for self-tests and screenshots.
@@ -988,6 +999,7 @@ $form.add_Shown({
   Show-Page 'home'; Show-Step (Get-FirstOpenStep)
   $form.ActiveControl = $(switch ($script:Step) { 1 { $bAuto } 2 { $cadLaunch[$script:CadList[0]].go } default { $bOpen } })
   $timer.Start()
+  if (-not ($env:STEVECAD_SELFTEST -or $env:STEVECAD_SNAPSHOT)) { try { Start-UpdateCheck } catch {} }
   if ($env:STEVECAD_SELFTEST) {
     # Self-test: click every button of the guided page for real (with STEVECAD_DRYRUN no CAD / AI is started),
     # after the timer's refresh has run, and write PASS / FAIL lines to the file named by STEVECAD_SELFTEST.
@@ -1026,7 +1038,7 @@ $form.add_Shown({
         }
       })
       $script:SnapTimer.Start()
-      switch ($env:STEVECAD_SNAPDIALOG) { 'about' { Show-About } 'register' { [void](Show-Register) } default { Show-Coffee } }
+      switch ($env:STEVECAD_SNAPDIALOG) { 'about' { Show-About } 'register' { [void](Show-Register) } 'feature' { Show-Feature } 'update' { Show-Update @{ tag = 'v9.9.9'; notes = 'Bản thử' } } default { Show-Coffee } }
       $form.Close(); return
     }
     if ($env:STEVECAD_SNAPPICK) { $cadTile.zwcad.chk.Checked = $true; $aiTile.claudecode.chk.Checked = $true }
