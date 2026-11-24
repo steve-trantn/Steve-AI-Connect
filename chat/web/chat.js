@@ -1,7 +1,7 @@
 'use strict';
 const host = window.chrome.webview, $ = id => document.getElementById(id);
 const post = m => host.postMessage(m);
-let size = +(localStorage.font || 13), running = false, client = '', skills = [], pendingSkill = '';
+let size = +(localStorage.font || 13), running = false, client = '', skills = [], inPanel = false, docName = '';
 const term = new Terminal({ fontFamily: 'Cascadia Mono, Consolas, monospace', fontSize: size, cursorBlink: true, scrollback: 8000,
   theme: { background: '#0d1421', foreground: '#e6edf6', cursor: '#60a5fa', selectionBackground: '#2b4a7d' },
   linkHandler: { activate: (e, u) => post({ t: 'link', u }) } });
@@ -20,9 +20,9 @@ term.attachCustomKeyEventHandler(e => {
 
 function state(text, cls) { $('state').textContent = text; $('state').title = text; $('dot').className = cls || ''; }
 function setRun(on) { running = on; $('send').disabled = !on; }
-function start(skill) {
+function start(skill, resume) {
   term.reset(); setRun(false); state('Đang mở…');
-  post({ t: 'start', client, skill: skill || '' });
+  post({ t: 'start', client, skill: skill || '', resume: !!resume });
   box.focus();
 }
 // Vietnamese input methods misbehave inside terminals, so typing happens in a normal text box and is pasted as one block
@@ -95,6 +95,8 @@ $('add').onclick = () => popup($('add'), [
 ], true);
 $('more').onclick = () => popup($('more'), [
   { text: 'Phiên mới', act: () => start() },
+  { text: 'Tiếp tục phiên cũ…', sub: 'Chọn bằng ↑ ↓ rồi Enter', off: client === 'gemini', act: () => start('', true) },
+  ...(inPanel ? [{ text: 'Hoàn tác bước cuối trong CAD (U)', sub: 'Kể cả thao tác bạn vừa làm tay', act: () => post({ t: 'undo' }) }] : []),
   { text: 'Dừng trợ lý', off: !running, act: () => { post({ t: 'stop' }); setRun(false); state('Đã dừng. Bấm ✚ để mở lại.'); } },
   { text: 'Chữ lớn hơn', keep: true, act: () => zoom(1) }, { text: 'Chữ nhỏ hơn', keep: true, act: () => zoom(-1) },
   { head: 'AI có thể nhầm. Sai thì gõ UNDO trong CAD.' },
@@ -106,13 +108,18 @@ host.addEventListener('message', ev => {
   else if (m.t === 'info') {
     const ok = m.clients.filter(c => c.ok);
     $('client').replaceChildren(...m.clients.map(c => { const o = document.createElement('option'); o.value = c.id; o.textContent = c.label; o.disabled = !c.ok; return o; }));
-    skills = m.skills;
+    skills = m.skills; inPanel = !!m.panel; docName = m.doc || '';
     client = [m.client, m.default].find(x => ok.some(c => c.id === x)) || (ok[0] && ok[0].id) || '';
     $('client').value = client;
     if (!client) { state('Máy chưa có trợ lý AI. Mở Steve AI Connect để kết nối.', 'err'); return; }
     start(m.skill); post({ t: 'snap' });
   }
-  else if (m.t === 'started') { setRun(true); client = m.client; $('client').value = client; state('', 'on'); }
+  else if (m.t === 'started') { setRun(true); client = m.client; $('client').value = client; state(docName, 'on'); }
+  else if (m.t === 'doc') { docName = m.name; if (running) state(docName, 'on'); }
+  else if (m.t === 'files') {   // dropped files: their paths go into the box
+    const p = m.paths.map(x => '"' + x + '"').join(' ');
+    if (p) { box.value = (box.value ? box.value.trimEnd() + ' ' : '') + p + ' '; grow(); box.focus(); }
+  }
   else if (m.t === 'ask') {   // a command in the CAD asked for an assistant and / or a skill while the panel is open
     if (m.client && m.client !== client) { client = m.client; $('client').value = client; start(m.skill); }
     else if (m.skill) runSkill(m.skill);
@@ -121,5 +128,10 @@ host.addEventListener('message', ev => {
   else if (m.t === 'exit') { setRun(false); state('Phiên đã kết thúc. Bấm ✚ để mở lại.'); }
   else if (m.t === 'error') { setRun(false); state(m.text, 'err'); term.write('\r\n' + m.text.replace(/\n/g, '\r\n')); }
 });
+// drag files from Explorer into the panel
+for (const n of ['dragover', 'drop']) addEventListener(n, e => {
+  e.preventDefault(); e.stopPropagation();
+  if (n === 'drop' && e.dataTransfer.files.length) host.postMessageWithAdditionalObjects({ t: 'files' }, [...e.dataTransfer.files].slice(0, 10));
+}, true);
 setRun(false);
 post({ t: 'ready', cols: term.cols, rows: term.rows });

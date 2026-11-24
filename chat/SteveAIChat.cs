@@ -48,6 +48,7 @@ class ChatForm : Form
     readonly string ps1;
     readonly IntPtr parent = IntPtr.Zero;
     readonly string startClient = "", startSkill = "", snap = "";
+    string docName = "";
     Pty pty; int cols = 100, rows = 30, run = 0; bool closing;
 
     public ChatForm(string[] a)
@@ -111,6 +112,7 @@ class ChatForm : Form
             if (parent != IntPtr.Zero)
             {
                 // the CAD palette sends "client|skill" lines when a command is run while the panel is open
+                Console.SetIn(new StreamReader(Console.OpenStandardInput(), new UTF8Encoding(false)));
                 var rd = new Thread(delegate()
                 {
                     try
@@ -118,6 +120,7 @@ class ChatForm : Form
                         string line;
                         while ((line = Console.In.ReadLine()) != null)
                         {
+                            if (line.StartsWith("doc|")) { string nm = line.Substring(4); BeginInvoke((Action)delegate { docName = nm; Post(new { t = "doc", name = nm }); }); continue; }
                             string[] q = line.Split('|');
                             if (q.Length == 2) BeginInvoke((Action)delegate { Post(new { t = "ask", client = Safe(q[0]), skill = Safe(q[1]) }); });
                         }
@@ -152,10 +155,16 @@ class ChatForm : Form
                 RunPs("-Info", (r, err) =>
                 {
                     if (err != null) { Post(new { t = "error", text = err }); return; }
-                    r["t"] = "info"; r["client"] = startClient; r["skill"] = startSkill; Post(r);
+                    r["t"] = "info"; r["panel"] = parent != IntPtr.Zero; r["doc"] = docName; r["client"] = startClient; r["skill"] = startSkill; Post(r);
                 });
                 break;
-            case "start": Begin((string)m["client"], (string)m["skill"]); break;
+            case "start": Begin((string)m["client"], (string)m["skill"], m.ContainsKey("resume") && true.Equals(m["resume"])); break;
+            case "undo": if (parent != IntPtr.Zero) try { Console.Out.WriteLine("undo"); Console.Out.Flush(); } catch { } break;
+            case "files":
+                var paths = new List<string>();
+                foreach (object o in e.AdditionalObjects) { var f = o as CoreWebView2File; if (f != null) paths.Add(f.Path); }
+                Post(new { t = "files", paths = paths });
+                break;
             case "stop": Stop(); break;
             case "in": { var p = pty; if (p != null) p.Write((string)m["d"]); } break;
             case "size":
@@ -202,13 +211,14 @@ class ChatForm : Form
         th.IsBackground = true; th.Start();
     }
 
-    void Begin(string client, string skill)
+    void Begin(string client, string skill, bool resume)
     {
         Stop();
         int id = ++run;
         string a = "-Prepare";
         if (Safe(client) != "") a += " -Client " + Safe(client);
         if (Safe(skill) != "") a += " -Skill " + Safe(skill);
+        if (resume) a += " -Resume";
         RunPs(a, (r, err) =>
         {
             if (id != run || closing) return;   // another start was asked meanwhile

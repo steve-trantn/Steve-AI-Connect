@@ -77,6 +77,32 @@ namespace SteveAI
         }
         static string Exe { get { return Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "SteveAIChat.exe"); } }
 
+        // tells the chat which drawing is in front (bytes: the writer of .NET 4 has no UTF-8 setting)
+        static void SendDoc()
+        {
+            try
+            {
+                if (chat == null || chat.HasExited) return;
+                var d = CadApp.DocumentManager.MdiActiveDocument;
+                string n = d == null ? "" : Regex.Replace(Path.GetFileName(d.Name), @"[\r\n]", "");
+                byte[] b = new System.Text.UTF8Encoding(false).GetBytes("doc|" + n + "\n");
+                chat.StandardInput.BaseStream.Write(b, 0, b.Length); chat.StandardInput.BaseStream.Flush();
+            }
+            catch { }
+        }
+        // one step back in the drawing in front; never while a command is running
+        static void Undo()
+        {
+            try
+            {
+                var d = CadApp.DocumentManager.MdiActiveDocument;
+                if (d == null) return;
+                if (!string.IsNullOrEmpty(d.CommandInProgress)) { Say("đang dở một lệnh, bấm Esc rồi hoàn tác lại."); return; }
+                d.SendStringToExecute("_.U ", true, false, true);
+            }
+            catch (System.Exception ex) { Say(ex.Message); }
+        }
+
         static void Open(string client, string skill)
         {
             if (ps == null)
@@ -87,6 +113,7 @@ namespace SteveAI
                 ps.Add("Chat", host);
                 ps.MinimumSize = new Size(280, 240);
                 ps.DockEnabled = DockSides.Left | DockSides.Right;
+                CadApp.DocumentManager.DocumentActivated += delegate { SendDoc(); };
                 ps.Visible = true; ps.Dock = DockSides.Right; ps.Size = new Size(420, 700);
             }
             else if (!ps.Visible) ps.Visible = true;
@@ -94,8 +121,14 @@ namespace SteveAI
             if (chat == null || chat.HasExited)
             {
                 var si = new ProcessStartInfo(Exe, "-Parent " + host.Handle.ToInt64() + (client != "" ? " -Client " + client : "") + (skill != "" ? " -Skill " + skill : ""));
-                si.UseShellExecute = false; si.RedirectStandardInput = true;
+                si.UseShellExecute = false; si.RedirectStandardInput = true; si.RedirectStandardOutput = true;
                 chat = Process.Start(si);
+                chat.OutputDataReceived += delegate(object s, DataReceivedEventArgs e)
+                {
+                    if (e.Data == "undo") try { host.BeginInvoke((Action)Undo); } catch { }   // back on the CAD's own thread
+                };
+                chat.BeginOutputReadLine();
+                SendDoc();
             }
             else if (client != "" || skill != "") { chat.StandardInput.WriteLine(client + "|" + skill); chat.StandardInput.Flush(); }
         }

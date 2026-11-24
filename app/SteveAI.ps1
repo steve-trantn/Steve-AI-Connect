@@ -8,7 +8,7 @@
     -Client claudecode|codex|gemini   (mặc định: trợ lý đã chọn trong Steve AI Connect)
     -Skill <tên skill>                (mở và chạy ngay skill, ví dụ cong-3d)
 #>
-param([string]$Client = '', [string]$Skill = '', [switch]$Info, [switch]$Prepare)   # -Info / -Prepare: JSON for the chat panel (chat\SteveAIChat.cs)
+param([string]$Client = '', [string]$Skill = '', [switch]$Info, [switch]$Prepare, [switch]$Resume)   # -Info / -Prepare: JSON for the chat panel (chat\SteveAIChat.cs)
 . (Join-Path $PSScriptRoot 'core.ps1')
 . (Join-Path $PSScriptRoot 'account.ps1')
 $script:LogSink = { param($m, $lvl) }
@@ -74,6 +74,9 @@ try {
   # codex.exe bundled with the Codex desktop app (Microsoft Store) has no local CLI package and
   # stops with "no complete local package" unless it runs without the background server
   if ($Client -eq 'codex' -and $exe.codex -match '\\WindowsApps\\') { $args0 += '--no-daemon' }
+  # continue an earlier conversation: the assistant shows its own list (Claude Code, Codex)
+  if ($Resume -and $Client -eq 'claudecode') { $args0 += '--resume' }
+  if ($Resume -and $Client -eq 'codex') { $args0 = @('resume') + $args0 }
   if ($prompt) { $args0 += $(if ($Client -eq 'gemini') { @('-i', $prompt) } else { @($prompt) }) }
 
   $title = "Steve AI - $($script:ClientLabel[$Client])" + $(if ($Skill) { " - $Skill" } else { '' })
