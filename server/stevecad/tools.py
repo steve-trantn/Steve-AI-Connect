@@ -181,6 +181,23 @@ def info() -> dict:
 
 
 @tool()
+def use_cad(name: str = "") -> dict:
+    """List the running CAD programs, or connect to one of them when several are open (e.g. AutoCAD 2024 and Civil 3D 2027).
+    name: part of its name, version or window title, e.g. "2024" or "Civil 3D". Empty = only list."""
+    cads = C.conn.running()
+    if not cads:
+        raise UserError(f"Không thấy {C.conn.label} đang mở.")
+    if name:
+        hit = [c for c in cads if name.lower() in f"{c['name']} {c['version']} {c['title']}".lower()]
+        if len(hit) != 1:
+            raise UserError(("Không có bản nào khớp" if not hit else "Nhiều bản cùng khớp") + f" '{name}'. Đang mở: " + "; ".join(c["title"] for c in cads))
+        C.conn._app = hit[0]["app"]
+        C.drawings.pinned = None
+    cur = int(C.conn.app().HWND)
+    return {"running": [{"name": c["name"], "version": c["version"], "title": c["title"], "connected": int(c["app"].HWND) == cur} for c in cads]}
+
+
+@tool()
 def list_drawings() -> list[dict]:
     """Open drawings, which one is the active tab and which one the tools work on."""
     t = Drawings.name(doc()) if C.conn.app().Documents.Count else None

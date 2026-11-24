@@ -183,7 +183,7 @@ function Get-ShortcutTargets {
   $roots = @("$env:ProgramData\Microsoft\Windows\Start Menu\Programs", "$env:APPDATA\Microsoft\Windows\Start Menu\Programs",
              "$env:PUBLIC\Desktop", [Environment]::GetFolderPath('Desktop'))
   $out = @(foreach ($f in Get-ChildItem $roots -Recurse -Filter '*.lnk' -ErrorAction SilentlyContinue) {
-    if ($f.Name -notmatch 'ZWCAD|AutoCAD|ADSCivil') { continue }
+    if ($f.Name -notmatch 'ZWCAD|AutoCAD|ADSCivil|Civil 3D') { continue }
     try { $s = $sh.CreateShortcut($f.FullName); @{ lnk = $f.FullName; name = $f.BaseName; target = $s.TargetPath; args = $s.Arguments } } catch {}
   })
   $script:LauncherCache.lnk = $out
@@ -219,11 +219,12 @@ function Get-CadLaunchers([string]$cad, [switch]$Refresh) {
       }
     }
   } else {
-    $rx = @{ zwcad = '^ZWCAD (20\d\d)( .*)?$'; autocad = '^AutoCAD (20\d\d)( - .+)?$' }[$cad]
+    $rx = @{ zwcad = '^ZWCAD (20\d\d)( .*)?$'; autocad = '^(AutoCAD|Civil 3D) (20\d\d)( .+)?$' }[$cad]
     $exeName = @{ zwcad = 'ZWCAD.exe'; autocad = 'acad.exe' }[$cad]
     foreach ($l in $lnks) {
       if ($l.name -notmatch $rx -or (Split-Path $l.target -Leaf) -ne $exeName) { continue }
       $year = [regex]::Match($l.name, '20\d\d').Value
+      if ($l.name -match '^Civil 3D') { & $add $l.target $l.args $l.name $year; continue }   # Metric / Imperial are separate entries
       & $add $l.target $l.args ("$($script:CadLabel[$cad]) $year" + $(if ($l.name -match ' - (.+)$') { " ($($Matches[1]))" } else { '' })) $year
     }
     if (-not $found.Count) {

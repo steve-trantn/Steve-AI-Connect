@@ -3,6 +3,7 @@
 $script:ToolCatalog = [ordered]@{
   'Đọc bản vẽ' = @(
     @('info', 'Tên bản vẽ, đơn vị, phạm vi, layer hiện hành', 'Bản vẽ này đơn vị gì?'),
+    @('use_cad', 'Chọn phần mềm khi mở nhiều phiên bản', 'Làm việc với Civil 3D 2027'),
     @('list_drawings', 'Các bản vẽ đang mở', 'Đang mở những bản vẽ nào?'),
     @('use_drawing', 'Ghim bản vẽ làm việc', 'Làm việc trên bản vẽ MB-01'),
     @('get_selection', 'Đọc các đối tượng đang chọn', 'Đối tượng tôi đang chọn là gì?'),

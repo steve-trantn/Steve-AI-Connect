@@ -4,6 +4,7 @@
 Điều khiển AutoCAD đang mở qua COM bằng Steve CAD MCP. Bộ tool giống hệt server `zwcad`:
 
 - **Bắt đầu:** `info`. "Đối tượng này / đang chọn" → `get_selection`.
+- **Nhiều phiên bản cùng mở** (ví dụ AutoCAD 2024 và Civil 3D): `use_cad` để xem và chọn đúng bản trước khi làm. Civil 3D dùng chung server này; bản vẽ Civil 3D có thể là feet hoặc mét, luôn xem `info.units`.
 - **Đọc:** `list_drawings`, `list_layers`, `list_entities`, `get_entity`, `list_blocks`, `screenshot`
 - **Tính toán:** `measure`, `count_blocks`, `find_duplicates`
 - **Vẽ:** `line`, `polyline`, `polyline3d`, `rectangle`, `circle`, `arc`, `ellipse`, `text`, `mtext`, `hatch`, `insert_block`, `create_block`

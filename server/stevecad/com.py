@@ -118,6 +118,24 @@ class Connection:
         self.progids = [p for p in (progid, CADS[cad]["progid"]) if p]
         self._app = None
 
+    def running(self) -> list[dict]:
+        """Every running CAD of this kind that can be reached, newest first (several AutoCAD / Civil 3D versions can be open)."""
+        ids = [self.progids[-1]]
+        if self.cad == "autocad":
+            ids += [f"AutoCAD.Application.{v}" for v in ("26.1", "26", "25.1", "25", "24.3", "24.2", "24.1", "24")]
+        out, seen = [], set()
+        for pid in ids:
+            try:
+                a = Com(late(busy_retry(pythoncom.GetActiveObject, pywintypes.IID(pid))))
+                hwnd = int(a.HWND)
+                if hwnd in seen:
+                    continue
+                seen.add(hwnd)
+                out.append({"name": a.Name, "version": a.Version, "title": a.Caption, "app": a})
+            except Exception:   # not registered, not running, or still starting
+                continue
+        return out
+
     def app(self) -> Com:
         if self._app is not None:
             try:
