@@ -101,7 +101,14 @@ namespace SteveAI
             }
             return false;
         }
-        static string Exe { get { return Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "SteveAIChat.exe"); } }
+        static string Exe
+        {
+            get
+            {
+                string here = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "SteveAIChat.exe");
+                return File.Exists(here) ? here : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"SteveCADConnect\tool\chat\bin\SteveAIChat.exe");
+            }
+        }
 
         // tells the chat which drawing is in front (bytes: the writer of .NET 4 has no UTF-8 setting)
         static void SendDoc()

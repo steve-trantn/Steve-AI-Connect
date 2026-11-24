@@ -49,9 +49,9 @@ try {
     & $csc /nologo /target:library /optimize+ /platform:x64 "/out:$bin\SteveAIPanel.ZWCAD.dll" "/reference:$ZwcadDir\ZwManaged.dll" "/reference:$ZwcadDir\ZwDatabaseMgd.dll" $forms $src2
     if ($LASTEXITCODE) { throw 'csc: ZWCAD' }
   } else { Write-Warning 'Thiếu ZWCAD: không có SteveAIPanel.ZWCAD.dll' }
-  $ac = { param($d) foreach ($f in 'acmgd', 'accoremgd', 'acdbmgd') { "/reference:$d\$f.dll" } }
+  $ac = { param($d) foreach ($f in 'acmgd', 'accoremgd', 'acdbmgd', 'AdWindows') { "/reference:$d\$f.dll" } }
   if (Test-Path "$Acad48Dir\acmgd.dll") {
-    & $csc /nologo /target:library /optimize+ /platform:x64 /define:ACAD "/out:$bin\SteveAIPanel.ACAD48.dll" (& $ac $Acad48Dir) $forms $src2
+    & $csc /nologo /target:library /optimize+ /platform:x64 /define:ACAD "/out:$bin\SteveAIPanel.ACAD48.dll" (& $ac $Acad48Dir) $forms "/reference:$fw\WPF\PresentationFramework.dll" /reference:System.Xaml.dll $src2 (Join-Path $chat 'SteveAIRibbon.cs')
     if ($LASTEXITCODE) { throw 'csc: ACAD48' }
   } else { Write-Warning 'Thiếu AutoCAD 2024: không có SteveAIPanel.ACAD48.dll' }
   if (Test-Path "$AcadCoreDir\acmgd.dll") {
@@ -60,7 +60,7 @@ try {
     $desk = Get-NuGet 'microsoft.windowsdesktop.app.ref' '10.0.15' '648517d72a772bc461be25ef637bba3c689de426ef71f73cff4b4c1cd63a77a6'
     $names = @{}; $refs = foreach ($f in @(Get-ChildItem "$desk\ref\net10.0\*.dll") + @(Get-ChildItem "$core\ref\net10.0\*.dll")) { if (-not $names[$f.Name]) { $names[$f.Name] = 1; "/reference:$($f.FullName)" } }
     $rsp = Join-Path $env:TEMP "SteveAIPanel-$PID.rsp"
-    [IO.File]::WriteAllLines($rsp, [string[]](@('/nologo', '/nostdlib+', '/target:library', '/optimize+', '/platform:x64', '/define:ACAD', '/nowarn:CA1416', "/out:`"$bin\SteveAIPanel.ACADNET.dll`"") + @((@($refs) + @(& $ac $AcadCoreDir)) | ForEach-Object { '/reference:"' + $_.Substring(11) + '"' }) + "`"$src2`""))
+    [IO.File]::WriteAllLines($rsp, [string[]](@('/nologo', '/nostdlib+', '/target:library', '/optimize+', '/platform:x64', '/define:ACAD', '/nowarn:CA1416', "/out:`"$bin\SteveAIPanel.ACADNET.dll`"") + @((@($refs) + @(& $ac $AcadCoreDir)) | ForEach-Object { '/reference:"' + $_.Substring(11) + '"' }) + "`"$src2`"" + "`"$(Join-Path $chat 'SteveAIRibbon.cs')`""))
     & "$ros\tasks\net472\csc.exe" /noconfig "@$rsp"; $rc = $LASTEXITCODE; Remove-Item $rsp
     if ($rc) { throw 'csc: ACADNET' }
   } else { Write-Warning 'Thiếu AutoCAD 2026: không có SteveAIPanel.ACADNET.dll' }

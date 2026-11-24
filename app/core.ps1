@@ -637,15 +637,48 @@ function Write-CadLisp {
   [IO.File]::WriteAllText(($script:CadMenu -replace '\.cuix$', '.mnl'), ";; Steve AI Connect: lenh AI / STEVEAI, nap cung menu Steve AI`r`n;; *steveai-from-menu*: SteveAI.lsp must not load the menu again (it is loading now)`r`n(if (findfile `"$l`") (progn (setq *steveai-from-menu* T) (load `"$l`")))`r`n(princ)`r`n", [Text.Encoding]::ASCII)
 }
 
-# Adds SteveAI.lsp to the Startup Suite of ZWCAD / AutoCAD and loads it into a running session.
+# AutoCAD / Civil 3D: Autodesk's own plug-in folder. It loads in every version and profile, also ones installed later,
+# and nothing is written to the Startup Suite (which AutoCAD rewrites when it closes).
+$script:AcadBundle = Join-Path $env:APPDATA 'Autodesk\ApplicationPlugins\SteveAI.bundle'
+function Write-AcadBundle {
+  $bin = Join-Path $script:ToolDir 'chat\bin'
+  $con = Join-Path $script:AcadBundle 'Contents'
+  New-Item -ItemType Directory -Force $con | Out-Null
+  Get-ChildItem $con -Filter '*.old-*' -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+  $comp = ''
+  foreach ($d in @(@('SteveAIPanel.ACAD48.dll', 'R24.0', 'R24.3'), @('SteveAIPanel.ACADNET.dll', 'R25.1', 'R26.0'))) {
+    $src = Join-Path $bin $d[0]; $dst = Join-Path $con $d[0]
+    if (-not (Test-Path $src)) { continue }
+    if (-not (Test-Path $dst) -or (Get-FileHash $src).Hash -ne (Get-FileHash $dst).Hash) {
+      # a loaded DLL cannot be overwritten, but it can be renamed
+      if (Test-Path $dst) { try { Remove-Item $dst -Force -ErrorAction Stop } catch { Move-Item $dst "$dst.old-$([Guid]::NewGuid().ToString('N'))" } }
+      Copy-Item $src $dst
+    }
+    $comp += "  <Components>`r`n    <RuntimeRequirements OS=`"Win64`" Platform=`"AutoCAD*`" SeriesMin=`"$($d[1])`" SeriesMax=`"$($d[2])`" />`r`n    <ComponentEntry AppName=`"SteveAIPanel`" ModuleName=`"./Contents/$($d[0])`" AppType=`".Net`" LoadOnAutoCADStartup=`"True`" />`r`n  </Components>`r`n"
+  }
+  [IO.File]::WriteAllText((Join-Path $con 'SteveAI.lsp'), (";; Steve AI Connect: lenh AI / STEVEAI`r`n(if (findfile `"" + ($script:CadLisp -replace '\\', '/') + "`") (load `"" + ($script:CadLisp -replace '\\', '/') + "`"))`r`n(princ)`r`n"), [Text.Encoding]::ASCII)
+  $comp += "  <Components>`r`n    <RuntimeRequirements OS=`"Win64`" Platform=`"AutoCAD*`" SeriesMin=`"R22.0`" SeriesMax=`"R26.9`" />`r`n    <ComponentEntry AppName=`"SteveAILisp`" ModuleName=`"./Contents/SteveAI.lsp`" AppType=`"Lisp`" LoadOnAutoCADStartup=`"True`" />`r`n  </Components>`r`n"
+  $xml = "<?xml version=`"1.0`" encoding=`"utf-8`"?>`r`n<ApplicationPackage SchemaVersion=`"1.0`" AutodeskProduct=`"AutoCAD`" ProductType=`"Application`" Name=`"Steve AI`" Description=`"Steve AI Connect`" AppVersion=`"$($script:Version -replace '^v', '')`" Author=`"$($script:Author)`" ProductCode=`"{5B0D7D63-2C1E-4B4E-9F0B-6F3B1A7C9E21}`" UpgradeCode=`"{B7C2A1E4-88D3-4E7A-A6F5-0D1C2E3F4A55}`">`r`n  <CompanyDetails Name=`"$($script:Author)`" Url=`"$($script:RepoUrl)`" />`r`n$comp</ApplicationPackage>`r`n"
+  [IO.File]::WriteAllText((Join-Path $script:AcadBundle 'PackageContents.xml'), $xml, $script:Utf8)
+}
+function Remove-AcadBundle { if (Test-Path $script:AcadBundle) { Remove-Item $script:AcadBundle -Recurse -Force -ErrorAction SilentlyContinue } }
+# earlier versions used the Startup Suite for AutoCAD: take those entries out
+function Remove-AcadStartup {
+  foreach ($k in Get-StartupKeys 'autocad') {
+    $all = @(Get-StartupList $k)
+    if ($all -match 'SteveAI\.lsp$') { Set-StartupList $k @($all | Where-Object { $_ -notmatch 'SteveAI\.lsp$' }) }
+  }
+}
+
+# Adds SteveAI.lsp to the Startup Suite of ZWCAD (AutoCAD: plug-in bundle) and loads it into a running session.
 function Install-CadAddon([string[]]$Cads) {
   Write-CadLisp
   $want = @(@(Get-Setting 'CadAddon' @()) + @($Cads | ForEach-Object { if ($_ -eq 'adscivil') { 'zwcad' } else { $_ } } | Where-Object { $_ -in 'zwcad', 'autocad' }) | Select-Object -Unique)
   Set-Setting 'CadAddon' $want
   foreach ($c in @($Cads | Where-Object { $_ -in 'zwcad', 'autocad', 'adscivil' })) {
     $cad = if ($c -eq 'adscivil') { 'zwcad' } else { $c }
-    $keys = Get-StartupKeys $cad
-    if (-not $keys) { continue }
+    $keys = @()
+    if ($cad -eq 'autocad') { Write-AcadBundle; Remove-AcadStartup } else { $keys = @(Get-StartupKeys $cad); if (-not $keys) { continue } }
     foreach ($k in $keys) {
       $items = @(Get-StartupList $k | Where-Object { $_ -notmatch 'SteveAI\.lsp$' }) + $script:CadLisp
       Set-StartupList $k $items
@@ -671,6 +704,7 @@ function Remove-CadAddon {
   }
   Remove-Item $script:CadLisp, ($script:CadMenu -replace '\.cuix$', '.mnl') -Force -ErrorAction SilentlyContinue
   Remove-CadMenu
+  Remove-AcadBundle
   Set-Setting 'CadAddon' @()
 }
 # ZWCAD / AutoCAD write their in-memory Startup Suite back to the registry when they close, so an entry
@@ -686,6 +720,14 @@ function Repair-CadAddon {
     if ($cads) { Set-Setting 'CadAddon' $cads }
   }
   foreach ($cad in $cads) {
+    if ($cad -eq 'autocad') {
+      try {
+        # an older cuix run has no ribbon.txt yet
+        if (-not (Test-Path (Join-Path $script:AppHome 'ribbon.txt'))) { Write-CadLisp }
+        Write-AcadBundle; if (-not @(Get-CadProcess 'autocad').Count) { Remove-AcadStartup }
+      } catch { Write-Log "Không ghi được plugin AutoCAD: $($_.Exception.Message)" 'warn' }
+      continue
+    }
     # a left-over process without a window (older than 2 minutes) does not count as running
     $run = @(Get-CadProcess $cad | Where-Object { $_.MainWindowHandle -ne [IntPtr]::Zero -or ((Get-Date) - $_.StartTime).TotalMinutes -lt 2 })
     if ($run) { continue }
@@ -697,6 +739,7 @@ function Repair-CadAddon {
   }
 }
 function Test-CadAddon([string]$cad) {
+  if ($cad -eq 'autocad') { return (Test-Path (Join-Path $script:AcadBundle 'PackageContents.xml')) }
   foreach ($k in Get-StartupKeys $cad) { if (@(Get-StartupList $k) -match 'SteveAI\.lsp$') { return $true } }
   return $false
 }

@@ -161,6 +161,14 @@ $($refs -join "`r`n")
     }
   }
 
+  # the same buttons for the AutoCAD / Civil 3D plugin (chat\SteveAIRibbon.cs): a text file and the icons
+  $icoDir = Join-Path $script:AppHome 'icons'; New-Item -ItemType Directory -Force $icoDir | Out-Null
+  foreach ($n in $images.Keys) { try { [IO.File]::WriteAllBytes((Join-Path $icoDir $n), [byte[]]$images[$n]) } catch {} }
+  $rows = foreach ($d0 in @(@('Trợ lý AI', @('OPEN', 'CLAUDE', 'CODEX', 'GEMINI')), @('Skill', (@($skillIds) + 'SKILL')), @('Steve AI Connect', @('CONN', 'HELP')))) {
+    foreach ($id in $d0[1]) { $b = $btn[$id]; (@($d0[0], $(if ($id -eq 'OPEN') { 'large' } else { 'small' }), $b.text, $b.tip, "(if (not steveai-run) (load `"$lisp`")) $($b.cmd)", "SAI_$id") | ForEach-Object { $_ -replace '[\t\r\n]+', ' ' }) -join "`t" }
+  }
+  [IO.File]::WriteAllLines((Join-Path $script:AppHome 'ribbon.txt'), [string[]]$rows, (New-Object Text.UTF8Encoding $false))
+
   $stamp = (Get-Date).ToString('yyyy-MM-ddTHH:mm:ss.fffffffzzz')
   $info = "<?xml version=`"1.0`" encoding=`"utf-8`"?>`r`n<MenuPackageParts>`r`n" + ((@($parts.Keys) + 'Menu_Package_Info.xml' + @($images.Keys) | ForEach-Object { "  <PartData PartData_Name=`"/$_`" PartData_Modified=`"$stamp`" />" }) -join "`r`n") + "`r`n</MenuPackageParts>`r`n"
   $k = 0

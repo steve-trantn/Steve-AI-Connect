@@ -40,7 +40,7 @@
   (if (setq dll (steveai-dll))
     (progn
       (vl-load-com)
-      (if (not (vl-bb-ref '*steveai-net*))
+      (if (and (not steveai-show) (not (vl-bb-ref '*steveai-net*)))
         (progn
           (setq fd (getvar "FILEDIA"))
           (setvar "FILEDIA" 0)
@@ -128,7 +128,8 @@
 
 ;; Ribbon tab "Steve AI": load the partial menu once (the CAD remembers it afterwards)
 (defun steveai-menu ( / mgs found r)
-  (if (and (/= *steveai-cuix* "") (findfile *steveai-cuix*))
+  ;; AutoCAD / Civil 3D: the plug-in bundle builds the ribbon tab (a CUIX loaded by script stays invisible there)
+  (if (and (wcmatch (strcase (getvar "PROGRAM")) "*ZWCAD*") (/= *steveai-cuix* "") (findfile *steveai-cuix*))
     (progn
       (vl-load-com)
       (setq mgs (vla-get-MenuGroups (vlax-get-acad-object)))
