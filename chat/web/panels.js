@@ -225,7 +225,46 @@ const Panels = (() => {
     }
   }
 
-  const list = { 'chuan-layer': ['Chuẩn layer', layers], 'kiem-tra-ban-ve': ['Kiểm tra bản vẽ', audit], 'boc-khoi-luong': ['Bóc khối lượng', quantities], 'khung-ten': ['Khung tên', titles] };
+  // ---------------------------------------------------------------- IFC
+  function ifc() {
+    const scope = el('select'), sch = el('select'), unit = el('select'), name = el('input', { placeholder: 'Tên dự án (không bắt buộc)' });
+    let dr = '', seen = null;
+    for (const [t, v] of [['Mọi khối 3D', '*'], ['Đang chọn', '+']]) scope.append(el('option', { textContent: t, value: v }));
+    for (const [t, v] of [['IFC4', 'IFC4'], ['IFC4X3 (4.3)', 'IFC4X3']]) sch.append(el('option', { textContent: t, value: v }));
+    for (const [t, v] of [['Đơn vị bản vẽ?', ''], ['m', 'm'], ['mm', 'mm'], ['cm', 'cm'], ['feet', 'ft'], ['US survey feet', 'us-ft'], ['inch', 'inch']]) unit.append(el('option', { textContent: t, value: v }));
+    bars.replaceChildren(scope, sch, unit, btn('Xem trước', look, 'pri'), btn('Xuất IFC', save), name);
+    job('Đang đọc bản vẽ…', async () => {
+      const i = await call('info'); dr = i._drawing;
+      unit.value = { m: 'm', mm: 'mm', cm: 'cm', feet: 'ft', 'US survey feet': 'us-ft', inch: 'inch' }[i.units] || '';
+      for (const l of await call('list_layers', { count_objects: false })) scope.append(el('option', { textContent: 'Layer ' + l.name, value: '=' + l.name }));
+      say(`Đơn vị bản vẽ: ${i.units || 'chưa rõ'}. Kiểm tra ô đơn vị, sai đơn vị là sai tỷ lệ. Chỉ xuất khối solid 3D; corridor, surface, pipe network và khối trong block không được xuất.`);
+    });
+    // a preview only counts for the settings it was made with
+    for (const s of [scope, sch, unit]) s.onchange = () => { seen = null; body.replaceChildren(); say('Đã đổi lựa chọn, bấm Xem trước.'); };
+    const args = () => ({ _drawing: dr, schema: sch.value, units: unit.value, project: name.value.trim(), from_layer: scope.value[0] === '=' ? scope.value.slice(1) : '', selection_only: scope.value === '+' });
+    function look() {
+      if (!unit.value) { say('Chọn đơn vị bản vẽ trước.', 'err'); return; }
+      job('Đang đếm khối…', async () => {
+        seen = null; body.replaceChildren();
+        dr = (await call('info'))._drawing;
+        const r = await call('export_ifc', { ...args(), path: 'IFC\\xem-truoc', preview: true }), tb = el('table');
+        tb.append(el('tr', {}, ...['Layer', 'Số khối', 'Gần đúng', 'Thể tích m³'].map(t => el('th', { textContent: t }))));
+        for (const q of r.layers) tb.append(el('tr', {}, ...[q.layer, num(q.solids, 0), num(q.approximate, 0), num(q.volume_m3)].map(t => el('td', { textContent: t }))));
+        body.replaceChildren(tb); seen = r;
+        say(`${num(r.elements, 0)} khối, ${num(r.exact, 0)} xuất chính xác.` + (r.approximate ? ` ⚠ ${num(r.approximate, 0)} khối chỉ xuất dạng HỘP BAO (không do Steve AI dựng hoặc đã sửa).` : '') + ' Bấm Xuất IFC để ghi file.', r.approximate ? 'run' : 'ok');
+      });
+    }
+    function save() {
+      if (!seen) { say('Bấm Xem trước rồi mới xuất.', 'err'); return; }
+      job('Đang xuất…', async () => {
+        const r = await call('export_ifc', { ...args(), path: `IFC\\${base(dr)}-${stamp()}.ifc` });
+        say(`✓ Đã xuất ${num(r.elements, 0)} khối` + (r.bounding_box_only.length ? `, ${num(r.bounding_box_only.length, 0)} khối là hộp bao` : '') + `. ${r.path}`, 'ok');
+        note.append(' ', btn('Mở thư mục', () => post({ t: 'open', path: r.path })));
+      });
+    }
+  }
+
+  const list = { 'xuat-ifc': ['Export IFC', ifc], 'chuan-layer': ['Chuẩn layer', layers], 'kiem-tra-ban-ve': ['Kiểm tra bản vẽ', audit], 'boc-khoi-luong': ['Bóc khối lượng', quantities], 'khung-ten': ['Khung tên', titles] };
   function open(name) {
     if (!list[name]) return false;
     Ui.hide(); pop.hidden = true; view.hidden = false;

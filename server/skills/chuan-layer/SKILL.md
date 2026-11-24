@@ -1,6 +1,7 @@
 ---
 name: chuan-layer
 title: Chuẩn layer
+group: Bản vẽ
 description: Đổi layer, màu, kiểu nét theo bảng layer chuẩn của công ty; cho xem bảng ánh xạ trước khi đổi.
 ---
 

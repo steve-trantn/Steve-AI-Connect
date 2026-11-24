@@ -59,6 +59,10 @@ function New-DrawnIcon([string]$name, [int]$size) {
       & $line '#16A34A' 2.6 '10,27 19,27'; & $poly '#16A34A' '18,23 23,27 18,31'
       & $line '#3B82F6' 2 '22,20 22,9 30,9 30,20 22,20'; & $line '#3B82F6' 1.4 '22,20 30,9'
     }
+    'xuat-ifc' {   # cube with an arrow out
+      & $poly '#8FC1F7' '2,11 12,6 22,11 12,16'; & $poly '#3B82F6' '2,11 12,16 12,28 2,23'; & $poly '#1E4E9C' '22,11 12,16 12,28 22,23'
+      & $line '#16A34A' 2.8 '18,24 27,24'; & $poly '#16A34A' '25,19 31,24 25,29'
+    }
     'khung-ten' {   # sheet with a title block
       & $poly '#F4F7FA' '2,4 30,4 30,28 2,28'; & $poly '#F5B301' '17,20 30,20 30,28 17,28'
       & $edge '#4C6075' 1.4 '2,4 30,4 30,28 2,28'; & $edge '#4C6075' 1 '5,7 27,7 27,17 5,17'
@@ -106,5 +110,5 @@ function New-DrawnIcon([string]$name, [int]$size) {
   $g.Dispose()
   return $bmp
 }
-$script:DrawnSkills = 'cong-3d', 'boc-khoi-luong', 'kiem-tra-ban-ve', 'viet-lisp', 'tao-skill', 'chuan-layer', 'pdf-sang-cad', 'khung-ten'
+$script:DrawnSkills = 'cong-3d', 'boc-khoi-luong', 'kiem-tra-ban-ve', 'viet-lisp', 'tao-skill', 'chuan-layer', 'pdf-sang-cad', 'khung-ten', 'xuat-ifc'
 function New-SkillIcon([string]$skill, [int]$size) { return (New-DrawnIcon $(if ($skill -in $script:DrawnSkills) { $skill } else { 'skill' }) $size) }

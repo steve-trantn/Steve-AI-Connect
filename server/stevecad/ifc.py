@@ -10,7 +10,9 @@ import uuid
 
 from . import __version__, meta
 from .drawing import UserError, by_handle, ensure_layer, etype, g, iter_space, r3, vpt
-from .tools import C, done, editing, tool
+from .tools import C, done, editing, selection_handles, tool
+
+WORKSPACE = os.path.join(os.path.expanduser("~"), "Steve-CAD-AI")
 
 # ---------------------------------------------------------------- helpers
 _ACI_RGB = {1: (255, 0, 0), 2: (255, 255, 0), 3: (0, 255, 0), 4: (0, 255, 255), 5: (0, 0, 255), 6: (255, 0, 255),
@@ -215,6 +217,18 @@ def _perp(n):
     return _unit(_cross(n, a))
 
 
+UNITS = {"m": 1.0, "mm": 0.001, "cm": 0.01, "ft": 0.3048, "us-ft": 1200 / 3937, "inch": 0.0254}
+
+
+def _box(st: Step, lo, hi, k) -> str:
+    """The box around a solid as a real solid: many viewers do not draw IFCBOUNDINGBOX."""
+    sx, sy, sz = (max((hi[i] - lo[i]) * k, 1e-4) for i in range(3))
+    ax = st.add(f"IFCAXIS2PLACEMENT2D({st.pt2([0.0, 0.0])},$);")
+    prof = st.add(f"IFCRECTANGLEPROFILEDEF(.AREA.,$,{ax},{f_(sx)},{f_(sy)});")
+    pl = st.a2p3([(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, lo[2]], [0, 0, 1], [1, 0, 0], k)
+    return st.add(f"IFCEXTRUDEDAREASOLID({prof},{pl},{st.dir3([0, 0, 1])},{f_(sz)});")
+
+
 def _geo(st: Step, node, k) -> tuple[str, str]:
     """IFC item for a recipe node -> (#id, representation type)."""
     t = node.get("t")
@@ -256,28 +270,47 @@ def _geo(st: Step, node, k) -> tuple[str, str]:
 
 @tool()
 def export_ifc(path: str, schema: str = "IFC4", handles: list[str] | None = None, from_layer: str = "",
-               units: str = "m", project: str = "", site: str = "", road: str = "", author: str = "") -> dict:
+               units: str = "m", project: str = "", site: str = "", road: str = "", author: str = "",
+               selection_only: bool = False, preview: bool = False) -> dict:
     """Export 3D solids to an IFC file with basic non-graphic data.
     schema: IFC4 or IFC4X3 (IFC 4.3: elements placed in an IfcRoad under the site).
     Geometry is exact (extrusions, booleans, clipping) for solids built with the Steve CAD tools; solids edited
-    by other means are exported as a bounding box and listed in the result.
+    by other means are exported as a box around them and listed in the result. Only 3D solids are exported.
+    preview=True writes nothing: counts of exact / approximate solids, by layer. selection_only: the user's selection.
+    Relative paths go to the Steve-CAD-AI folder.
     Each structure (props.structure + station) becomes an IfcElementAssembly; each solid an
     IfcBuildingElementProxy with: name = part, material, color, Pset_SteveCAD (Công trình, Lý trình, Loại, Bộ phận,
-    Vật liệu, Layer, Màu ACI...) and Qto (NetVolume). units = drawing units: m | mm | cm."""
+    Vật liệu, Layer, Màu ACI...) and Qto (NetVolume). units = drawing units: m | mm | cm | ft | us-ft | inch."""
     schema = schema.upper().replace(".", "").replace("_", "")
     sch = {"IFC4": "IFC4", "IFC43": "IFC4X3_ADD2", "IFC4X3": "IFC4X3_ADD2", "IFC4X3ADD2": "IFC4X3_ADD2"}.get(schema)
     if not sch:
         raise UserError("schema phải là IFC4 hoặc IFC4X3.")
-    k = {"m": 1.0, "mm": 0.001, "cm": 0.01}.get(units.lower())
+    k = UNITS.get(units.lower())
     if k is None:
-        raise UserError("units phải là m, mm hoặc cm.")
-    path = os.path.abspath(path)
+        raise UserError("units phải là m, mm, cm, ft, us-ft hoặc inch.")
+    path = os.path.abspath(path if os.path.isabs(path) else os.path.join(WORKSPACE, path))
     if not path.lower().endswith(".ifc"):
         path += ".ifc"
     d = C.drawings.target()
-    ents = _solids(d, handles, from_layer)
+    if selection_only:
+        sel = list(selection_handles(d))
+        ents = [e for e in sel if etype(e) == "3dSolid" and (not from_layer or (g(e, "Layer") or "").lower() == from_layer.lower())]
+    else:
+        ents = _solids(d, handles, from_layer)
     if not ents:
-        raise UserError("Không có khối 3D nào để xuất.")
+        raise UserError("Không có khối 3D (solid) nào để xuất" + (" trong vùng chọn." if selection_only else "."))
+    if preview:
+        by, exact = {}, 0
+        for e in ents:
+            rec = meta.read(e) or {}
+            ok = "geo" in rec and meta.is_current(e, rec)
+            exact += ok
+            row = by.setdefault(g(e, "Layer") or "", [0, 0, 0.0])
+            row[0] += 1
+            row[1] += not ok
+            row[2] += (g(e, "Volume") or 0.0) * k ** 3
+        return {"preview": True, "elements": len(ents), "exact": exact, "approximate": len(ents) - exact,
+                "layers": [{"layer": n, "solids": v[0], "approximate": v[1], "volume_m3": round(v[2], 3)} for n, v in sorted(by.items())]}
     st = Step()
     origin = st.a2p3([0, 0, 0], [0, 0, 1], [1, 0, 0])
     ctx = st.add(f"IFCGEOMETRICREPRESENTATIONCONTEXT($,'Model',3,1.E-05,{origin},$);")
@@ -311,21 +344,21 @@ def export_ifc(path: str, schema: str = "IFC4", handles: list[str] | None = None
             except Exception:
                 col = 7
         vol = (g(e, "Volume") or 0.0) * k ** 3
+        near = False
         if "geo" in rec and meta.is_current(e, rec):
             item, rtype = _geo(st, rec["geo"], k)
             n_ok += 1
         else:
             lo, hi = e.GetBoundingBox()
-            item = st.add(f"IFCBOUNDINGBOX({st.pt3(lo, k)},{f_((hi[0] - lo[0]) * k)},{f_((hi[1] - lo[1]) * k)},{f_((hi[2] - lo[2]) * k)});")
-            rtype = "BoundingBox"
+            item, rtype = _box(st, lo, hi, k), "SweptSolid"
+            near = True
             approx.append(g(e, "Handle"))
         if col not in styles:
             r, gg, b = aci_rgb(col)
             rgb = st.add(f"IFCCOLOURRGB($,{f_(r / 255)},{f_(gg / 255)},{f_(b / 255)});")
             shade = st.add(f"IFCSURFACESTYLESHADING({rgb},0.);")
             styles[col] = st.add(f"IFCSURFACESTYLE($,.BOTH.,({shade}));")
-        if rtype != "BoundingBox":
-            st.add(f"IFCSTYLEDITEM({item},({styles[col]}),$);")
+        st.add(f"IFCSTYLEDITEM({item},({styles[col]}),$);")
         rep = st.add(f"IFCSHAPEREPRESENTATION({body},'Body',{s_(rtype)},({item}));")
         pds = st.add(f"IFCPRODUCTDEFINITIONSHAPE($,$,({rep}));")
         pl = st.add(f"IFCLOCALPLACEMENT({holder_pl},{st.a2p3([0, 0, 0], [0, 0, 1], [1, 0, 0])});")
@@ -338,7 +371,7 @@ def export_ifc(path: str, schema: str = "IFC4", handles: list[str] | None = None
         pv = [st.add(f"IFCPROPERTYSINGLEVALUE({s_(n)},$,IFCLABEL({s_(v)}),$);") for n, v in fields if v not in (None, "")]
         pv.append(st.add(f"IFCPROPERTYSINGLEVALUE({s_('Màu ACI')},$,IFCINTEGER({int(col)}),$);"))
         pv.append(st.add(f"IFCPROPERTYSINGLEVALUE({s_('Thể tích')},$,IFCVOLUMEMEASURE({f_(vol)}),$);"))
-        pv.append(st.add(f"IFCPROPERTYSINGLEVALUE({s_('Hình học gần đúng')},$,IFCBOOLEAN({'.T.' if rtype == 'BoundingBox' else '.F.'}),$);"))
+        pv.append(st.add(f"IFCPROPERTYSINGLEVALUE({s_('Hình học gần đúng')},$,IFCBOOLEAN({'.T.' if near else '.F.'}),$);"))
         ps = st.add(f"IFCPROPERTYSET('{ifc_guid()}',$,'Pset_SteveCAD',$,({','.join(pv)}));")
         st.add(f"IFCRELDEFINESBYPROPERTIES('{ifc_guid()}',$,$,$,({el}),{ps});")
         q = st.add(f"IFCQUANTITYVOLUME('NetVolume',$,$,{f_(vol)},$);")

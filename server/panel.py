@@ -11,7 +11,7 @@ from stevecad import tools  # noqa: E402
 from stevecad.com import EXECUTOR  # noqa: E402
 
 READ = {"info", "audit", "find_duplicates", "quantities", "list_layers", "list_attributes", "zoom_to"}
-WRITE = {"map_layers", "set_attributes", "set_props", "delete", "delete_duplicates", "export_xlsx"}
+WRITE = {"map_layers", "set_attributes", "set_props", "delete", "delete_duplicates", "export_xlsx", "export_ifc"}
 
 
 def pick(pid):

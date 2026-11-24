@@ -1,6 +1,7 @@
 ---
 name: tao-skill
 title: Tạo skill
+group: Skill của tôi
 description: Biến quy trình làm việc của bạn thành skill riêng để AI làm lại y hệt những lần sau.
 ---
 

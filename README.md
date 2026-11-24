@@ -72,7 +72,7 @@ Máy có phần mềm nào thì ô đó mới bật. Nối nhiều CAD cùng lú
 - **Toạ độ thật, layer tự động, xuất IFC4 / IFC4.3:** đưa mô hình về toạ độ công trình; đặt layer theo tên cống + lý trình + bộ phận; xuất IFC có thông tin phi hình học (công trình, lý trình, bộ phận, vật liệu, khối lượng).
 - **Đọc PDF:** xem trang PDF như ảnh, hoặc nhập nét vẽ vector vào bản vẽ.
 - **Đọc chữ font TCVN3/VNI:** chữ trong bản vẽ cũ được giải mã sang Unicode.
-- **Skill:** quy trình làm sẵn cho việc nhiều bước. `cong-3d` (dựng cống 3D từ DWG/PDF), `viet-lisp` (viết, kiểm tra và chạy thử AutoLISP trên bản vẽ nháp), `kiem-tra-ban-ve` (soát lỗi), `boc-khoi-luong` (bóc khối lượng, xuất Excel), `chuan-layer`, `pdf-sang-cad`, `khung-ten` (điền khung tên, danh mục bản vẽ), `tao-skill` (biến quy trình của bạn thành skill riêng, lưu ở `Steve-CAD-AI\skills`).
+- **Skill:** quy trình làm sẵn cho việc nhiều bước. `cong-3d` (dựng cống 3D từ DWG/PDF), `viet-lisp` (viết, kiểm tra và chạy thử AutoLISP trên bản vẽ nháp), `kiem-tra-ban-ve` (soát lỗi), `boc-khoi-luong` (bóc khối lượng, xuất Excel), `chuan-layer`, `pdf-sang-cad`, `khung-ten` (điền khung tên, danh mục bản vẽ), `xuat-ifc` (xuất khối 3D ra IFC4 / IFC4X3), `tao-skill` (biến quy trình của bạn thành skill riêng, lưu ở `Steve-CAD-AI\skills`).
 - **Báo lỗi tiếng Việt:** báo rõ khi CAD đang bận hoặc bị hộp thoại chặn.
 
 Chi tiết: [server/README.md](server/README.md).
@@ -116,7 +116,7 @@ ChatGPT bản web không dùng được vì chỉ nhận MCP server từ xa qua 
 ## Dòng lệnh (cho IT, cài hàng loạt)
 
 ```bat
-Steve-AI-Connect-Setup-v1.8.3.exe -Connect                                           :: cai + ket noi, khong mo giao dien
+Steve-AI-Connect-Setup-v1.8.4.exe -Connect                                           :: cai + ket noi, khong mo giao dien
 powershell -ExecutionPolicy Bypass -File app\SteveCADConnect.ps1 -Connect                 :: moi CAD + moi tro ly co tren may
 powershell -ExecutionPolicy Bypass -File app\SteveCADConnect.ps1 -Connect -Cad zwcad -Client codex,claude -Test
 powershell -ExecutionPolicy Bypass -File app\SteveCADConnect.ps1 -Connect -Ads2026 -GeminiKey <key>

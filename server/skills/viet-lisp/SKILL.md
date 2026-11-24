@@ -1,6 +1,7 @@
 ---
 name: viet-lisp
 title: Viết LISP
+group: Skill của tôi
 description: Viết lệnh AutoLISP cho ZWCAD/AutoCAD theo yêu cầu, kiểm tra, chạy thử trên bản vẽ nháp rồi lưu kèm hướng dẫn dùng.
 ---
 

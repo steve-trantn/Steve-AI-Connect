@@ -360,13 +360,16 @@ class ChatForm : Form
         th.IsBackground = true; th.Start();
     }
     void StopTools() { try { if (tools != null && !tools.HasExited) tools.Kill(); } catch { } }
-    // only the Excel files these tables wrote
+    // only the Excel and IFC files these tables wrote
     void OpenExcel(string path)
     {
         try
         {
             string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), @"Steve-CAD-AI\Excel") + "\\";
             string full = Path.GetFullPath(path);
+            // an IFC file is shown in its folder: which program opens it is the user's choice
+            string ifc = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), @"Steve-CAD-AI\IFC") + "\\";
+            if (full.StartsWith(ifc, StringComparison.OrdinalIgnoreCase) && full.EndsWith(".ifc", StringComparison.OrdinalIgnoreCase) && File.Exists(full)) { Process.Start("explorer.exe", "/select,\"" + full + "\""); return; }
             if (full.StartsWith(dir, StringComparison.OrdinalIgnoreCase) && full.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) && File.Exists(full)) Process.Start(full);
         }
         catch { }

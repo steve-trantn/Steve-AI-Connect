@@ -1,6 +1,7 @@
 ---
 name: khung-ten
 title: Khung tên
+group: Bản vẽ
 description: Đọc, so khớp và điền thuộc tính khung tên hàng loạt, lập danh mục bản vẽ ra Excel.
 ---
 

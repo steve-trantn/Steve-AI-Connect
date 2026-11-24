@@ -1,6 +1,7 @@
 ---
 name: pdf-sang-cad
 title: PDF sang CAD
+group: Chuyển đổi
 description: Nhập bản vẽ PDF có nét vector vào CAD đúng tỷ lệ, kiểm tra bằng kích thước đã biết và tách layer.
 ---
 

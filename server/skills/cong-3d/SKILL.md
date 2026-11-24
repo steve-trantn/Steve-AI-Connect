@@ -1,6 +1,7 @@
 ---
 name: cong-3d
 title: Cống 3D
+group: Mô hình 3D / BIM
 description: Dựng mô hình cống 3D (khối solid) từ bản vẽ cống DWG hoặc PDF (mặt bằng, cắt dọc, cắt ngang, chính diện), đúng hướng tuyến, góc chéo, cao độ, độ dốc; mỗi bộ phận một màu.
 ---
 

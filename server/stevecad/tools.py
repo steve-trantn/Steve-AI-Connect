@@ -169,7 +169,7 @@ def info() -> dict:
     """CAD product, working drawing, units, extents, current layer and object count. Call this first."""
     app = C.conn.app()
     d = doc()
-    units = {0: "không đơn vị", 1: "inch", 2: "feet", 4: "mm", 5: "cm", 6: "m", 7: "km"}
+    units = {0: "không đơn vị", 1: "inch", 2: "feet", 4: "mm", 5: "cm", 6: "m", 7: "km", 21: "US survey feet"}
     ins = d.GetVariable("INSUNITS")
     return {
         "cad": C.conn.label, "cad_version": g(app, "Version"), "server": f"steve-cad {__version__}",

@@ -116,7 +116,10 @@ function script:Invoke-UpdateCheckNow { $script:hits += 'update' }
   if (@($uids | Group-Object | Where-Object { $_.Count -gt 1 }).Count) { throw 'UID trùng' }
   foreach ($m in $miss) { if ($mm -notcontains $m) { throw "thiếu macro $m" } }
   $lsp = [IO.File]::ReadAllText((Join-Path $script:Root 'templates\SteveAI.lsp'))
-  $rows = @([IO.File]::ReadAllLines((Join-Path $script:AppHome 'ribbon.txt')) | Where-Object { $_ -like 'Steve AI Connect*' })
+  $rows = @([IO.File]::ReadAllLines((Join-Path $script:AppHome 'ribbon.txt')) | Where-Object { $_ -like "Hỗ trợ`t*" })
+  $tit = @([IO.File]::ReadAllLines((Join-Path $script:AppHome 'ribbon.txt')) | ForEach-Object { ($_ -split "`t")[0] } | Select-Object -Unique)
+  if (($tit -join '|') -ne 'Trợ lý AI|Bản vẽ|Khối lượng|Mô hình 3D / BIM|Chuyển đổi|Skill của tôi|Hỗ trợ') { throw "nhóm: $($tit -join '|')" }
+  if (@($miss).Count -ne @([IO.File]::ReadAllLines((Join-Path $script:AppHome 'ribbon.txt'))).Count) { throw 'ribbon.txt và cuix khác số nút' }
   if ($rows.Count -ne 7) { throw "ribbon.txt $($rows.Count)" }
   foreach ($l in $rows) { $f = $l -split "`t"; $c = ($f[4] -split ' ')[-1]; if (-not $lsp.Contains("(defun c:$c ")) { throw "thiếu lệnh $c" }; if (-not (Test-Path (Join-Path $script:AppHome "icons\$($f[5])16.png"))) { throw "thiếu icon $($f[5])" } }
   $d = 0; foreach ($ch in ($lsp -replace '(?m);.*$', '' -replace '"(\\.|[^"\\])*"', '').ToCharArray()) { if ($ch -eq '(') { $d++ } elseif ($ch -eq ')') { $d-- } }; if ($d) { throw "ngoặc LISP lệch $d" }
