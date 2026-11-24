@@ -26,6 +26,19 @@ try {
     Start-Process (Join-Path $PSHOME 'powershell.exe') -ArgumentList "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -STA -File `"$(Join-Path $PSScriptRoot 'SteveCADConnect.ps1')`"" -WindowStyle Hidden
     exit 1
   }
+  # the chat window (it calls this script back with -Info / -Prepare). Terminal window when it cannot run, or when the user prefers it.
+  if (-not ($Info -or $Prepare) -and (Test-ChatWindow)) {
+    $chatExe = Get-ChatExe
+    if (-not $Client -and -not $Skill) {
+      $open = @(Get-Process SteveAIChat -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne [IntPtr]::Zero })[0]
+      if ($open) { [void](New-Object -ComObject WScript.Shell).AppActivate($open.Id); exit 0 }   # already open: bring it to the front
+    }
+    $ca = @()
+    if ($Client) { $ca += '-Client', ($Client -replace '[^\w\-]', '') }
+    if ($Skill) { $ca += '-Skill', ($Skill -replace '[^\w\-]', '') }
+    if ($ca) { Start-Process $chatExe -ArgumentList $ca } else { Start-Process $chatExe }
+    exit 0
+  }
   $exe = @{ claudecode = (Find-Exe 'claude'); codex = (Find-Codex); gemini = (Find-Exe 'gemini.cmd') }
   if (-not $exe.gemini) { $exe.gemini = Find-Exe 'gemini' }
   if ($Info) {

@@ -685,7 +685,20 @@ function Test-CadAddon([string]$cad) {
   return $false
 }
 
-# Opens the AI terminal window (Steve AI).
+# the chat window (chat\bin\SteveAIChat.exe) needs Windows 10 1809+, 64-bit, and the WebView2 runtime
+function Get-ChatExe { return (Join-Path $script:Root 'chat\bin\SteveAIChat.exe') }
+function Test-ChatWindow {
+  if ((Get-Setting 'UseTerminal' $false) -or -not (Test-Path (Get-ChatExe)) -or -not [Environment]::Is64BitOperatingSystem) { return $false }
+  if ([int](Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion').CurrentBuildNumber -lt 17763) { return $false }
+  $g = '{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}'
+  foreach ($k in "HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\$g", "HKCU:\Software\Microsoft\EdgeUpdate\Clients\$g") {
+    $v = [string](Get-ItemProperty $k -ErrorAction SilentlyContinue).pv
+    if ($v -and $v -ne '0.0.0.0') { return $true }
+  }
+  return $false
+}
+
+# Opens Steve AI: the chat window, or the AI terminal window.
 function Start-SteveAI([string]$Client = '', [string]$Skill = '') {
   $l = $script:Launcher
   if (-not (Test-Path $l)) { $l = Join-Path $PSScriptRoot 'SteveAI.ps1' }
@@ -751,7 +764,7 @@ function Install-Self {
     # copy over the old files instead of deleting the folder: the GUI (or a CAD-launched Steve AI)
     # may be running from it, and Windows will not delete a folder that is a process's current directory
     New-Item -ItemType Directory -Force $script:ToolDir | Out-Null
-    $items = 'app', 'CAD', 'server', 'templates', 'VERSION', 'README.md', 'LICENSE', 'NOTICE', 'Uninstall.cmd', 'Steve AI Connect.cmd'
+    $items = 'app', 'CAD', 'server', 'templates', 'chat', 'VERSION', 'README.md', 'LICENSE', 'NOTICE', 'Uninstall.cmd', 'Steve AI Connect.cmd'
     Get-ChildItem $script:ToolDir -Force | Where-Object { $items -notcontains $_.Name } | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
     foreach ($i in $items) {
       $p = Join-Path $script:Root $i

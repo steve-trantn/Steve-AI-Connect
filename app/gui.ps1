@@ -281,6 +281,9 @@ $miConn = New-Object Windows.Forms.ToolStripMenuItem 'Kết nối từng mục, 
 $miConn.ForeColor = $Pal.text; [void]$menu.Items.Add($miConn); [void]$menu.Items.Add((New-Object Windows.Forms.ToolStripSeparator))
 $miConn.add_Click({ $menu.Close(); Show-Page 'conn' })
 foreach ($m in $mi26, $miScript) { $m.ForeColor = $Pal.text; [void]$menu.Items.Add($m) }
+$miTerm = New-Object Windows.Forms.ToolStripMenuItem 'Mở Steve AI bằng cửa sổ terminal (kiểu cũ)'; $miTerm.CheckOnClick = $true; $miTerm.ForeColor = $Pal.text
+$miTerm.Checked = [bool](Get-Setting 'UseTerminal' $false); [void]$menu.Items.Add($miTerm)
+$miTerm.add_Click({ Set-Setting 'UseTerminal' ([bool]$miTerm.Checked) })
 [void]$menu.Items.Add((New-Object Windows.Forms.ToolStripSeparator))
 $miUpd = New-Object Windows.Forms.ToolStripMenuItem 'Kiểm tra bản cập nhật…'; $miUpd.ForeColor = $Pal.text; [void]$menu.Items.Add($miUpd)
 $miUpd.add_Click({ $menu.Close(); if (-not $script:Busy) { Invoke-UpdateCheckNow } })

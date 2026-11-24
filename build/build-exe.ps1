@@ -22,7 +22,8 @@ Add-Type -AssemblyName System.IO.Compression, System.IO.Compression.FileSystem, 
 try {
   # 1. payload: the same files Install-Self copies, without caches
   $stage = Join-Path $work 'payload'
-  $items = 'app', 'CAD', 'server', 'templates', 'VERSION', 'README.md', 'LICENSE', 'NOTICE', 'Uninstall.cmd', 'Steve AI Connect.cmd'
+  & (Join-Path $PSScriptRoot 'build-chat.ps1') | Out-Null   # chat window + CAD palette
+  $items = 'app', 'CAD', 'server', 'templates', 'chat', 'VERSION', 'README.md', 'LICENSE', 'NOTICE', 'Uninstall.cmd', 'Steve AI Connect.cmd'
   foreach ($i in $items) {
     $p = Join-Path $root $i
     if (Test-Path $p -PathType Container) {

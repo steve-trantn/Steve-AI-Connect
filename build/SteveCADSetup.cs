@@ -78,6 +78,8 @@ static class Program
             string p = Path.Combine(tool, d);
             try { if (Directory.Exists(p)) Directory.Delete(p, true); } catch { /* in use: files are overwritten below */ }
         }
+        string bin = Path.Combine(tool, "chat");
+        if (Directory.Exists(bin)) foreach (string f in Directory.GetFiles(bin, "*.old-*", SearchOption.AllDirectories)) try { File.Delete(f); } catch { }
         string root = Path.GetFullPath(tool).TrimEnd('\\') + "\\";
         using (Stream s = Assembly.GetExecutingAssembly().GetManifestResourceStream("payload.zip"))
         using (var zip = new ZipArchive(s, ZipArchiveMode.Read))
@@ -88,7 +90,13 @@ static class Program
                 if (!dest.StartsWith(root, StringComparison.OrdinalIgnoreCase)) continue;   // never write outside the tool folder
                 if (e.Name.Length == 0) { Directory.CreateDirectory(dest); continue; }
                 Directory.CreateDirectory(Path.GetDirectoryName(dest));
-                e.ExtractToFile(dest, true);
+                try { e.ExtractToFile(dest, true); }
+                catch (IOException)
+                {
+                    // the chat window is open: a loaded exe / dll cannot be overwritten, but it can be renamed
+                    File.Move(dest, dest + ".old-" + Guid.NewGuid().ToString("N"));
+                    e.ExtractToFile(dest, true);
+                }
             }
         }
     }
