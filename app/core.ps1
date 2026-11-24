@@ -577,13 +577,14 @@ function ConvertTo-Ascii([string]$s) {
 # skills shipped in server\skills\<name>\SKILL.md: @(@{ name; description })
 function Get-SkillList {
   $out = @()
-  $sk = Join-Path $script:Root 'server\skills'
+  $sk = @((Join-Path $script:Root 'server\skills'), (Join-Path $script:Workspace 'skills'))   # built-in, then the user's own
   foreach ($d in (Get-ChildItem $sk -Directory -ErrorAction SilentlyContinue)) {
     $f = Join-Path $d.FullName 'SKILL.md'; if (-not (Test-Path $f)) { continue }
     $t = [IO.File]::ReadAllText($f)
     $name = $d.Name; $desc = ''
     if ($t -match '(?m)^name:\s*(.+)$') { $name = $Matches[1].Trim() }
     if ($t -match '(?m)^description:\s*(.+)$') { $desc = $Matches[1].Trim() }
+    if ($name -notmatch '^[\w\-]+$' -or @($out | Where-Object { $_.name -eq $name }).Count) { continue }
     $out += @{ name = $name; description = $desc }
   }
   return $out

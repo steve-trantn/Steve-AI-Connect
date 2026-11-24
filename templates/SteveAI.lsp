@@ -25,7 +25,9 @@
 
 ;; Panel inside the CAD: the plugin is loaded once per session, nobody has to type NETLOAD.
 ;; Returns T when the panel is shown; nil = open the separate window instead.
-(defun steveai-panel (client skill / fd r)
+(defun steveai-panel (client skill / fd r *error*)
+  ;; Esc or an error while loading must not leave FILEDIA at 0 (no open / save dialogs)
+  (defun *error* (m) (if fd (setvar "FILEDIA" fd)) (princ))
   (if (and (wcmatch (strcase (getvar "PROGRAM")) "*ZWCAD*") (/= *steveai-panel-zw* "") (findfile *steveai-panel-zw*))
     (progn
       (vl-load-com)
@@ -35,6 +37,7 @@
           (setvar "FILEDIA" 0)
           (vl-catch-all-apply 'vl-cmdf (list "_.NETLOAD" *steveai-panel-zw*))
           (setvar "FILEDIA" fd)
+          (setq fd nil)
           (vl-bb-set '*steveai-net* T)
         )
       )

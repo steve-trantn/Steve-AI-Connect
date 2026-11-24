@@ -15,7 +15,10 @@ $script:ToolCatalog = [ordered]@{
   'Tính toán' = @(
     @('measure', 'Chiều dài, diện tích, kèm tổng', 'Tổng chiều dài các đường trên layer TIM'),
     @('count_blocks', 'Đếm block theo tên', 'Đếm số block cửa đi'),
-    @('find_duplicates', 'Tìm đối tượng vẽ trùng', 'Tìm các đường bị vẽ chồng')
+    @('find_duplicates', 'Tìm đối tượng vẽ trùng', 'Tìm các đường bị vẽ chồng'),
+    @('quantities', 'Khối lượng theo layer và loại', 'Bóc khối lượng layer TUONG'),
+    @('audit', 'Soát lỗi bản vẽ (chỉ đọc)', 'Kiểm tra bản vẽ này có lỗi gì'),
+    @('export_xlsx', 'Xuất bảng ra Excel (có hỏi trước)', 'Xuất bảng khối lượng ra Excel')
   )
   'Vẽ' = @(
     @('line', 'Đường thẳng', 'Vẽ đoạn thẳng từ 0,0 đến 5000,0'),
@@ -84,6 +87,12 @@ $script:ToolCatalog = [ordered]@{
   )
   'Skill' = @(
     @('list_skills', 'Danh sách skill có sẵn', 'Có những skill nào?'),
-    @('get_skill', 'Đọc hướng dẫn một skill', 'Đọc skill cong-3d')
+    @('get_skill', 'Đọc hướng dẫn một skill', 'Đọc skill cong-3d'),
+    @('save_skill', 'Lưu skill riêng của bạn', 'Lưu quy trình vừa làm thành skill')
+  )
+  'AutoLISP' = @(
+    @('lisp_check', 'Kiểm tra mã LISP, không chạy', 'Kiểm tra file lisp này'),
+    @('lisp_save', 'Lưu file .lsp (có hỏi trước)', 'Viết lisp đánh số thứ tự cọc'),
+    @('lisp_test', 'Nạp thử trên bản vẽ nháp', 'Chạy thử lisp vừa viết')
   )
 }

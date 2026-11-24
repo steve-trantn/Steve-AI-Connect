@@ -53,8 +53,8 @@ Kết nối xong có thể đóng công cụ, khởi động lại máy cũng kh
 
 | CAD | MCP server | Yêu cầu | Chi tiết |
 |---|---|---|---|
-| **ZWCAD** | **Steve CAD MCP** (viết riêng, [server/](server)), 63 tool | ZWCAD 2020+; Python tự cài nếu thiếu | [CAD/ZWCAD](CAD/ZWCAD) |
-| **AutoCAD** | **Steve CAD MCP**, cùng 63 tool | AutoCAD 2018+ (bản đầy đủ, không phải LT) | [CAD/AutoCAD](CAD/AutoCAD) |
+| **ZWCAD** | **Steve CAD MCP** (viết riêng, [server/](server)), 70 tool | ZWCAD 2020+; Python tự cài nếu thiếu | [CAD/ZWCAD](CAD/ZWCAD) |
+| **AutoCAD** | **Steve CAD MCP**, cùng 70 tool | AutoCAD 2018+ (bản đầy đủ, không phải LT) | [CAD/AutoCAD](CAD/AutoCAD) |
 | **ADSCivil** | `AdsMcpServer.exe` có sẵn trong ADSCivil 2027, khoảng 290 tool nghiệp vụ | ADSCivil NW 2027 For ZWCAD 2026 | [CAD/ADSCivil](CAD/ADSCivil) |
 
 Máy có phần mềm nào thì ô đó mới bật. Nối nhiều CAD cùng lúc được: mỗi CAD là một server riêng (`zwcad`, `autocad`, `adscivil`).
@@ -72,7 +72,7 @@ Máy có phần mềm nào thì ô đó mới bật. Nối nhiều CAD cùng lú
 - **Toạ độ thật, layer tự động, xuất IFC4 / IFC4.3:** đưa mô hình về toạ độ công trình; đặt layer theo tên cống + lý trình + bộ phận; xuất IFC có thông tin phi hình học (công trình, lý trình, bộ phận, vật liệu, khối lượng).
 - **Đọc PDF:** xem trang PDF như ảnh, hoặc nhập nét vẽ vector vào bản vẽ.
 - **Đọc chữ font TCVN3/VNI:** chữ trong bản vẽ cũ được giải mã sang Unicode.
-- **Skill:** quy trình làm sẵn cho việc nhiều bước. Hiện có **`cong-3d`**: dựng cống 3D (thân cống, tường đầu, tường cánh, sân cống...) từ bản vẽ DWG/PDF, mỗi bộ phận một màu.
+- **Skill:** quy trình làm sẵn cho việc nhiều bước. `cong-3d` (dựng cống 3D từ DWG/PDF), `viet-lisp` (viết, kiểm tra và chạy thử AutoLISP trên bản vẽ nháp), `kiem-tra-ban-ve` (soát lỗi), `boc-khoi-luong` (bóc khối lượng, xuất Excel), `tao-skill` (biến quy trình của bạn thành skill riêng, lưu ở `Steve-CAD-AI\skills`).
 - **Báo lỗi tiếng Việt:** báo rõ khi CAD đang bận hoặc bị hộp thoại chặn.
 
 Chi tiết: [server/README.md](server/README.md).
@@ -111,7 +111,7 @@ ChatGPT bản web không dùng được vì chỉ nhận MCP server từ xa qua 
 ## Dòng lệnh (cho IT, cài hàng loạt)
 
 ```bat
-Steve-AI-Connect-Setup-v1.2.0.exe -Connect                                           :: cai + ket noi, khong mo giao dien
+Steve-AI-Connect-Setup-v1.3.0.exe -Connect                                           :: cai + ket noi, khong mo giao dien
 powershell -ExecutionPolicy Bypass -File app\SteveCADConnect.ps1 -Connect                 :: moi CAD + moi tro ly co tren may
 powershell -ExecutionPolicy Bypass -File app\SteveCADConnect.ps1 -Connect -Cad zwcad -Client codex,claude -Test
 powershell -ExecutionPolicy Bypass -File app\SteveCADConnect.ps1 -Connect -Ads2026 -GeminiKey <key>

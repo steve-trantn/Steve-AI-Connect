@@ -123,6 +123,13 @@ def need_active(d, what="lệnh này"):
     ensure_model(d)
 
 
+def need_active_doc(d):
+    """Like need_active, for a document that was just activated (not the working drawing)."""
+    if cmd_active(d):
+        raise UserError(f"{C.conn.label} đang dở một lệnh. Nhờ người dùng bấm Esc rồi thử lại.")
+    ensure_model(d)
+
+
 def ensure_model(d):
     """Views, zoom and window selection work on model space: leave a Layout tab if the drawing opened on one."""
     try:
@@ -903,4 +910,4 @@ def run_script(code: str) -> str:
 
 
 # extra tool modules (they register themselves with @tool)
-from . import ifc, pdf, skills, solids  # noqa: E402,F401
+from . import ifc, pdf, skills, solids, work  # noqa: E402,F401
