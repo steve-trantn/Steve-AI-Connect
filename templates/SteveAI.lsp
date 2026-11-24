@@ -15,6 +15,7 @@
 (setq *steveai-launcher* "@LAUNCHER@")
 (setq *steveai-connect* "@CONNECT@")
 (setq *steveai-cuix* "@CUIX@")
+(setq *steveai-panel-zw* "@PANELZW@")
 (setq *steveai-skills* '(@SKILLS@))
 
 (defun steveai-ps (file extra)
@@ -22,7 +23,32 @@
     (strcat "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -STA -File \"" file "\"" extra))
 )
 
+;; Panel inside the CAD: the plugin is loaded once per session, nobody has to type NETLOAD.
+;; Returns T when the panel is shown; nil = open the separate window instead.
+(defun steveai-panel (client skill / fd r)
+  (if (and (wcmatch (strcase (getvar "PROGRAM")) "*ZWCAD*") (/= *steveai-panel-zw* "") (findfile *steveai-panel-zw*))
+    (progn
+      (vl-load-com)
+      (if (not (vl-bb-ref '*steveai-net*))
+        (progn
+          (setq fd (getvar "FILEDIA"))
+          (setvar "FILEDIA" 0)
+          (vl-catch-all-apply 'vl-cmdf (list "_.NETLOAD" *steveai-panel-zw*))
+          (setvar "FILEDIA" fd)
+          (vl-bb-set '*steveai-net* T)
+        )
+      )
+      (setq r (vl-catch-all-apply 'steveai-show (list (if client client "") (if skill skill ""))))
+      (and r (not (vl-catch-all-error-p r)))
+    )
+  )
+)
+
 (defun steveai-run (client skill / args)
+  (if (not (steveai-panel client skill)) (steveai-window client skill))
+  (princ)
+)
+(defun steveai-window (client skill / args)
   (if (not (findfile *steveai-launcher*))
     (princ "\nSteve AI: khong thay bo mo AI. Mo Steve AI Connect va bam Ket noi lai.")
     (progn

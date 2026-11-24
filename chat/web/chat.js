@@ -1,7 +1,7 @@
 'use strict';
 const host = window.chrome.webview, $ = id => document.getElementById(id);
 const post = m => host.postMessage(m);
-let size = +(localStorage.font || 14), running = false, client = '';
+let size = +(localStorage.font || 13), running = false, client = '', skills = [], pendingSkill = '';
 const term = new Terminal({ fontFamily: 'Cascadia Mono, Consolas, monospace', fontSize: size, cursorBlink: true, scrollback: 8000,
   theme: { background: '#0d1421', foreground: '#e6edf6', cursor: '#60a5fa', selectionBackground: '#2b4a7d' },
   linkHandler: { activate: (e, u) => post({ t: 'link', u }) } });
@@ -18,25 +18,28 @@ term.attachCustomKeyEventHandler(e => {
   return true;
 });
 
-function state(text, cls) { $('state').textContent = text; $('dot').className = cls || ''; }
-function setRun(on) { running = on; $('stop').disabled = !on; $('send').disabled = !on; }
-function start() {
-  term.reset(); setRun(false); state('Đang mở trợ lý…');
-  post({ t: 'start', client, skill: $('skill').value });
-  $('skill').value = '';
-  $('box').focus();
+function state(text, cls) { $('state').textContent = text; $('state').title = text; $('dot').className = cls || ''; }
+function setRun(on) { running = on; $('send').disabled = !on; }
+function start(skill) {
+  term.reset(); setRun(false); state('Đang mở…');
+  post({ t: 'start', client, skill: skill || '' });
+  box.focus();
 }
 // Vietnamese input methods misbehave inside terminals, so typing happens in a normal text box and is pasted as one block
 function send(text) {
   text = text.replace(/\r\n?/g, '\n').replace(/[\x00-\x08\x0b-\x1f\x7f]/g, '').trim();
   if (!text || !running) return false;
-  post({ t: 'in', d: '\x1b[200~' + text + '\x1b[201~' });
-  setTimeout(() => post({ t: 'in', d: '\r' }), 200);
+  post({ t: 'in', d: text[0] === '/' && !text.includes('\n') ? text : '\x1b[200~' + text + '\x1b[201~' });   // /commands are typed, not pasted
+  setTimeout(() => post({ t: 'in', d: '\r' }), 250);
   term.scrollToBottom();
   return true;
 }
+function runSkill(name) {
+  if (!running) { start(name); return; }
+  send(client === 'claudecode' ? '/' + name : 'Dùng skill ' + name + ': gọi tool get_skill với name=' + name + ' của server CAD đang nối, đọc hướng dẫn rồi làm theo từng bước. Hỏi tôi thông tin còn thiếu trước khi vẽ.');
+}
 const box = $('box');
-function grow() { box.style.height = 'auto'; box.style.height = Math.min(box.scrollHeight + 2, 140) + 'px'; }
+function grow() { box.style.height = '30px'; if (box.scrollHeight > 32) box.style.height = Math.min(box.scrollHeight + 2, 120) + 'px'; }
 function sendBox() { if (send(box.value)) { box.value = ''; grow(); } box.focus(); }
 box.addEventListener('input', grow);
 const keys = { ArrowUp: '\x1b[A', ArrowDown: '\x1b[B', ArrowLeft: '\x1b[D', ArrowRight: '\x1b[C', Escape: '\x1b', Enter: '\r', Tab: '\t' };
@@ -48,19 +51,6 @@ box.addEventListener('keydown', e => {
   const seq = e.key === 'Tab' && e.shiftKey ? '\x1b[Z' : keys[e.key];
   if (seq && !(e.key === 'Enter' && e.shiftKey)) { e.preventDefault(); post({ t: 'in', d: seq }); }
 });
-$('send').onclick = sendBox;
-$('new').onclick = start;
-$('stop').onclick = () => { post({ t: 'stop' }); setRun(false); state('Đã dừng. Bấm Phiên mới để mở lại.'); };
-$('skill').onchange = () => { if ($('skill').value) start(); };
-const zoom = d => { size = Math.max(9, Math.min(24, size + d)); localStorage.font = size; term.options.fontSize = size; fit.fit(); };
-$('minus').onclick = () => zoom(-1); $('plus').onclick = () => zoom(1);
-
-// quick prompts are put in the box so the person can finish the sentence before sending
-[['Đối tượng đang chọn', 'Với các đối tượng tôi đang chọn trong CAD, hãy '], ['Layer', 'Bản vẽ đang mở có những layer nào, mỗi layer bao nhiêu đối tượng?'],
- ['Đếm block', 'Đếm số lượng từng loại block trong bản vẽ.'], ['Chiều dài, diện tích', 'Tính tổng chiều dài và diện tích các polyline tôi đang chọn.'],
- ['Đối tượng trùng', 'Tìm các đối tượng bị trùng nhau (chưa xoá).']].forEach(([n, p]) => {
-  const b = document.createElement('button'); b.textContent = n; b.onclick = () => { box.value = p; grow(); box.focus(); box.setSelectionRange(p.length, p.length); }; $('quick').append(b);
-});
 // digits 1-9 answer a question of the assistant when the box is empty and the terminal shows a numbered menu
 box.addEventListener('beforeinput', e => {
   if (!running || box.value || !/^[1-9]$/.test(e.data || '')) return;
@@ -68,30 +58,68 @@ box.addEventListener('beforeinput', e => {
   for (let i = 0; i < term.rows; i++) { const l = b.getLine(b.viewportY + i); if (l) lines.push(l.translateToString(true)); }
   if (lines.some(l => /^\s*[❯›>]\s*\d\.\s/.test(l))) { e.preventDefault(); post({ t: 'in', d: e.data }); }
 });
+$('send').onclick = sendBox;
+$('new').onclick = () => start();
+$('client').onchange = () => { client = $('client').value; start(); };
+const zoom = d => { size = Math.max(9, Math.min(24, size + d)); localStorage.font = size; term.options.fontSize = size; fit.fit(); };
+
+// ---------- popup menus ----------
+const pop = $('pop');
+function popup(btn, items, up) {
+  if (!pop.hidden && pop.owner === btn) { pop.hidden = true; return; }
+  pop.owner = btn;
+  pop.replaceChildren(...items.map(i => {
+    if (i.head) { const h = document.createElement('h4'); h.textContent = i.head; return h; }
+    const b = document.createElement('button'); b.textContent = i.text; b.disabled = !!i.off;
+    if (i.sub) { const s = document.createElement('small'); s.textContent = i.sub; b.append(s); }
+    b.onclick = () => { if (!i.keep) pop.hidden = true; i.act(); };
+    return b;
+  }));
+  pop.hidden = false;
+  const r = btn.getBoundingClientRect();
+  pop.style.left = Math.max(4, Math.min(r.left, innerWidth - pop.offsetWidth - 4)) + 'px';
+  pop.style.top = up ? 'auto' : r.bottom + 2 + 'px';
+  pop.style.bottom = up ? innerHeight - r.top + 2 + 'px' : 'auto';
+}
+addEventListener('pointerdown', e => { if (!pop.hidden && !pop.contains(e.target) && e.target !== pop.owner) pop.hidden = true; }, true);
+addEventListener('keydown', e => { if (e.key === 'Escape' && !pop.hidden) { pop.hidden = true; e.stopPropagation(); } }, true);
+addEventListener('blur', () => { pop.hidden = true; });
+// prompts are put in the box so the person can finish the sentence before sending
+const fill = p => { box.value = p; grow(); box.focus(); box.setSelectionRange(p.length, p.length); };
+$('add').onclick = () => popup($('add'), [
+  { head: 'Skill' }, ...skills.map(s => ({ text: s.name, sub: s.description, act: () => runSkill(s.name) })),
+  { head: 'Câu gợi ý' }, ...[['Với đối tượng đang chọn, hãy…', 'Với các đối tượng tôi đang chọn trong CAD, hãy '],
+    ['Liệt kê layer', 'Bản vẽ đang mở có những layer nào, mỗi layer bao nhiêu đối tượng?'], ['Đếm block', 'Đếm số lượng từng loại block trong bản vẽ.'],
+    ['Tổng chiều dài, diện tích', 'Tính tổng chiều dài và diện tích các polyline tôi đang chọn.'],
+    ['Tìm đối tượng trùng', 'Tìm các đối tượng bị trùng nhau (chưa xoá).']].map(([text, p]) => ({ text, act: () => fill(p) })),
+], true);
+$('more').onclick = () => popup($('more'), [
+  { text: 'Phiên mới', act: () => start() },
+  { text: 'Dừng trợ lý', off: !running, act: () => { post({ t: 'stop' }); setRun(false); state('Đã dừng. Bấm ✚ để mở lại.'); } },
+  { text: 'Chữ lớn hơn', keep: true, act: () => zoom(1) }, { text: 'Chữ nhỏ hơn', keep: true, act: () => zoom(-1) },
+  { head: 'AI có thể nhầm. Sai thì gõ UNDO trong CAD.' },
+]);
 
 host.addEventListener('message', ev => {
   const m = ev.data;
   if (m.t === 'out') term.write(Uint8Array.from(atob(m.d), c => c.charCodeAt(0)));
   else if (m.t === 'info') {
     const ok = m.clients.filter(c => c.ok);
-    $('clients').replaceChildren(...m.clients.map(c => {
-      const b = document.createElement('button'); b.textContent = c.label; b.disabled = !c.ok; b.dataset.id = c.id;
-      b.title = c.ok ? '' : 'Chưa cài hoặc chưa kết nối trong Steve AI Connect';
-      b.onclick = () => { if (client !== c.id) { client = c.id; mark(); start(); } };
-      return b;
-    }));
-    const first = document.createElement('option'); first.value = ''; first.textContent = 'Skill…';
-    $('skill').replaceChildren(first, ...m.skills.map(s => { const o = document.createElement('option'); o.value = s.name; o.textContent = s.name; o.title = s.description; return o; }));
+    $('client').replaceChildren(...m.clients.map(c => { const o = document.createElement('option'); o.value = c.id; o.textContent = c.label; o.disabled = !c.ok; return o; }));
+    skills = m.skills;
     client = [m.client, m.default].find(x => ok.some(c => c.id === x)) || (ok[0] && ok[0].id) || '';
-    mark();
+    $('client').value = client;
     if (!client) { state('Máy chưa có trợ lý AI. Mở Steve AI Connect để kết nối.', 'err'); return; }
-    if (m.skill) $('skill').value = m.skill;
-    start(); post({ t: 'snap' });
+    start(m.skill); post({ t: 'snap' });
   }
-  else if (m.t === 'started') { setRun(true); client = m.client; mark(); state(m.label + ' đang chạy', 'on'); }
-  else if (m.t === 'exit') { setRun(false); state('Phiên đã kết thúc. Bấm Phiên mới để mở lại.'); }
-  else if (m.t === 'error') { setRun(false); state(m.text, 'err'); $('state').title = m.text; }
+  else if (m.t === 'started') { setRun(true); client = m.client; $('client').value = client; state('', 'on'); }
+  else if (m.t === 'ask') {   // a command in the CAD asked for an assistant and / or a skill while the panel is open
+    if (m.client && m.client !== client) { client = m.client; $('client').value = client; start(m.skill); }
+    else if (m.skill) runSkill(m.skill);
+    box.focus();
+  }
+  else if (m.t === 'exit') { setRun(false); state('Phiên đã kết thúc. Bấm ✚ để mở lại.'); }
+  else if (m.t === 'error') { setRun(false); state(m.text, 'err'); term.write('\r\n' + m.text.replace(/\n/g, '\r\n')); }
 });
-function mark() { for (const b of $('clients').children) b.classList.toggle('on', b.dataset.id === client); }
 setRun(false);
 post({ t: 'ready', cols: term.cols, rows: term.rows });

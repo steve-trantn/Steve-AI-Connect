@@ -624,6 +624,7 @@ function Write-CadLisp {
   $menu = ''
   try { Write-CadMenu; $menu = $script:CadMenu -replace '\\', '/' } catch { Write-Log "  Không tạo được tab ribbon Steve AI: $($_.Exception.Message)" 'warn' }
   $t = $t.Replace('@CUIX@', $menu)
+  $t = $t.Replace('@PANELZW@', ((Join-Path $script:ToolDir 'chat\bin\SteveAIPanel.ZWCAD.dll') -replace '\\', '/'))
   New-Item -ItemType Directory -Force $script:AppHome | Out-Null
   [IO.File]::WriteAllText($script:CadLisp, $t, [Text.Encoding]::ASCII)
   # SteveAI.mnl next to SteveAI.cuix: ZWCAD / AutoCAD load a menu's .mnl into every drawing together with the

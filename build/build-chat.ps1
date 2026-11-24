@@ -33,7 +33,9 @@ $fw = Split-Path $csc
 & $csc /nologo /target:winexe /optimize+ /platform:x64 "/out:$bin\SteveAIChat.exe" "/reference:$bin\Microsoft.Web.WebView2.Core.dll" "/reference:$bin\Microsoft.Web.WebView2.WinForms.dll" /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Web.Extensions.dll "/reference:$fw\System.Runtime.dll" "/reference:$fw\System.Threading.Tasks.dll" $src
 $rc = $LASTEXITCODE; Remove-Item $src; if ($rc) { throw 'csc: SteveAIChat' }
 if (Test-Path "$ZwcadDir\ZwManaged.dll") {
-  & $csc /nologo /target:library /optimize+ /platform:x64 "/out:$bin\SteveAIPanel.ZWCAD.dll" "/reference:$ZwcadDir\ZwManaged.dll" "/reference:$ZwcadDir\ZwDatabaseMgd.dll" "/reference:$fw\WPF\PresentationCore.dll" "/reference:$fw\WPF\WindowsBase.dll" /reference:System.Windows.Forms.dll /reference:System.Drawing.dll (Join-Path $chat 'SteveAIPanel.cs')
-  if ($LASTEXITCODE) { throw 'csc: SteveAIPanel' }
+  $src2 = Join-Path $env:TEMP "SteveAIPanel-$PID.cs"
+  [IO.File]::WriteAllText($src2, [IO.File]::ReadAllText((Join-Path $chat 'SteveAIPanel.cs')).Replace('@VERSION@', $num), (New-Object Text.UTF8Encoding $true))
+  & $csc /nologo /target:library /optimize+ /platform:x64 "/out:$bin\SteveAIPanel.ZWCAD.dll" "/reference:$ZwcadDir\ZwManaged.dll" "/reference:$ZwcadDir\ZwDatabaseMgd.dll" "/reference:$fw\WPF\PresentationCore.dll" "/reference:$fw\WPF\WindowsBase.dll" /reference:System.Windows.Forms.dll /reference:System.Drawing.dll $src2
+  $rc = $LASTEXITCODE; Remove-Item $src2; if ($rc) { throw 'csc: SteveAIPanel' }
 }
 Get-ChildItem $bin -File | ForEach-Object { "{0,10:N0}  {1}" -f $_.Length, $_.Name }

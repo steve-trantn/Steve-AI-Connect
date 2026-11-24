@@ -108,6 +108,24 @@ class ChatForm : Form
             web.CoreWebView2.NavigationStarting += (o, e) => { if (!e.Uri.StartsWith("https://steveai.local/")) e.Cancel = true; };
             web.CoreWebView2.NewWindowRequested += (o, e) => { e.Handled = true; OpenLink(e.Uri); };
             web.CoreWebView2.WebMessageReceived += OnMessage;
+            if (parent != IntPtr.Zero)
+            {
+                // the CAD palette sends "client|skill" lines when a command is run while the panel is open
+                var rd = new Thread(delegate()
+                {
+                    try
+                    {
+                        string line;
+                        while ((line = Console.In.ReadLine()) != null)
+                        {
+                            string[] q = line.Split('|');
+                            if (q.Length == 2) BeginInvoke((Action)delegate { Post(new { t = "ask", client = Safe(q[0]), skill = Safe(q[1]) }); });
+                        }
+                    }
+                    catch { }
+                });
+                rd.IsBackground = true; rd.Start();
+            }
             web.CoreWebView2.Navigate("https://steveai.local/index.html");
         }
         catch (WebView2RuntimeNotFoundException)
