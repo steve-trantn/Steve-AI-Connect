@@ -34,7 +34,12 @@ function send(text) {
   term.scrollToBottom();
   return true;
 }
+let lastSkill = '', lastAt = 0;
 function runSkill(name) {
+  Ui.hide(); Panels.hide();   // a table left open would cover the answer
+  // impatient clicks: the same skill again within 15 s is not sent twice
+  if (name === lastSkill && Date.now() - lastAt < 15000 && started) { state('Đã gửi skill này, trợ lý đang xử lý…', running ? 'on' : ''); return; }
+  lastSkill = name; lastAt = Date.now();
   if (!running) { start(name); return; }
   send(client === 'claudecode' ? '/' + name : 'Dùng skill ' + name + ': gọi tool get_skill với name=' + name + ' của server CAD đang nối, đọc hướng dẫn rồi làm theo từng bước. Hỏi tôi thông tin còn thiếu trước khi vẽ.');
 }
@@ -133,6 +138,7 @@ host.addEventListener('message', ev => {
     if (Ui.open(m.skill)) return;
     Ui.hide();
     if (tables && Panels.open(m.skill)) return;
+    Panels.hide();
     if (m.client && m.client !== client) { client = m.client; $('client').value = client; start(m.skill); }
     else if (m.skill) runSkill(m.skill);
     box.focus();

@@ -232,5 +232,6 @@ const Panels = (() => {
     if (cur !== name) { cur = name; ttl.textContent = list[name][0]; body.replaceChildren(); busy = false; view.classList.remove('busy'); list[name][1](); }
     return true;
   }
-  return { open, reply, fail, names: Object.keys(list), has: n => n in list, test: () => ({ note: note.textContent, body: body.textContent, cur, busy }) };
+  const hide = () => { view.hidden = true; cur = ''; };
+  return { open, hide, reply, fail, names: Object.keys(list), has: n => n in list, test: () => ({ note: note.textContent, body: body.textContent, cur, busy }) };
 })();
