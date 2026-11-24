@@ -20,3 +20,6 @@ the tool uses the copies installed on the user's computer. The product logos
 shown in the tool are read from those installed programs, except the Gemini
 logo (app/logos/gemini.png), which belongs to Google and is included only to
 show that the tool works with Gemini.
+
+The chat window includes xterm.js (MIT, chat/web/vendor) and the Microsoft Edge WebView2 SDK
+(license: LICENSE-WebView2.txt, next to the program).
