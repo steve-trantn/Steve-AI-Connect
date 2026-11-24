@@ -1,6 +1,24 @@
 'use strict';
 // Tables that work without AI: audit, quantities, title blocks. Data comes from server/panel.py through the host program.
-const Panels = (() => {
+// a block copied from Excel: first row = titles, first column = Handle; null when it is something else
+function parsePaste(text) {
+  // Excel quotes a cell that holds a line break or a quote
+  const rows = []; let row = [], cell = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) { if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; } else cell += c; }
+    else if (c === '"' && cell === '') q = true;
+    else if (c === '\t') { row.push(cell); cell = ''; }
+    else if (c === '\n') { row.push(cell); rows.push(row); row = []; cell = ''; }
+    else if (c !== '\r') cell += c;
+  }
+  if (cell || row.length) { row.push(cell); rows.push(row); }
+  const ok = rows.map(r => r.map(x => x.replace(/\s+/g, ' ').trim())).filter(r => r.some(x => x));
+  if (ok.length < 2 || ok[0][0].toLowerCase() !== 'handle') return null;
+  return { head: ok[0], rows: ok.slice(1).filter(r => r[0]) };
+}
+if (typeof module !== 'undefined') module.exports = { parsePaste };
+const Panels = typeof document === 'undefined' ? null : (() => {
   const calls = new Map(); let seq = 0, cur = '';
   const el = (tag, props, ...kids) => { const e = Object.assign(document.createElement(tag), props || {}); e.append(...kids.filter(k => k != null)); return e; };
   function call(name, args) {
@@ -226,40 +244,112 @@ const Panels = (() => {
   }
 
   // ---------------------------------------------------------------- IFC
+  // reads and edits the non-graphic data kept on the solids, then exports where the person chooses
+  const FIX = [['name', 'Tên'], ['part', 'Bộ phận'], ['material', 'Vật liệu'], ['structure', 'Công trình'], ['station', 'Lý trình'], ['type', 'Loại']];
   function ifc() {
-    const scope = el('select'), sch = el('select'), unit = el('select'), name = el('input', { placeholder: 'Tên dự án (không bắt buộc)' });
-    let dr = '', seen = null;
+    const scope = el('select'), sch = el('select'), unit = el('select'), inp = (ph, max) => el('input', { placeholder: ph, maxLength: max || 120 });
+    const proj = inp('Tên dự án'), site = inp('Công trường / địa điểm'), road = inp('Tên tuyến (IFC4X3)'), author = inp('Người lập');
+    let dr = '', r = null, cols = [];
     for (const [t, v] of [['Mọi khối 3D', '*'], ['Đang chọn', '+']]) scope.append(el('option', { textContent: t, value: v }));
     for (const [t, v] of [['IFC4', 'IFC4'], ['IFC4X3 (4.3)', 'IFC4X3']]) sch.append(el('option', { textContent: t, value: v }));
     for (const [t, v] of [['Đơn vị bản vẽ?', ''], ['m', 'm'], ['mm', 'mm'], ['cm', 'cm'], ['feet', 'ft'], ['US survey feet', 'us-ft'], ['inch', 'inch']]) unit.append(el('option', { textContent: t, value: v }));
-    bars.replaceChildren(scope, sch, unit, btn('Xem trước', look, 'pri'), btn('Xuất IFC', save), name);
+    const more = el('details', { className: 'ifcmeta' }, el('summary', { textContent: 'Thông tin dự án (ghi vào file)' }), proj, site, road, author);
+    bars.replaceChildren(scope, btn('Đọc khối', read, 'pri'), twice('Ghi vào bản vẽ', write), btn('Excel', exp), btn('Dán từ Excel', paste), btn('+ Cột', addCol), sch, unit, btn('Xuất IFC…', save, 'pri'), more);
     job('Đang đọc bản vẽ…', async () => {
       const i = await call('info'); dr = i._drawing;
       unit.value = { m: 'm', mm: 'mm', cm: 'cm', feet: 'ft', 'US survey feet': 'us-ft', inch: 'inch' }[i.units] || '';
       for (const l of await call('list_layers', { count_objects: false })) scope.append(el('option', { textContent: 'Layer ' + l.name, value: '=' + l.name }));
-      say(`Đơn vị bản vẽ: ${i.units || 'chưa rõ'}. Kiểm tra ô đơn vị, sai đơn vị là sai tỷ lệ. Chỉ xuất khối solid 3D; corridor, surface, pipe network và khối trong block không được xuất.`);
+      say(`Đơn vị bản vẽ: ${i.units || 'chưa rõ'}. Kiểm tra ô đơn vị, sai đơn vị là sai tỷ lệ. Chỉ khối solid 3D; corridor, surface, pipe network và khối trong block không được xuất.`);
     });
-    // a preview only counts for the settings it was made with
-    for (const s of [scope, sch, unit]) s.onchange = () => { seen = null; body.replaceChildren(); say('Đã đổi lựa chọn, bấm Xem trước.'); };
-    const args = () => ({ _drawing: dr, schema: sch.value, units: unit.value, project: name.value.trim(), from_layer: scope.value[0] === '=' ? scope.value.slice(1) : '', selection_only: scope.value === '+' });
-    function look() {
-      if (!unit.value) { say('Chọn đơn vị bản vẽ trước.', 'err'); return; }
-      job('Đang đếm khối…', async () => {
-        seen = null; body.replaceChildren();
-        dr = (await call('info'))._drawing;
-        const r = await call('export_ifc', { ...args(), path: 'IFC\\xem-truoc', preview: true }), tb = el('table');
-        tb.append(el('tr', {}, ...['Layer', 'Số khối', 'Gần đúng', 'Thể tích m³'].map(t => el('th', { textContent: t }))));
-        for (const q of r.layers) tb.append(el('tr', {}, ...[q.layer, num(q.solids, 0), num(q.approximate, 0), num(q.volume_m3)].map(t => el('td', { textContent: t }))));
-        body.replaceChildren(tb); seen = r;
-        say(`${num(r.elements, 0)} khối, ${num(r.exact, 0)} xuất chính xác.` + (r.approximate ? ` ⚠ ${num(r.approximate, 0)} khối chỉ xuất dạng HỘP BAO (không do Steve AI dựng hoặc đã sửa).` : '') + ' Bấm Xuất IFC để ghi file.', r.approximate ? 'run' : 'ok');
+    const where = () => ({ from_layer: scope.value[0] === '=' ? scope.value.slice(1) : '', selection_only: scope.value === '+' });
+    const edits = () => [...body.querySelectorAll('input.chg')];
+    let wanted = '*';
+    scope.onchange = () => { if (edits().length) { scope.value = wanted; say(`Còn ${edits().length} ô chưa ghi vào bản vẽ.`, 'err'); return; } wanted = scope.value; r = null; body.replaceChildren(); say('Bấm Đọc khối.'); };
+    async function load() {
+      const v = await call('solid_info', { ...where(), limit: 500 });
+      if (!v.total) { r = null; body.replaceChildren(); throw new Error('Không có khối 3D (solid) nào trong phạm vi này.'); }
+      r = v; dr = v._drawing; cols = [...FIX.map(f => f[0]), ...v.extra_fields.map(k => 'p:' + k)]; show();
+    }
+    function read() {
+      if (edits().length) { say(`Còn ${edits().length} ô chưa ghi. Ghi vào bản vẽ trước, hoặc đóng bảng để bỏ.`, 'err'); return; }
+      job('Đang đọc khối…', async () => { await load(); summary(); });
+    }
+    function summary(lead) {
+      const n = r.items.filter(q => q.approximate).length, miss = r.items.filter(q => !q.name && !q.part).length;
+      say((lead ? lead + ' ' : '') + `${num(r.total, 0)} khối` + (r.partial ? ` (bảng hiện ${r.items.length} khối đầu; xuất vẫn đủ)` : '') + (miss ? `, ${miss} khối chưa có tên` : '')
+        + (n ? `. ⚠ ${n} khối chỉ xuất dạng HỘP BAO (không do Steve AI dựng hoặc đã sửa).` : '.'), n || miss ? 'run' : 'ok');
+    }
+    const label = c => c.startsWith('p:') ? c.slice(2) : FIX.find(f => f[0] === c)[1];
+    const val = (q, c) => String((c.startsWith('p:') ? q.props[c.slice(2)] : q[c]) ?? '');
+    const mark = i => i.classList.toggle('chg', i.value.trim() !== i.dataset.old.trim());
+    function show(keep) {
+      const tb = el('table');
+      // fills the ticked rows (all rows when none is ticked) with the first non-empty value of the column
+      const fill = c => {
+        const all = [...tb.querySelectorAll('input[data-c]')].filter(i => i.dataset.c === c), tick = new Set([...tb.querySelectorAll('input[type=checkbox][data-h]:checked')].map(i => i.dataset.h));
+        const to = tick.size ? all.filter(i => tick.has(i.dataset.h)) : all, src = to.find(i => i.value.trim());
+        if (!src) { say('Nhập một ô trong cột trước rồi bấm ↓.', 'err'); return; }
+        for (const i of to) { i.value = src.value; mark(i); }
+      };
+      const allBox = el('input', { type: 'checkbox', title: 'Chọn tất cả' });
+      allBox.onchange = () => { for (const i of tb.querySelectorAll('input[type=checkbox][data-h]')) i.checked = allBox.checked; };
+      tb.append(el('tr', {}, el('th', {}, allBox), el('th', { textContent: 'Khối' }), ...cols.map(c => { const b = btn('↓', () => fill(c)); b.title = 'Điền cả cột (hoặc các dòng đã tích) theo ô có chữ đầu tiên'; return el('th', {}, label(c) + ' ', b); }), el('th', { textContent: 'Layer' })));
+      for (const q of r.items) {
+        const ck = el('input', { type: 'checkbox' }); ck.dataset.h = q.handle;
+        const go = el('td', { textContent: q.handle + (q.approximate ? ' ⚠' : ''), className: 'lnk', title: (q.approximate ? 'Chỉ xuất dạng hộp bao. ' : '') + 'Bấm để zoom tới khối' });
+        go.onclick = () => job('Đang zoom…', async () => { await call('zoom_to', { handles: [q.handle], _drawing: dr }); say('Đã zoom tới khối ' + q.handle); });
+        tb.append(el('tr', {}, el('td', {}, ck), go, ...cols.map(c => {
+          const i = el('input', { value: val(q, c), maxLength: 500 }); i.dataset.old = i.value; i.dataset.c = c; i.dataset.h = q.handle; i.oninput = () => mark(i);
+          if (c === 'material' && q.material_guess) i.placeholder = q.material_guess;
+          if (keep && keep[q.handle + '|' + c] !== undefined) { i.value = keep[q.handle + '|' + c]; mark(i); }
+          return el('td', {}, i);
+        }), el('td', { textContent: q.layer })));
+      }
+      body.replaceChildren(tb);
+    }
+    const pending = () => Object.fromEntries(edits().map(i => [i.dataset.h + '|' + i.dataset.c, i.value]));
+    function addCol() {
+      if (!r) { say('Bấm Đọc khối trước.', 'err'); return; }
+      const n = el('input', { placeholder: 'Tên thông tin, ví dụ: Mác bê tông', maxLength: 60 });
+      say('Cột mới: '); note.append(n, btn('Thêm', () => { const c = n.value.trim(); if (!c) return; const key = 'p:' + c; if (cols.some(x => label(x).toLowerCase() === c.toLowerCase())) { say('Đã có cột này.', 'err'); return; } const k = pending(); cols.push(key); show(k); say('Đã thêm cột. Nhập giá trị rồi bấm Ghi vào bản vẽ.', 'ok'); }, 'pri'));
+      n.focus();
+    }
+    function write() {
+      const by = {}, ch = edits();
+      if (!ch.length) { say('Chưa đổi ô nào.', 'err'); return; }
+      for (const i of ch) { const w = by[i.dataset.h] = by[i.dataset.h] || { handle: i.dataset.h, props: {} }, c = i.dataset.c; if (c === 'name' || c === 'part' || c === 'material') w[c] = i.value; else w.props[c.startsWith('p:') ? c.slice(2) : c] = i.value; }
+      job('Đang ghi vào bản vẽ…', async () => {
+        const w = await call('tag_solids', { _drawing: dr, rows: Object.values(by) });
+        if (w.failed && w.failed.length) { for (const i of ch) if (!w.failed.includes(i.dataset.h)) { i.dataset.old = i.value; mark(i); } throw new Error(`Đã ghi ${w.tagged} khối; KHÔNG ghi được ${w.failed.length} khối: ${w.failed.slice(0, 8).join(', ')}`); }
+        await load(); summary(`✓ Đã ghi ${ch.length} ô của ${w.tagged} khối vào bản vẽ. Sai thì gõ UNDO.`);
       });
     }
+    const table = () => [['Handle', ...cols.map(label), 'Layer', 'Thể tích (đv bản vẽ³)', 'Hộp bao'], ...r.items.map(q => [q.handle, ...cols.map(c => val(q, c)), q.layer, q.volume, q.approximate ? 'Có' : ''])];
+    function exp() { if (!r) { say('Bấm Đọc khối trước.', 'err'); return; } job('Đang xuất…', () => xlsx('ThongTinIFC', dr, { 'Thong tin': table() })); }
+    function paste() {
+      if (!r) { say('Bấm Đọc khối trước.', 'err'); return; }
+      const keep = pending(), ta = el('textarea', { className: 'std', placeholder: 'Bấm Excel để lấy bảng mẫu, sửa trong Excel, chép cả dòng tiêu đề (cột đầu là Handle) rồi dán vào đây.' });
+      body.replaceChildren(ta, btn('Đưa vào bảng', () => {
+        const p = parsePaste(ta.value);
+        if (!p) { say('Dòng đầu phải là tiêu đề và cột đầu là Handle.', 'err'); return; }
+        const known = new Map(r.items.map(q => [q.handle.toUpperCase(), q])), skip = new Set(['layer', 'thể tích (đv bản vẽ³)', 'hộp bao']); let n = 0, lost = 0;
+        const key = p.head.map(h => { if (!h || skip.has(h.toLowerCase())) return ''; const c = cols.find(x => label(x).toLowerCase() === h.toLowerCase()); if (c) return c; cols.push('p:' + h.slice(0, 60)); return 'p:' + h.slice(0, 60); });
+        for (const row of p.rows) { const q = known.get(row[0].toUpperCase()); if (!q) { lost++; continue; } key.forEach((c, i) => { if (c && i && row[i] !== undefined && row[i].trim() !== val(q, c).trim()) { keep[q.handle + '|' + c] = row[i].trim(); n++; } }); }
+        show(keep); say(`Đã đưa ${n} ô vào bảng (màu vàng là ô đổi)` + (lost ? `, ${lost} dòng không có trong bảng nên bỏ qua` : '') + '. Kiểm tra rồi bấm Ghi vào bản vẽ.', lost ? 'run' : 'ok');
+      }, 'pri'), btn('Thôi', () => { show(keep); summary(); }));
+      ta.focus();
+    }
     function save() {
-      if (!seen) { say('Bấm Xem trước rồi mới xuất.', 'err'); return; }
-      job('Đang xuất…', async () => {
-        const r = await call('export_ifc', { ...args(), path: `IFC\\${base(dr)}-${stamp()}.ifc` });
-        say(`✓ Đã xuất ${num(r.elements, 0)} khối` + (r.bounding_box_only.length ? `, ${num(r.bounding_box_only.length, 0)} khối là hộp bao` : '') + `. ${r.path}`, 'ok');
-        note.append(' ', btn('Mở thư mục', () => post({ t: 'open', path: r.path })));
+      if (!r) { say('Bấm Đọc khối để xem trước rồi mới xuất.', 'err'); return; }
+      if (edits().length) { say(`Còn ${edits().length} ô chưa ghi vào bản vẽ nên chưa có trong file. Bấm Ghi vào bản vẽ trước.`, 'err'); return; }
+      if (!unit.value) { say('Chọn đơn vị bản vẽ trước.', 'err'); return; }
+      job('Chọn chỗ lưu…', async () => {
+        const f = await new Promise((ok, no) => { const id = ++seq; calls.set(id, { ok, no }); post({ t: 'savefile', id, name: `${base(dr)}.ifc`, dir: localStorage.ifcDir || '' }); });
+        if (!f.path) { say('Chưa xuất: bạn chưa chọn chỗ lưu.'); return; }
+        localStorage.ifcDir = f.dir; say('Đang xuất…', 'run');
+        const w = await call('export_ifc', { _drawing: dr, path: f.path, schema: sch.value, units: unit.value, project: proj.value.trim(), site: site.value.trim(), road: road.value.trim(), author: author.value.trim(), ...where() });
+        say(`✓ Đã xuất ${num(w.elements, 0)} khối` + (w.bounding_box_only.length ? `, ${num(w.bounding_box_only.length, 0)} khối là hộp bao` : '') + `. ${w.path}`, 'ok');
+        note.append(' ', btn('Mở thư mục', () => post({ t: 'open', path: w.path })));
       });
     }
   }

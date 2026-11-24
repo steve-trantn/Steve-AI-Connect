@@ -7,7 +7,7 @@ description: Xuất khối 3D trong bản vẽ ra file IFC4 hoặc IFC4X3 (IFC 4
 
 # Skill: Xuất IFC
 
-Tool dùng: `info`, `list_entities`, `get_selection`, `tag_solids`, `export_ifc`.
+Tool dùng: `info`, `get_selection`, `solid_info`, `tag_solids`, `export_ifc`.
 
 ## Bước 1. Xem trước
 
@@ -16,10 +16,14 @@ Gọi `info` (đơn vị bản vẽ), rồi `export_ifc(path="IFC\\xem-truoc", p
 - Chỉ xuất **khối solid 3D**. Corridor, surface, pipe network của Civil 3D và block chứa khối không được xuất: nói rõ nếu bản vẽ có.
 - Khối không do tool Steve CAD dựng (hoặc đã bị sửa) chỉ xuất dạng **hộp bao**. Nêu số lượng trước khi xuất.
 
-## Bước 2. Hỏi
+## Bước 2. Thông tin phi hình học
 
-Phạm vi (tất cả, đang chọn, một layer), IFC4 hay IFC4X3, **đơn vị bản vẽ** (m, mm, cm, ft, us-ft, inch; không đoán khi `info` không rõ), tên dự án. Thiếu tên bộ phận, vật liệu thì đề nghị `tag_solids`.
+`solid_info` đọc tên, bộ phận, vật liệu, công trình, lý trình, loại và các thông tin thêm. Nêu ô còn trống; hỏi giá trị, không tự bịa. Cho xem bảng **cũ → mới**, đồng ý thì `tag_solids(rows=[...])` (một bước `UNDO`). `name` là Name trong IFC.
 
-## Bước 3. Xuất
+## Bước 3. Hỏi
+
+Phạm vi (tất cả, đang chọn, một layer), IFC4 hay IFC4X3, **đơn vị bản vẽ** (m, mm, cm, ft, us-ft, inch; không đoán khi `info` không rõ), tên dự án. Hỏi lưu ở đâu.
+
+## Bước 4. Xuất
 
 Báo đường dẫn, được đồng ý mới gọi `export_ifc`. Ghi file không hoàn tác bằng `UNDO`. Báo cáo: đường dẫn, số khối, số khối gần đúng, dung lượng; nhắc mở thử bằng phần mềm xem IFC.

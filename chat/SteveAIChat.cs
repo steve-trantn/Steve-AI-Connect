@@ -223,6 +223,7 @@ class ChatForm : Form
             case "tool": Tool(json.Serialize(new { id = m["id"], name = m["name"], args = m["args"] })); break;
             case "ui": RunUi(m); break;
             case "connect": OpenConnect((string)m["part"]); break;
+            case "savefile": SaveDialog(m); break;
             case "open": OpenExcel((string)m["path"]); break;
             case "snap": SaveSnap(); break;
         }
@@ -360,6 +361,28 @@ class ChatForm : Form
         th.IsBackground = true; th.Start();
     }
     void StopTools() { try { if (tools != null && !tools.HasExited) tools.Kill(); } catch { } }
+    // "where to save": the person chooses in the usual Windows dialog (it also asks before replacing a file)
+    readonly HashSet<string> chosen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    void SaveDialog(Dictionary<string, object> m)
+    {
+        string path = "";
+        try
+        {
+            using (var f = new SaveFileDialog())
+            {
+                f.Title = "Lưu file IFC"; f.Filter = "IFC (*.ifc)|*.ifc"; f.DefaultExt = "ifc"; f.AddExtension = true; f.OverwritePrompt = true;
+                string n = m["name"] as string ?? "model";
+                foreach (char c in Path.GetInvalidFileNameChars()) n = n.Replace(c, '_');
+                f.FileName = n;
+                string dir = m.ContainsKey("dir") ? m["dir"] as string : "";
+                if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) dir = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+                f.InitialDirectory = dir;
+                if (f.ShowDialog(this) == DialogResult.OK && f.FileName.EndsWith(".ifc", StringComparison.OrdinalIgnoreCase)) { path = Path.GetFullPath(f.FileName); chosen.Add(path); }
+            }
+        }
+        catch (Exception ex) { LogError(ex); }
+        Post(new { t = "savedpath", id = m["id"], path = path, dir = path == "" ? "" : Path.GetDirectoryName(path) });
+    }
     // only the Excel and IFC files these tables wrote
     void OpenExcel(string path)
     {
@@ -369,7 +392,7 @@ class ChatForm : Form
             string full = Path.GetFullPath(path);
             // an IFC file is shown in its folder: which program opens it is the user's choice
             string ifc = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), @"Steve-CAD-AI\IFC") + "\\";
-            if (full.StartsWith(ifc, StringComparison.OrdinalIgnoreCase) && full.EndsWith(".ifc", StringComparison.OrdinalIgnoreCase) && File.Exists(full)) { Process.Start("explorer.exe", "/select,\"" + full + "\""); return; }
+            if ((chosen.Contains(full) || full.StartsWith(ifc, StringComparison.OrdinalIgnoreCase)) && full.EndsWith(".ifc", StringComparison.OrdinalIgnoreCase) && File.Exists(full)) { Process.Start("explorer.exe", "/select,\"" + full + "\""); return; }
             if (full.StartsWith(dir, StringComparison.OrdinalIgnoreCase) && full.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) && File.Exists(full)) Process.Start(full);
         }
         catch { }

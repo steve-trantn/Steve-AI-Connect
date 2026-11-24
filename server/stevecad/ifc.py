@@ -58,11 +58,80 @@ def _solids(d, handles, layer):
 
 
 # ---------------------------------------------------------------- tools
+def _scope(d, handles, from_layer, selection_only):
+    if not selection_only:
+        return _solids(d, handles, from_layer)
+    low = (from_layer or "").lower()
+    return [e for e in selection_handles(d) if etype(e) == "3dSolid" and (not low or (g(e, "Layer") or "").lower() == low)]
+
+
+@tool()
+def solid_info(handles: list[str] | None = None, from_layer: str = "", selection_only: bool = False, limit: int = 500) -> dict:
+    """Read the non-graphic data of 3D solids as export_ifc will write it: name, part, material, structure, station, type and
+    extra fields, plus layer, volume (drawing units) and whether the geometry is only approximate. Edit with tag_solids(rows=...)."""
+    d = C.drawings.target()
+    ents = _scope(d, handles, from_layer, selection_only)
+    items, extra = [], []
+    for e in ents[:limit]:
+        rec = meta.read(e) or {}
+        props = dict(rec.get("props") or {})
+        row = {"handle": g(e, "Handle"), "layer": g(e, "Layer") or "", "name": rec.get("name") or "", "part": rec.get("part") or "",
+               "material": rec.get("material") or "", "material_guess": meta.guess_material(rec.get("part") or ""),
+               "structure": props.pop("structure", ""), "station": props.pop("station", ""), "type": props.pop("type", ""),
+               "props": {str(k): v for k, v in props.items()}, "volume": g(e, "Volume") or 0.0,
+               "approximate": not ("geo" in rec and meta.is_current(e, rec))}
+        extra += [k for k in row["props"] if k not in extra]
+        items.append(row)
+    return {"total": len(ents), "partial": len(ents) > len(items), "extra_fields": extra, "items": items}
+
+
 @tool("write")
-def tag_solids(handles: list[str], part: str = "", material: str = "", props: dict | None = None) -> dict:
+def tag_solids(handles: list[str] | None = None, part: str = "", material: str = "", props: dict | None = None,
+               rows: list[dict] | None = None) -> dict:
     """Set the non-graphic data kept on solids and exported to IFC: part name, material and extra fields
     (e.g. {"structure": "CH4X4", "station": "Km8+423.31", "type": "Cống hộp 4x4", "diameter": "D1000"}).
-    Empty arguments keep the current values; props are merged."""
+    Empty arguments keep the current values; props are merged.
+    rows: different values per solid, one undo step: [{"handle": "2A1", "name": "Tường đầu 1", "part": ..., "material": ...,
+    "props": {"structure": ..., "Mác": "M300"}}]. Only the keys given are changed, "" clears. name = IFC Name (default: from part)."""
+    if not handles and not rows:
+        raise UserError("Cần handles hoặc rows.")
+    for r in rows or []:
+        for k in (r.get("props") or {}):
+            if not str(k).strip() or len(str(k)) > 60:
+                raise UserError(f"Tên thông tin không hợp lệ: '{k}' (1 đến 60 ký tự).")
+        if any(len(str(v)) > 500 for v in [r.get("name") or "", r.get("part") or "", r.get("material") or "", *(r.get("props") or {}).values()]):
+            raise UserError("Mỗi giá trị tối đa 500 ký tự.")
+    if rows:
+        with editing() as d:
+            ents = [(by_handle(d, r["handle"]), r) for r in rows]      # a wrong handle stops before anything is written
+            for e, r in ents:
+                if etype(e) != "3dSolid":
+                    raise UserError(f"{r['handle']} không phải khối 3D.")
+            n, failed = 0, []
+            for e, r in ents:
+                rec = meta.read(e) or {"v": 1, "part": "", "props": {}}
+                for key in ("name", "part", "material"):
+                    if key in r:
+                        if str(r[key] or "").strip():
+                            rec[key] = str(r[key]).strip()
+                        else:
+                            rec.pop(key, None)
+                rec.setdefault("part", "")
+                p = rec.setdefault("props", {})
+                for key, v in (r.get("props") or {}).items():
+                    key = str(key).strip()
+                    if str(v if v is not None else "").strip():
+                        p[key] = str(v).strip()
+                    else:
+                        p.pop(key, None)
+                if "chk" not in rec:
+                    rec["chk"] = meta.check_of(e)
+                try:
+                    meta.write(e, rec, d)
+                    n += 1
+                except Exception:      # e.g. more than the 16 KB a CAD object can carry
+                    failed.append(r["handle"])
+            return done(d, tagged=n, failed=failed)
     with editing() as d:
         n = 0
         for h in handles:
@@ -292,11 +361,7 @@ def export_ifc(path: str, schema: str = "IFC4", handles: list[str] | None = None
     if not path.lower().endswith(".ifc"):
         path += ".ifc"
     d = C.drawings.target()
-    if selection_only:
-        sel = list(selection_handles(d))
-        ents = [e for e in sel if etype(e) == "3dSolid" and (not from_layer or (g(e, "Layer") or "").lower() == from_layer.lower())]
-    else:
-        ents = _solids(d, handles, from_layer)
+    ents = _scope(d, handles, from_layer, selection_only)
     if not ents:
         raise UserError("Không có khối 3D (solid) nào để xuất" + (" trong vùng chọn." if selection_only else "."))
     if preview:
@@ -362,10 +427,10 @@ def export_ifc(path: str, schema: str = "IFC4", handles: list[str] | None = None
         rep = st.add(f"IFCSHAPEREPRESENTATION({body},'Body',{s_(rtype)},({item}));")
         pds = st.add(f"IFCPRODUCTDEFINITIONSHAPE($,$,({rep}));")
         pl = st.add(f"IFCLOCALPLACEMENT({holder_pl},{st.a2p3([0, 0, 0], [0, 0, 1], [1, 0, 0])});")
-        el = st.add(f"IFCBUILDINGELEMENTPROXY('{ifc_guid()}',$,{s_(part_short(part))},{s_(part)},{s_(part_short(part))},{pl},{pds},{s_(g(e, 'Handle'))},.USERDEFINED.);")
+        el = st.add(f"IFCBUILDINGELEMENTPROXY('{ifc_guid()}',$,{s_(rec.get('name') or part_short(part))},{s_(part)},{s_(part_short(part))},{pl},{pds},{s_(g(e, 'Handle'))},.USERDEFINED.);")
         material = rec.get("material") or meta.guess_material(part) or ""
         fields = [("Công trình", props.get("structure")), ("Lý trình", props.get("station")), ("Loại", props.get("type")),
-                  ("Bộ phận", part), ("Vật liệu", material), ("Layer", g(e, "Layer")), ("Handle CAD", g(e, "Handle")),
+                  ("Tên", rec.get("name")), ("Bộ phận", part), ("Vật liệu", material), ("Layer", g(e, "Layer")), ("Handle CAD", g(e, "Handle")),
                   ("Nguồn", dname)]
         fields += [(str(kk), vv) for kk, vv in props.items() if kk not in ("structure", "station", "type")]
         pv = [st.add(f"IFCPROPERTYSINGLEVALUE({s_(n)},$,IFCLABEL({s_(v)}),$);") for n, v in fields if v not in (None, "")]

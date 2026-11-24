@@ -53,8 +53,8 @@ Kết nối xong có thể đóng công cụ, khởi động lại máy cũng kh
 
 | CAD | MCP server | Yêu cầu | Chi tiết |
 |---|---|---|---|
-| **ZWCAD** | **Steve CAD MCP** (viết riêng, [server/](server)), 75 tool | ZWCAD 2020+; Python tự cài nếu thiếu | [CAD/ZWCAD](CAD/ZWCAD) |
-| **AutoCAD** | **Steve CAD MCP**, cùng 75 tool | AutoCAD 2018+ (bản đầy đủ, không phải LT) | [CAD/AutoCAD](CAD/AutoCAD) |
+| **ZWCAD** | **Steve CAD MCP** (viết riêng, [server/](server)), 76 tool | ZWCAD 2020+; Python tự cài nếu thiếu | [CAD/ZWCAD](CAD/ZWCAD) |
+| **AutoCAD** | **Steve CAD MCP**, cùng 76 tool | AutoCAD 2018+ (bản đầy đủ, không phải LT) | [CAD/AutoCAD](CAD/AutoCAD) |
 | **ADSCivil** | `AdsMcpServer.exe` có sẵn trong ADSCivil 2027, khoảng 290 tool nghiệp vụ | ADSCivil NW 2027 For ZWCAD 2026 | [CAD/ADSCivil](CAD/ADSCivil) |
 
 Máy có phần mềm nào thì ô đó mới bật. Nối nhiều CAD cùng lúc được: mỗi CAD là một server riêng (`zwcad`, `autocad`, `adscivil`).
@@ -116,7 +116,7 @@ ChatGPT bản web không dùng được vì chỉ nhận MCP server từ xa qua 
 ## Dòng lệnh (cho IT, cài hàng loạt)
 
 ```bat
-Steve-AI-Connect-Setup-v1.8.4.exe -Connect                                           :: cai + ket noi, khong mo giao dien
+Steve-AI-Connect-Setup-v1.8.5.exe -Connect                                           :: cai + ket noi, khong mo giao dien
 powershell -ExecutionPolicy Bypass -File app\SteveCADConnect.ps1 -Connect                 :: moi CAD + moi tro ly co tren may
 powershell -ExecutionPolicy Bypass -File app\SteveCADConnect.ps1 -Connect -Cad zwcad -Client codex,claude -Test
 powershell -ExecutionPolicy Bypass -File app\SteveCADConnect.ps1 -Connect -Ads2026 -GeminiKey <key>

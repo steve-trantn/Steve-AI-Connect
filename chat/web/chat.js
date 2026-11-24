@@ -127,6 +127,7 @@ host.addEventListener('message', ev => {
   else if (m.t === 'started') { setRun(true); client = m.client; $('client').value = client; state(docName, 'on'); }
   else if (m.t === 'uiopen') Ui.open(m.name);
   else if (m.t === 'uires') Ui.reply(m);
+  else if (m.t === 'savedpath') Panels.reply({ id: m.id, ok: true, r: m });
   else if (m.t === 'toolres') Panels.reply(m);
   else if (m.t === 'toolfail') Panels.fail(m.text);
   else if (m.t === 'doc') { docName = m.name; if (running) state(docName, 'on'); }

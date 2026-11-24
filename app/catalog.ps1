@@ -82,6 +82,7 @@ $script:ToolCatalog = [ordered]@{
   'Toạ độ, layer, IFC' = @(
     @('place_on_site', 'Đưa mô hình về toạ độ thật', 'Đặt cống về toạ độ VN-2000 tại Km0+568'),
     @('organize_layers', 'Layer tự động theo tên, lý trình, bộ phận', 'Sắp xếp layer cho mô hình cống'),
+    @('solid_info', 'Đọc thông tin phi hình học của khối', 'Các khối đang chọn có tên, vật liệu gì?'),
     @('tag_solids', 'Gắn thông tin phi hình học', 'Gắn vật liệu BTCT M300 cho thân cống'),
     @('export_ifc', 'Xuất IFC4 / IFC4X3 (có hỏi trước)', 'Xuất mô hình ra IFC')
   )

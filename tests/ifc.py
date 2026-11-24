@@ -54,4 +54,59 @@ for bad_unit in ('', 'feet?', 'km'):
         check('đơn vị lạ bị chặn ' + bad_unit, False)
     except ifc.UserError:
         check('đơn vị lạ bị chặn ' + repr(bad_unit), True)
+# ---- non-graphic data: read, edit, export
+import contextlib
+store = {}
+
+
+class S2(Solid):
+    Centroid = (15.0, 30.0, 20.0)
+
+    def __init__(self, h):
+        self.Handle = h
+
+
+sol = {h: S2(h) for h in ('A1', 'A2')}
+geo = {'t': 'ext', 'o': [0, 0, 0], 'X': [1, 0, 0], 'Y': [0, 1, 0], 'E': [0, 0, 1], 'lo': 0, 'hi': 1, 'loops': [[[0, 0], [1, 0], [1, 1]]]}
+store['A1'] = {'v': 1, 'part': 'Tường đầu BT M250', 'props': {'structure': 'CH4', 'Mác': 'cũ'}, 'geo': geo, 'chk': {'vol': 6000.0, 'cen': [15.0, 30.0, 20.0]}}
+meta.read = lambda e: __import__('copy').deepcopy(store.get(e.Handle))
+meta.write = lambda e, rec, d=None: store.__setitem__(e.Handle, rec)
+
+
+def by(d, h):
+    if h not in sol:
+        raise ifc.UserError('không có ' + h)
+    return sol[h]
+
+
+ifc.by_handle = by
+ifc._solids = lambda d, h, l: list(sol.values())
+ifc.editing = lambda: contextlib.nullcontext(Doc())
+ifc.done = lambda d, **k: dict(k, ok=True)
+un = lambda fn: getattr(fn, '__wrapped__', fn)
+r = un(ifc.solid_info)()
+check('đọc thông tin khối', r['total'] == 2 and r['items'][0]['structure'] == 'CH4' and r['items'][0]['props'] == {'Mác': 'cũ'} and not r['items'][0]['approximate'] and r['items'][1]['approximate'] and r['extra_fields'] == ['Mác'], r)
+w = un(ifc.tag_solids)(rows=[{'handle': 'A1', 'name': 'Tường "đầu" số 1', 'props': {'Mác': '', 'station': 'Km8+423'}}, {'handle': 'A2', 'name': 'Khối 2', 'material': 'BTCT M300', 'props': {'Nhà thầu': 'Công ty A'}}])
+check('ghi theo dòng: thêm, xoá, giữ phần khác và công thức dựng', w['tagged'] == 2 and store['A1']['geo'] == geo and store['A1']['part'] == 'Tường đầu BT M250' and store['A1']['props'] == {'structure': 'CH4', 'station': 'Km8+423'} and store['A1']['chk']['vol'] == 6000.0 and store['A2']['material'] == 'BTCT M300', store)
+old = __import__('copy').deepcopy(store)
+for name, bad_rows in (('handle sai', [{'handle': 'A1', 'name': 'x'}, {'handle': 'ZZ', 'name': 'y'}]), ('tên cột rỗng', [{'handle': 'A1', 'props': {' ': 'x'}}]), ('giá trị quá dài', [{'handle': 'A1', 'name': 'x' * 501}])):
+    try:
+        un(ifc.tag_solids)(rows=bad_rows)
+        check('chặn ' + name, False)
+    except ifc.UserError:
+        check('chặn ' + name + ', chưa ghi gì', store == old)
+un(ifc.tag_solids)(handles=['A2'], part='Bản đáy', props={'structure': 'CH4'})
+check('cách gọi cũ vẫn chạy', store['A2']['part'] == 'Bản đáy' and store['A2']['name'] == 'Khối 2')
+r = f(os.path.join(d, 'tt.ifc'), units='m', project='Dự án Á', author='Tên')
+t = open(r['path'], encoding='ascii').read()
+enc = lambda s: ifc.s_(s)[1:-1]
+check('IFC có Name, vật liệu, thông tin thêm, dự án', all(enc(x) in t for x in ('Khối 2', 'Công ty A', 'Nhà thầu', 'BTCT M300', 'Km8+423', 'Dự án Á')) and 'IFCMATERIAL(' in t, r)
+try:
+    import ifcopenshell
+except ImportError:
+    ifcopenshell = None
+if ifcopenshell:
+    m = ifcopenshell.open(r['path'])
+    check('đọc lại bằng ifcopenshell', sorted(x.Name for x in m.by_type('IfcBuildingElementProxy')) == sorted(['Tường "đầu" số 1', 'Khối 2']))
+print('FILE ' + r['path'])
 sys.exit(1 if bad else 0)
