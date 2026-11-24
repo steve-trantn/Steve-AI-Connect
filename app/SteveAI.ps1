@@ -42,7 +42,7 @@ try {
   $exe = @{ claudecode = (Find-Exe 'claude'); codex = (Find-Codex); gemini = (Find-Exe 'gemini.cmd') }
   if (-not $exe.gemini) { $exe.gemini = Find-Exe 'gemini' }
   if ($Info) {
-    $o = @{ default = [string](Get-Setting 'DefaultAI' ''); skills = @(Get-SkillList | ForEach-Object { @{ name = $_.name; description = $_.description } })
+    $o = @{ default = [string](Get-Setting 'DefaultAI' ''); skills = @(Get-SkillList | ForEach-Object { @{ name = $_.name; title = $_.title; description = $_.description } })
       clients = @($script:LaunchClients | ForEach-Object { @{ id = $_; label = $script:ClientLabel[$_]; ok = ([bool]$exe[$_] -and ($_ -ne 'gemini' -or (Test-GeminiKey))) } }) }
     [Console]::Out.Write(($o | ConvertTo-Json -Depth 5 -Compress)); exit 0
   }

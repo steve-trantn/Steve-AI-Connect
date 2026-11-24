@@ -3,6 +3,7 @@
 # Every button macro first loads SteveAI.lsp when the drawing does not have it yet (LISP is per drawing).
 
 $script:CadMenu = Join-Path $script:AppHome 'SteveAI.cuix'
+. (Join-Path $PSScriptRoot 'icons.ps1')
 
 # 16/32 px button icon: rounded square + short label
 function New-MenuIcon([string]$label, [Drawing.Color]$bg, [Drawing.Color]$fg, [int]$size) {
@@ -46,13 +47,15 @@ function Write-CadMenu {
     $i++
     $c = 'AI-' + ((ConvertTo-Ascii $s.name).ToUpper() -replace '[^A-Z0-9\-]', '-')
     $d = $s.description; if ($d.Length -gt 220) { $d = $d.Substring(0, 217).TrimEnd() + '...' }
-    $lbl = (($s.name -split '[-_ ]' | Where-Object { $_ } | ForEach-Object { $_.Substring(0, 1) }) -join '').ToUpper()
-    if ($s.name -match '3d') { $lbl = '3D' }
-    Add-Btn "SK$i" $s.name "$d ($c)" $c $lbl $gold $dark
+    Add-Btn "SK$i" $s.title "$d ($c)" $c '' $gold $dark
+    $btn["SK$i"].draw = $s.name
   }
   Add-Btn 'SKILL'  'Chọn skill…'     'Chọn một skill trong danh sách rồi mở AI chạy skill đó (STEVEAI-SKILL)' 'STEVEAI-SKILL' '≡' $gold $dark
   Add-Btn 'CONN'   "Kết nối"         'Mở Steve AI Connect: kết nối CAD với AI, xem danh sách tool (STEVECAD)' 'STEVECAD' 'S' $blue $white
   Add-Btn 'HELP'   'Hướng dẫn'       "Các lệnh Steve AI và liên hệ hỗ trợ: $($script:Contact) (STEVEAI-HELP)" 'STEVEAI-HELP' '?' ([Drawing.Color]::FromArgb(95, 99, 104)) $white
+
+  # drawn icons (app\icons.ps1); the assistants keep their real logos
+  foreach ($p0 in @(@('OPEN', 'open'), @('SKILL', 'list'), @('CONN', 'connect'), @('HELP', 'help'))) { $btn[$p0[0]].draw = $p0[1] }
 
   $hdr = '<?xml version="1.0"?>'
   $ns = 'xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'
@@ -99,8 +102,11 @@ $body
 "@ }
   $skillIds = @($btn.Keys | Where-Object { $_ -like 'SK*' -and $_ -ne 'SKILL' })
   $pAi = & $panel 'AI' 'Trợ lý AI' ((& $rbtn 'OPEN' 'LargeWithText') + (& $stack 'AI' @('CLAUDE', 'CODEX', 'GEMINI')))
-  $pSk = & $panel 'SKILL' 'Skill' ((($skillIds | ForEach-Object { & $rbtn $_ 'LargeWithText' }) -join '') + (& $stack 'SK' @('SKILL')))
-  $pCn = & $panel 'CONN' 'Steve AI Connect' ((& $rbtn 'CONN' 'LargeWithText') + (& $stack 'CN' @('HELP')))
+  $pSk = & $panel 'SKILL' 'Skill' (& {   # small buttons in columns of three; "Chọn skill" comes last
+    $all = @($skillIds) + 'SKILL'; $out = ''
+    for ($j = 0; $j -lt $all.Count; $j += 3) { $out += (& $stack "SK$j" @($all[$j..([Math]::Min($j + 2, $all.Count - 1))])) + "`r`n" }
+    $out })
+  $pCn = & $panel 'CONN' 'Steve AI Connect' (& $stack 'CN' @('CONN', 'HELP'))
   $refs = foreach ($p in 'AI', 'SKILL', 'CONN') { "      <RibbonPanelSourceReference UID=`"RBN_SAI_PR_$p`" PanelId=`"RBN_SAI_P_$p`" ResizeStyle=`"Default`">`r`n        $rev`r`n      </RibbonPanelSourceReference>" }
   $ribbon = @"
 $hdr
@@ -146,6 +152,10 @@ $($refs -join "`r`n")
       if ($aiOf[$b.id]) {
         $bm = Get-IconBitmap (Get-AiIconSource $aiOf[$b.id]) $sz
         if ($bm) { $ms = New-Object IO.MemoryStream; $bm.Save($ms, [Drawing.Imaging.ImageFormat]::Png); $bm.Dispose(); $png = $ms.ToArray() }
+      }
+      if (-not $png -and $b.draw) {
+        $bm = if ($b.id -like 'SK*' -and $b.id -ne 'SKILL') { New-SkillIcon $b.draw $sz } else { New-DrawnIcon $b.draw $sz }
+        $ms = New-Object IO.MemoryStream; $bm.Save($ms, [Drawing.Imaging.ImageFormat]::Png); $bm.Dispose(); $png = $ms.ToArray()
       }
       $images["SAI_$($b.id)$sz.png"] = $(if ($png) { , $png } else { , (New-MenuIcon $b.ico $b.bg $b.fg $sz) })
     }

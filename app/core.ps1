@@ -581,11 +581,13 @@ function Get-SkillList {
   foreach ($d in (Get-ChildItem $sk -Directory -ErrorAction SilentlyContinue)) {
     $f = Join-Path $d.FullName 'SKILL.md'; if (-not (Test-Path $f)) { continue }
     $t = [IO.File]::ReadAllText($f)
-    $name = $d.Name; $desc = ''
+    $name = $d.Name; $desc = ''; $title = ''
+    if ($t -match '(?m)^title:\s*(.+)$') { $title = $Matches[1].Trim() }
     if ($t -match '(?m)^name:\s*(.+)$') { $name = $Matches[1].Trim() }
     if ($t -match '(?m)^description:\s*(.+)$') { $desc = $Matches[1].Trim() }
     if ($name -notmatch '^[\w\-]+$' -or @($out | Where-Object { $_.name -eq $name }).Count) { continue }
-    $out += @{ name = $name; description = $desc }
+    if (-not $title) { $title = ($name -replace '-', ' '); $title = $title.Substring(0, 1).ToUpper() + $title.Substring(1) }
+    $out += @{ name = $name; title = $title; description = $desc }
   }
   return $out
 }

@@ -758,7 +758,7 @@ $lv.View = 'Details'; $lv.FullRowSelect = $true; $lv.HeaderStyle = 'Nonclickable
 $lv.Font = $Fnt.s; $lv.ShowItemToolTips = $true; $lv.MultiSelect = $false
 $lv.BackColor = $Pal.surface; $lv.ForeColor = $Pal.text
 # taller rows: a 1 x rowheight image list
-$il = New-Object Windows.Forms.ImageList; $il.ImageSize = New-Object Drawing.Size 1, (S 24); $lv.SmallImageList = $il
+$il = New-Object Windows.Forms.ImageList; $il.ImageSize = New-Object Drawing.Size (S 22), (S 24); $il.ColorDepth = 'Depth32Bit'; $lv.SmallImageList = $il
 [void]$lv.Columns.Add('Tool', (S 150)); [void]$lv.Columns.Add('Chức năng', (S 270)); [void]$lv.Columns.Add('Ví dụ bạn có thể gõ', (S 290))
 $lv.OwnerDraw = $true
 $script:SecFont = New-Object Drawing.Font 'Segoe UI Semibold', 8.25
@@ -790,12 +790,17 @@ function Add-Section([string]$title) {
 function Fill-Tools([string]$q) {
   $q = $q.Trim().ToLower(); $qa = (ConvertTo-Ascii $q)
   $hit = { param($parts) if (-not $q) { return $true }; $s = ($parts -join ' ').ToLower(); return ($s.Contains($q) -or (ConvertTo-Ascii $s).Contains($qa)) }
+  foreach ($s in $script:Skills) {   # illustrated icon of each skill, centred in the row
+    if ($il.Images.ContainsKey($s.name)) { continue }
+    $cell = New-Object Drawing.Bitmap (S 22), (S 24); $gc = [Drawing.Graphics]::FromImage($cell); $ic = New-SkillIcon $s.name (S 18)
+    $gc.DrawImageUnscaled($ic, (S 1), (S 3)); $gc.Dispose(); $ic.Dispose(); $il.Images.Add($s.name, $cell)
+  }
   $lv.BeginUpdate(); $lv.Items.Clear(); $n = 0
-  $sk = @($script:Skills | Where-Object { & $hit @($_.name, $_.description) })
+  $sk = @($script:Skills | Where-Object { & $hit @($_.name, $_.title, $_.description) })
   if ($sk) {
     [void](Add-Section 'SKILL  ·  quy trình nhiều bước, nhấp đúp để chạy')
     foreach ($s in $sk) {
-      $it = New-Object Windows.Forms.ListViewItem($s.name); [void]$it.SubItems.Add($s.description); [void]$it.SubItems.Add("/$($s.name)  ·  lệnh CAD: AI-$($s.name.ToUpper())")
+      $it = New-Object Windows.Forms.ListViewItem($s.title); $it.ImageKey = $s.name; [void]$it.SubItems.Add($s.description); [void]$it.SubItems.Add("/$($s.name)  ·  lệnh CAD: AI-$($s.name.ToUpper())")
       $it.Tag = "skill:$($s.name)"; $it.ForeColor = $Pal.accent; $it.ToolTipText = $s.description; [void]$lv.Items.Add($it); $n++
     }
   }

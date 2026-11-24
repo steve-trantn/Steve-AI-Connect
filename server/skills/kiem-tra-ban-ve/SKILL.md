@@ -1,5 +1,6 @@
 ---
 name: kiem-tra-ban-ve
+title: Kiểm tra bản vẽ
 description: Soát lỗi bản vẽ (trùng đối tượng, sai layer, màu gán tay, kích thước sửa tay, text rỗng, xref mất) rồi báo cáo; chỉ sửa khi được đồng ý.
 ---
 

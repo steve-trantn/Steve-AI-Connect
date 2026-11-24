@@ -1,5 +1,6 @@
 ---
 name: boc-khoi-luong
+title: Bóc khối lượng
 description: Bóc khối lượng từ bản vẽ (chiều dài, diện tích, đếm block theo layer), đổi đơn vị, ghi rõ nguồn từng số và xuất Excel.
 ---
 

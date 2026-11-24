@@ -87,7 +87,7 @@ addEventListener('blur', () => { pop.hidden = true; });
 // prompts are put in the box so the person can finish the sentence before sending
 const fill = p => { box.value = p; grow(); box.focus(); box.setSelectionRange(p.length, p.length); };
 $('add').onclick = () => popup($('add'), [
-  { head: 'Skill' }, ...skills.map(s => ({ text: s.name, sub: s.description, act: () => runSkill(s.name) })),
+  { head: 'Skill' }, ...skills.map(s => ({ text: s.title || s.name, sub: s.description, act: () => runSkill(s.name) })),
   { head: 'Câu gợi ý' }, ...[['Với đối tượng đang chọn, hãy…', 'Với các đối tượng tôi đang chọn trong CAD, hãy '],
     ['Liệt kê layer', 'Bản vẽ đang mở có những layer nào, mỗi layer bao nhiêu đối tượng?'], ['Đếm block', 'Đếm số lượng từng loại block trong bản vẽ.'],
     ['Tổng chiều dài, diện tích', 'Tính tổng chiều dài và diện tích các polyline tôi đang chọn.'],
