@@ -80,6 +80,7 @@ Chi tiết: [server/README.md](server/README.md).
 ## Steve AI: làm việc với AI ngay trong CAD
 
 - **Bước 2 trên thẻ Bắt đầu:** khởi động ZWCAD / AutoCAD / ADSCivil. Máy cài nhiều phiên bản thì chọn bản trong danh sách xổ xuống; công cụ nhớ bản đã chọn cho lần sau. Logo là logo thật lấy từ phần mềm đã cài; thẻ có viền xanh lá là CAD đang chạy.
+- **Khung chat:** trong ZWCAD, gõ `AI` là khung Steve AI tự gắn cạnh bản vẽ (`STEVEAIPANEL` để ẩn/hiện). Từ công cụ, shortcut hoặc AutoCAD thì khung chat mở thành cửa sổ riêng. Cần Windows 10 1809+ và Microsoft Edge WebView2; thiếu thì dùng cửa sổ terminal như trước (hoặc tự chọn trong ⚙ Tùy chọn nâng cao).
 - **Mở Steve AI:** mở cửa sổ Claude Code / ChatGPT Codex / Gemini CLI đã nối sẵn với CAD, có thể chọn kèm một skill (ví dụ `cong-3d`).
 - **Trong ZWCAD / AutoCAD:** tab ribbon **Steve AI**, hoặc gõ lệnh `AI` (mở ngay trợ lý), `STEVEAI` (chọn trợ lý), `STEVEAI-SKILL` (chạy skill), `AI-CONG-3D`, `STEVECAD` (mở công cụ này). Lệnh được nạp tự động mỗi khi mở CAD.
 - Shortcut **Steve AI** trên Desktop mở thẳng cửa sổ AI.
@@ -110,7 +111,7 @@ ChatGPT bản web không dùng được vì chỉ nhận MCP server từ xa qua 
 ## Dòng lệnh (cho IT, cài hàng loạt)
 
 ```bat
-Steve-AI-Connect-Setup-v1.1.0.exe -Connect                                           :: cai + ket noi, khong mo giao dien
+Steve-AI-Connect-Setup-v1.2.0.exe -Connect                                           :: cai + ket noi, khong mo giao dien
 powershell -ExecutionPolicy Bypass -File app\SteveCADConnect.ps1 -Connect                 :: moi CAD + moi tro ly co tren may
 powershell -ExecutionPolicy Bypass -File app\SteveCADConnect.ps1 -Connect -Cad zwcad -Client codex,claude -Test
 powershell -ExecutionPolicy Bypass -File app\SteveCADConnect.ps1 -Connect -Ads2026 -GeminiKey <key>
@@ -150,6 +151,7 @@ CAD/AutoCAD/                lời dặn AI cho AutoCAD
 server/                     Steve CAD MCP (ZWCAD, AutoCAD)
 CAD/ADSCivil/               lời dặn AI, tự nạp ADSCivil 2026 (ads-ai-autoload.lsp, install-2026-autoload.ps1)
 templates/                  lời dặn chung, SteveAI.lsp (lệnh AI, STEVEAI trong CAD), launcher Gemini
+chat/                       khung chat (SteveAIChat.exe) và plugin gắn vào ZWCAD (SteveAIPanel)
 register/                   máy chủ đăng ký (Google Apps Script) và cách cài
 build/                      build-exe.ps1 + SteveCADSetup.cs: đóng gói thành dist\Steve-AI-Connect-Setup-<version>.exe
 ```
