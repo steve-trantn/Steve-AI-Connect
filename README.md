@@ -107,7 +107,7 @@ ChatGPT bản web không dùng được vì chỉ nhận MCP server từ xa qua 
 - **AutoCAD / Civil 3D:** plugin nằm ở `%APPDATA%\Autodesk\ApplicationPlugins\SteveAI.bundle`. Công cụ hỏi một lần có thêm 3 thư mục của Steve AI vào *Trusted Locations* không; chỉ thêm khi bạn đồng ý, tắt được trong ⚙ Tùy chọn nâng cao.
 - **Đăng ký:** công cụ chỉ gửi email, họ tên, SĐT, lựa chọn đồng ý và số phiên bản tới Google Sheet riêng của Steve Tran, dùng để hỗ trợ và báo bản cập nhật (giới thiệu sản phẩm chỉ khi bạn tích chọn). Công cụ không gửi bản vẽ về đó và không theo dõi việc sử dụng (báo lỗi là mục riêng, xem dưới). Muốn xem hoặc xoá thông tin: liên hệ 0987 779 228.
 - **Cập nhật:** mỗi lần mở, công cụ hỏi GitHub xem có bản mới không (không gửi thông tin cá nhân). Có bản mới thì hiện link ở góc trên; bấm **Cập nhật ngay** là xong, hoặc bật **Tự động cập nhật** trong ⚙ Tùy chọn nâng cao. File tải về phải khớp mã SHA-256 của GitHub mới được chạy.
-- **Chia sẻ skill:** ⚙ Tùy chọn nâng cao → *Chia sẻ skill của tôi*. Bạn xem trước nội dung, đồng ý giấy phép Apache 2.0 rồi mới gửi; Steve duyệt và đưa vào bản cập nhật, có ghi công.
+- **Chia sẻ skill:** ⚙ Tùy chọn nâng cao → *Chia sẻ skill của tôi*. Công cụ đóng gói nguyên thư mục skill (kể cả file LISP, Excel, ảnh kèm theo, tối đa 5 MB), cho bạn xem trước, đồng ý giấy phép Apache 2.0 rồi mới gửi, kèm email và tên ghi công. Máy chủ kiểm tra mã SHA-256 rồi lưu vào Google Drive riêng của Steve và trả mã biên nhận; bản sao nằm ở `Steve-CAD-AI\skills-da-gui`. Steve duyệt và đưa vào bản cập nhật, có ghi công.
 - **Báo lỗi ẩn danh (chỉ khi bạn đồng ý):** công cụ hỏi một lần. Chỉ gửi nội dung lỗi, vị trí trong mã, phiên bản Windows, CAD và công cụ; tên người dùng, tên máy, email, SĐT, đường dẫn và tên file được lọc bỏ trước khi gửi. Bật / tắt trong ⚙ Tùy chọn nâng cao.
 - **Đề xuất tính năng:** bấm **✎ Đề xuất tính năng** ở chân cửa sổ. Nội dung bạn gõ và email được gửi tới Google Sheet của Steve Tran.
 - **Uninstall** gỡ sạch tất cả: ngắt kết nối, tắt tự nạp, xóa server, shortcut và mục trong Settings → Apps. Riêng thư mục làm việc (có API key) được giữ lại.
@@ -115,7 +115,7 @@ ChatGPT bản web không dùng được vì chỉ nhận MCP server từ xa qua 
 ## Dòng lệnh (cho IT, cài hàng loạt)
 
 ```bat
-Steve-AI-Connect-Setup-v1.7.0.exe -Connect                                           :: cai + ket noi, khong mo giao dien
+Steve-AI-Connect-Setup-v1.8.0.exe -Connect                                           :: cai + ket noi, khong mo giao dien
 powershell -ExecutionPolicy Bypass -File app\SteveCADConnect.ps1 -Connect                 :: moi CAD + moi tro ly co tren may
 powershell -ExecutionPolicy Bypass -File app\SteveCADConnect.ps1 -Connect -Cad zwcad -Client codex,claude -Test
 powershell -ExecutionPolicy Bypass -File app\SteveCADConnect.ps1 -Connect -Ads2026 -GeminiKey <key>

@@ -27,12 +27,14 @@ $script:RegErrors = @{
   profile = 'Email này chưa đăng ký. Điền họ tên, SĐT, tích đồng ý rồi bấm Xác nhận lại.'
   busy = 'Máy chủ đang bận. Thử lại sau ít giây.'; server = 'Máy chủ đăng ký gặp lỗi. Thử lại sau.'
   many = 'Bạn đã gửi nhiều đề xuất rồi. Thử lại sau vài giờ.'; empty = 'Thông tin chưa đủ hoặc chưa hợp lệ.'
+  sha = 'Gói tới máy chủ không nguyên vẹn. Bấm gửi lại.'; file = 'Máy chủ không nhận gói này (quá lớn hoặc có file không cho phép).'
+  full = 'Hộp nhận skill đang đầy.'
   network = 'Không kết nối được máy chủ đăng ký. Kiểm tra mạng Internet.'
 }
 # these are not the user's fault: they may start the trial
 $script:RegTrialErrors = 'network', 'server', 'quota', 'busy'
 
-function Invoke-Register([hashtable]$body) {
+function Invoke-Register([hashtable]$body, [int]$seconds = 40) {
   $fail = { param($e) [pscustomobject]@{ ok = $false; error = $e; name = '' } }
   $wc = $null
   try {
@@ -42,7 +44,7 @@ function Invoke-Register([hashtable]$body) {
     if ($wc.Proxy) { $wc.Proxy.Credentials = [Net.CredentialCache]::DefaultCredentials }
     $bytes = [Text.Encoding]::UTF8.GetBytes(($body | ConvertTo-Json -Compress))
     $task = $wc.UploadDataTaskAsync([Uri]$script:RegisterUrl, 'POST', $bytes)
-    $end = [DateTime]::Now.AddSeconds(40)
+    $end = [DateTime]::Now.AddSeconds($seconds)
     while (-not $task.IsCompleted) {
       if ([DateTime]::Now -gt $end) { $wc.CancelAsync(); return (& $fail 'network') }
       Invoke-UiPump; Start-Sleep -Milliseconds 40
