@@ -21,6 +21,7 @@ param(
 )
 . (Join-Path $PSScriptRoot 'core.ps1')
 . (Join-Path $PSScriptRoot 'account.ps1')
+. (Join-Path $PSScriptRoot 'report.ps1')
 Get-ChildItem $script:Root -Recurse -File -ErrorAction SilentlyContinue | Unblock-File -ErrorAction SilentlyContinue
 
 # ======================= command line =======================
@@ -65,7 +66,7 @@ if ($Connect -or $Disconnect -or $Test -or $Uninstall -or $Launch -or $ListVersi
       if (-not (Invoke-Connect $Cad $Client ([bool]$Ads2026) $GeminiKey)) { $code = 1 }
     }
     if ($Test) { Invoke-Test $Cad }
-  } catch { Write-Log "LỖI: $($_.Exception.Message)" 'error'; $code = 1 }
+  } catch { Write-Log "LỖI: $($_.Exception.Message)" 'error'; Add-ErrorLog 'cli' $_.Exception.Message $_.ScriptStackTrace; $code = 1 }
   exit $code
 }
 

@@ -16,7 +16,7 @@ from mcp.server.fastmcp.exceptions import ToolError
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
-from . import __version__
+from . import __version__, errlog
 from .com import EXECUTOR, CadNotRunning, Connection, blocking_dialog, com_message
 from .drawing import (Drawings, UserError, apply_common, area_of, as_list, by_handle, cmd_active, color_index,
                       count_matching, describe, ensure_layer, run_cmd, etype, g, geom_key, iter_space, length_of, new_selection_set,
@@ -87,7 +87,8 @@ def _run(fn, kw):
         raise ToolError(str(e)) from None
     except pywintypes.com_error as e:
         raise ToolError(f"{C.conn.label} từ chối: {com_message(e)}") from None
-    except Exception as e:
+    except Exception as e:   # a defect of ours, not of the request
+        errlog.record(f"mcp {C.conn.cad} {fn.__name__}", e)
         raise ToolError(f"{type(e).__name__}: {e}") from None
 
 

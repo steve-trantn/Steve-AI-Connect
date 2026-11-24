@@ -7,6 +7,7 @@
  *   {action:'verify', email, code, name?, phone?, consent?, news?, version?}
  *        -> {ok:true, name}; email mới mà chưa có họ tên/SĐT -> {ok:false, error:'profile'} (mã vẫn còn hiệu lực)
  *   {action:'feature', email, kind, cad, title, desc, version}        -> ghi vào sheet 'YeuCau'
+ *   {action:'report', key, src, version, msg, stack, sys}              -> gộp vào sheet 'Loi' (ẩn danh)
  * error: many | empty | email | wait | limit | quota | code | expired | profile | busy | server
  * 'send' trả lời giống nhau dù email đã đăng ký hay chưa, để không ai dò được danh sách.
  */
@@ -24,6 +25,7 @@ function doPost(e) {
   if (!lock.tryLock(15000)) return out_({ ok: false, error: 'busy' });
   try {
     var q = JSON.parse(e.postData.contents);
+    if (q.action === 'report') return out_(report_(q));   // ẩn danh, không có email
     var email = String(q.email || '').trim().toLowerCase();
     if (email.length > 120 || !/^[a-z0-9][a-z0-9._%+\-]*@[a-z0-9\-]+(\.[a-z0-9\-]+)*\.[a-z]{2,}$/.test(email)) return out_({ ok: false, error: 'email' });
     if (q.action === 'send') return out_(send_(email));
@@ -101,6 +103,30 @@ function feature_(email, q) {
   return { ok: true };
 }
 
+// Báo lỗi ẩn danh (người dùng đã đồng ý). Cùng một lỗi chỉ tăng cột "Số lần".
+var SHEET3 = 'Loi';
+var HEAD3 = ['Mã lỗi', 'Lần đầu', 'Lần cuối', 'Số lần', 'Phiên bản', 'Phần', 'Nội dung', 'Vị trí', 'Hệ thống', 'Trạng thái', 'Ghi chú'];
+function report_(q) {
+  var txt = function (v, n) { return String(v || '').replace(/[\x00-\x08\x0b-\x1f]/g, ' ').trim().slice(0, n); };
+  var key = txt(q.key, 16), msg = txt(q.msg, 1500);
+  if (!/^[0-9a-f]{16}$/.test(key) || !msg) return { ok: false, error: 'empty' };
+  var c = CacheService.getScriptCache(), n = Number(c.get('rall') || 0);
+  if (n >= 300) return { ok: false, error: 'many' };   // tổng cộng trong 6 giờ
+  c.put('rall', String(n + 1), 21600);
+  var sh = sheet_(SHEET3, HEAD3), last = sh.getLastRow(), now = new Date();
+  if (last > 1) {
+    var v = sh.getRange(2, 1, last - 1, 1).getValues();
+    for (var i = 0; i < v.length; i++) if (String(v[i][0]) === key) {
+      var cnt = Number(sh.getRange(i + 2, 4).getValue() || 0) + 1;
+      sh.getRange(i + 2, 3, 1, 2).setValues([[now, cnt]]);
+      return { ok: true };
+    }
+  }
+  if (last > 5000) return { ok: false, error: 'many' };
+  sh.appendRow(["'" + key, now, now, 1, "'" + txt(q.version, 20), "'" + txt(q.src, 60), "'" + msg, "'" + txt(q.stack, 1500), "'" + txt(q.sys, 400), 'Mới', '']);
+  return { ok: true };
+}
+
 function sheet_(name, head) {
   name = name || SHEET; head = head || HEAD;
   var ss = SpreadsheetApp.getActiveSpreadsheet(), sh = ss.getSheetByName(name);
@@ -122,4 +148,4 @@ function hash_(s) {
 function out_(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
 
 /** Chạy hàm này một lần trong trình soạn Apps Script để cấp quyền (Sheet + gửi mail) và tạo sheet. */
-function caiDat() { sheet_(); sheet_(SHEET2, HEAD2); Logger.log('Còn gửi được ' + MailApp.getRemainingDailyQuota() + ' mail hôm nay.'); }
+function caiDat() { sheet_(); sheet_(SHEET2, HEAD2); sheet_(SHEET3, HEAD3); Logger.log('Còn gửi được ' + MailApp.getRemainingDailyQuota() + ' mail hôm nay.'); }

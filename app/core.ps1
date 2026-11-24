@@ -811,6 +811,9 @@ function Get-Diagnostics {
   try { $f = Join-Path (Split-Path (Get-Process ZWCAD -ErrorAction Stop | Select-Object -First 1).Path) 'ZwManaged.dll'; $o += "ZwManaged $([Reflection.AssemblyName]::GetAssemblyName($f).Version)" } catch {}
   try { $o += "PROGRAM=$($app.ActiveDocument.GetVariable('PROGRAM')) CMDNAMES=[$($app.ActiveDocument.GetVariable('CMDNAMES'))] menus=$(@($app.MenuGroups | ForEach-Object { $_.Name }) -join ',')" } catch {}
   $o += @($script:LiveLog | ForEach-Object { "nap: $_" })
+  if (Get-Command Protect-Text -ErrorAction SilentlyContinue) {
+    if (Test-Path $script:ErrorLog) { foreach ($l in @(Get-Content $script:ErrorLog -Encoding UTF8 -Tail 5)) { try { $e = $l | ConvertFrom-Json; $o += "loi: $($e.t) $($e.src) $(Protect-Text ([string]$e.msg))" } catch {} } }
+  }
   return ($o -join "`r`n")
 }
 function Test-CadAddon([string]$cad) {

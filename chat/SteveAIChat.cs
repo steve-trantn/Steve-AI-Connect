@@ -27,9 +27,12 @@ static class Program
     {
         SetProcessDPIAware();
         Application.EnableVisualStyles();
+        Application.ThreadException += (o, e) => ChatForm.LogError(e.Exception);
+        AppDomain.CurrentDomain.UnhandledException += (o, e) => ChatForm.LogError(e.ExceptionObject as Exception);
         try { Application.Run(new ChatForm(args)); }
         catch (Exception ex)
         {
+            ChatForm.LogError(ex);
             MessageBox.Show("Không mở được khung chat:\n\n" + ex.Message + "\n\nHỗ trợ: Steve Tran | 0987 779 228", "Steve AI", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
@@ -137,7 +140,18 @@ class ChatForm : Form
         {
             MessageBox.Show(this, "Máy chưa có Microsoft Edge WebView2 Runtime.\nTải miễn phí tại: https://go.microsoft.com/fwlink/p/?LinkId=2124703", "Steve AI"); Close();
         }
-        catch (Exception ex) { MessageBox.Show(this, ex.Message, "Steve AI"); Close(); }
+        catch (Exception ex) { LogError(ex); MessageBox.Show(this, ex.Message, "Steve AI"); Close(); }
+    }
+    public static void LogError(Exception ex)
+    {
+        try
+        {
+            if (ex == null) return;
+            string home = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SteveCADConnect");
+            string line = new JavaScriptSerializer().Serialize(new { t = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), src = "chat", ver = "v@VERSION@", msg = ex.GetType().Name + ": " + ex.Message, stack = ex.StackTrace ?? "" });
+            File.AppendAllText(Path.Combine(home, "errors.log"), line + "\n", new UTF8Encoding(false));
+        }
+        catch { }
     }
     static void OpenLink(string u)
     {
@@ -157,7 +171,7 @@ class ChatForm : Form
                 RunPs("-Info", (r, err) =>
                 {
                     if (err != null) { Post(new { t = "error", text = err }); return; }
-                    r["t"] = "info"; r["panel"] = parent != IntPtr.Zero; r["doc"] = docName; r["tables"] = cadPid != 0; r["client"] = startClient; r["skill"] = startSkill; Post(r);
+                    r["t"] = "info"; r["panel"] = parent != IntPtr.Zero; r["doc"] = docName; r["tables"] = cadPid != 0; if (snap == "") RunPs("-SendErrors", (r2, e2) => { }); r["client"] = startClient; r["skill"] = startSkill; Post(r);
                 });
                 break;
             case "start": Begin((string)m["client"], (string)m["skill"], m.ContainsKey("resume") && true.Equals(m["resume"])); break;

@@ -8,9 +8,11 @@
     -Client claudecode|codex|gemini   (mặc định: trợ lý đã chọn trong Steve AI Connect)
     -Skill <tên skill>                (mở và chạy ngay skill, ví dụ cong-3d)
 #>
-param([string]$Client = '', [string]$Skill = '', [switch]$Info, [switch]$Prepare, [switch]$Resume)   # -Info / -Prepare: JSON for the chat panel (chat\SteveAIChat.cs)
+param([string]$Client = '', [string]$Skill = '', [switch]$Info, [switch]$Prepare, [switch]$Resume, [switch]$SendErrors)   # -Info / -Prepare: JSON for the chat panel (chat\SteveAIChat.cs)
 . (Join-Path $PSScriptRoot 'core.ps1')
 . (Join-Path $PSScriptRoot 'account.ps1')
+. (Join-Path $PSScriptRoot 'report.ps1')
+if ($SendErrors) { [void](Send-ErrorReports); exit 0 }
 $script:LogSink = { param($m, $lvl) }
 if ($Info -or $Prepare) { [Console]::OutputEncoding = New-Object Text.UTF8Encoding $false }
 
@@ -98,6 +100,7 @@ try {
   if ($Prepare) { [Console]::Out.Write((@{ bat = $bat; dir = $script:Workspace; client = $Client; label = $script:ClientLabel[$Client] } | ConvertTo-Json -Compress)); exit 0 }
   Start-Process $bat -WorkingDirectory $script:Workspace
 } catch {
+  Add-ErrorLog 'launcher' $_.Exception.Message $_.ScriptStackTrace
   Show-Msg "Không mở được cửa sổ AI: $($_.Exception.Message)`n`nHỗ trợ: $($script:Contact)"
   exit 1
 }

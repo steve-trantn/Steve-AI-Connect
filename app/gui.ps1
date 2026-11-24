@@ -299,6 +299,11 @@ $miAuto = New-Object Windows.Forms.ToolStripMenuItem 'Tự động cập nhật 
 $miAuto.Checked = [bool](Get-Setting 'AutoUpdate' $false); [void]$menu.Items.Add($miAuto)
 $miAuto.add_Click({ Set-Setting 'AutoUpdate' ([bool]$miAuto.Checked) })
 $miAbout = New-Object Windows.Forms.ToolStripMenuItem 'Giới thiệu & ghi nguồn…'; $miAbout.ForeColor = $Pal.text; [void]$menu.Items.Add($miAbout)
+$miErr = New-Object Windows.Forms.ToolStripMenuItem 'Tự gửi báo lỗi ẩn danh cho Steve'; $miErr.CheckOnClick = $true; $miErr.ForeColor = $Pal.text
+$miErr.Checked = ((Get-Setting 'SendErrors' $false) -eq $true); [void]$menu.Items.Add($miErr)
+$miErr.add_Click({ Set-Setting 'SendErrors' ([bool]$miErr.Checked) })
+# errors inside event handlers (PowerShell swallows them): keep them for the report
+[Windows.Forms.Application]::add_ThreadException({ param($s, $e) Add-ErrorLog 'window' $e.Exception.Message ([string]$e.Exception.StackTrace) })
 $miDiag = New-Object Windows.Forms.ToolStripMenuItem 'Chép thông tin chẩn đoán (gửi hỗ trợ)'; $miDiag.ForeColor = $Pal.text; [void]$menu.Items.Add($miDiag)
 $miDiag.add_Click({
   $menu.Close(); $form.Cursor = 'WaitCursor'
@@ -948,7 +953,7 @@ function Invoke-Busy([scriptblock]$job) {
   $script:Busy = $true
   $all = @($bConnect, $bDisconnect, $bTest, $bOpen, $bAuto); $all | ForEach-Object { $_.Enabled = $false }; $bUninstall.Enabled = $false
   $form.Cursor = 'WaitCursor'
-  try { & $job } catch { Write-Log "LỖI: $($_.Exception.Message)" 'error' }
+  try { & $job } catch { Write-Log "LỖI: $($_.Exception.Message)" 'error'; Add-ErrorLog 'window' $_.Exception.Message $_.ScriptStackTrace }
   finally {
     $form.Cursor = 'Default'; $bUninstall.Enabled = $true; $script:Busy = $false
     try { Update-View } catch {}
@@ -1037,6 +1042,12 @@ $form.add_Shown({
   Show-Page 'home'; Show-Step (Get-FirstOpenStep)
   $form.ActiveControl = $(switch ($script:Step) { 1 { $bAuto } 2 { $cadLaunch[$script:CadList[0]].go } default { $bOpen } })
   $timer.Start()
+  if (-not ($env:STEVECAD_SELFTEST -or $env:STEVECAD_SNAPSHOT) -and $script:RegisterUrl -and $null -eq (Get-Setting 'SendErrors' $null)) {
+    $q = "Khi công cụ gặp lỗi, có tự gửi báo lỗi cho Steve để sửa không?`n`nChỉ gửi: nội dung lỗi, vị trí trong mã, phiên bản Windows, CAD và công cụ.`nKhông gửi: tên, email, SĐT, tên máy, đường dẫn, tên hay nội dung bản vẽ, nội dung chat.`n`nĐổi lại bất cứ lúc nào trong Tùy chọn nâng cao."
+    $yes = [Windows.Forms.MessageBox]::Show($form, $q, $script:AppName, 'YesNo', 'Question') -eq 'Yes'
+    Set-Setting 'SendErrors' $yes; $miErr.Checked = $yes
+  }
+  if (-not ($env:STEVECAD_SELFTEST -or $env:STEVECAD_SNAPSHOT)) { try { [void](Send-ErrorReports) } catch {} }
   if (-not ($env:STEVECAD_SELFTEST -or $env:STEVECAD_SNAPSHOT)) { try { Start-UpdateCheck } catch {} }
   if ($env:STEVECAD_SELFTEST) {
     # Self-test: click every button of the guided page for real (with STEVECAD_DRYRUN no CAD / AI is started),
