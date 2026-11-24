@@ -734,6 +734,7 @@ function Remove-CadAddon {
 # ZWCAD / AutoCAD write their in-memory Startup Suite back to the registry when they close, so an entry
 # added while the CAD was open is lost. Put it back when that CAD is not running (GUI start, before Start-Cad).
 function Repair-CadAddon {
+  if ($env:STEVECAD_SELFTEST -or $env:STEVECAD_SNAPSHOT) { return }   # tests never touch the CAD settings of this PC
   # commands and ribbon for every CAD on this PC, also before anything is connected (the tables need no assistant)
   if (-not (Test-Path $script:CadLisp)) { Write-CadLisp }
   # installs from before SteveAI.mnl existed: write it (with the current lsp / menu) so AI loads with the menu
@@ -756,9 +757,10 @@ function Repair-CadAddon {
     $run = @(Get-CadProcess $cad | Where-Object { $_.MainWindowHandle -ne [IntPtr]::Zero -or ((Get-Date) - $_.StartTime).TotalMinutes -lt 2 })
     if ($run) { continue }
     # every profile by itself: a version installed later (e.g. Civil 3D 2027) has its own, still without the entry
-    $miss = @(Get-StartupKeys $cad | Where-Object { -not (@(Get-StartupList $_) -match 'SteveAI\.lsp$') })
+    # (an entry that points at another SteveAI.lsp, e.g. an old folder, is replaced)
+    $miss = @(Get-StartupKeys $cad | Where-Object { @(Get-StartupList $_) -notcontains $script:CadLisp })
     if (-not $miss) { continue }
-    foreach ($k in $miss) { Set-StartupList $k (@(Get-StartupList $k) + $script:CadLisp) }
+    foreach ($k in $miss) { Set-StartupList $k (@(Get-StartupList $k | Where-Object { $_ -notmatch 'SteveAI\.lsp$' }) + $script:CadLisp) }
     Write-Log "Đã đăng ký lại lệnh AI cho $($script:CadLabel[$cad])." 'detail'
   }
 }
