@@ -7,8 +7,10 @@ $copy = "$t\repo"; $hm = "$t\home"; $fail = 0
 New-Item -ItemType Directory -Force $copy, "$t\lad\SteveCADConnect", "$t\app\Autodesk\ApplicationPlugins", "$t\ws", "$hm\Steve-CAD-AI" | Out-Null
 foreach ($i in 'app', 'CAD', 'server', 'templates', 'chat', 'register', 'tests') { Copy-Item (Join-Path $repo $i) $copy -Recurse }
 Copy-Item (Join-Path $repo 'VERSION'), (Join-Path $repo 'README.md') $copy
-function Get-RegState {   # the CAD start-up lists and trusted folders of this PC: tests must not change them
+$bundle = Join-Path $env:APPDATA 'Autodesk\ApplicationPlugins\SteveAI.bundle'
+function Get-RegState {   # the CAD start-up lists, trusted folders and AutoCAD plug-in of this PC: tests must not change them
   $o = foreach ($k in 'HKCU\Software\ZWSOFT\ZWCAD', 'HKCU\Software\Autodesk\AutoCAD') { foreach ($f in 'SteveAI', 'SteveCADConnect') { reg query $k /s /f $f 2>$null }; reg query $k /s /v NumStartup 2>$null }
+  $o += foreach ($f in Get-ChildItem $bundle -Recurse -File -ErrorAction SilentlyContinue) { "$($f.Name) $((Get-FileHash $f.FullName).Hash)" }
   return ($o -join "`n")
 }
 $ErrorActionPreference = 'Continue'
@@ -26,8 +28,10 @@ try {
   foreach ($n in 'SELFTEST', 'OPENTEST', 'WS', 'REGTEST') { [Environment]::SetEnvironmentVariable("STEVECAD_$n", $null) }
   if (Test-Path "$t\window.txt") { $l = [IO.File]::ReadAllLines("$t\window.txt"); $l | ForEach-Object { Write-Host $_ }; $fail += @($l | Where-Object { $_ -like 'FAIL*' }).Count } else { Write-Host 'FAIL  window test did not finish'; $fail++ }
   try { [void](New-Object Net.WebClient).DownloadString('http://127.0.0.1:8767/reset') } catch {}
+  [IO.File]::WriteAllText("$t\lad\SteveCADConnect\settings.json", '{"Account":{"email":"thu@x.vn","name":"Thu"}}')
+  & powershell -NoProfile -ExecutionPolicy Bypass -File "$copy\tests\orphan.ps1" "$copy\chat\bin\SteveAIChat.exe"; if ($LASTEXITCODE) { $fail++ }
   # 2. the work behind the panels inside the CAD
-  $env:USERPROFILE = $hm; [IO.File]::WriteAllText("$t\lad\SteveCADConnect\settings.json", '{"Account":{"email":"thu@x.vn","name":"Thu"}}')
+  $env:USERPROFILE = $hm
   & $py -X utf8 "$copy\tests\ui.py" $copy "$hm\Steve-CAD-AI"; if ($LASTEXITCODE) { $fail++ }
 } finally {
   foreach ($n in $keep.Keys) { [Environment]::SetEnvironmentVariable($n, $keep[$n]) }; $env:STEVECAD_DRYRUN = $null

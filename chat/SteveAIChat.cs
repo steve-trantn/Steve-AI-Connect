@@ -77,6 +77,25 @@ class ChatForm : Form
         web.Dock = DockStyle.Fill; web.DefaultBackgroundColor = BackColor; Controls.Add(web);
         Load += delegate { Init(); };
         FormClosing += delegate { closing = true; Stop(); StopTools(); };
+        if (parent != IntPtr.Zero) WatchCad();
+    }
+    // inside a CAD: when that process ends (also a crash), Windows destroys this window without FormClosing and the program would
+    // stay behind with the assistant. So watch the process itself.
+    void WatchCad()
+    {
+        if (cadPid == 0) return;
+        var th = new Thread(delegate()
+        {
+            try { using (var p = Process.GetProcessById(cadPid)) p.WaitForExit(); }
+            catch (ArgumentException) { }          // already gone
+            catch { return; }                      // not allowed to watch it: the window timer still works
+            closing = true;
+            try { Stop(); } catch { }              // ends the assistant and everything it started
+            StopTools();
+            Thread.Sleep(1500);
+            Environment.Exit(0);
+        });
+        th.IsBackground = true; th.Start();
     }
     protected override CreateParams CreateParams
     {

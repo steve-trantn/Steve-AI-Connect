@@ -18,6 +18,7 @@ Việc nhỏ làm gọn, không lập kế hoạch dài, không dùng agent con 
 
 ## Không được
 
+- Chạy `app\*.ps1` hay `SteveAIChat.exe` của repo để thử mà không đặt `STEVECAD_DRYRUN=1` (kể cả với thư mục tạm: registry và thư mục plugin vẫn là của máy thật).
 - Để bài thử đụng vào registry, thư mục cài đặt hay CAD thật của máy.
 - Nói "đã thử" khi chỉ mới thử với máy chủ giả lập. Bộ thử **không thay** việc bấm nút trong ZWCAD, AutoCAD và Civil 3D.
 - Đổi thứ tự cột của các sheet trong `register/Code.gs`, hay xoá dữ liệu cũ.

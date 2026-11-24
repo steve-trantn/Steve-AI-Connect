@@ -606,6 +606,7 @@ function Get-StartupList([string]$key) {
   return @(for ($i = 1; $i -le $n; $i++) { $v = $p."$($i)Startup"; if ($v) { $v } })
 }
 function Set-StartupList([string]$key, [string[]]$items) {
+  if ($env:STEVECAD_DRYRUN) { return }   # tests never touch the CAD settings of this PC
   if (-not (Test-Path $key)) { New-Item $key -Force | Out-Null }
   $old = Get-ItemProperty $key
   foreach ($pr in $old.PSObject.Properties) { if ($pr.Name -match '^\d+Startup$') { Remove-ItemProperty $key $pr.Name } }
@@ -642,6 +643,7 @@ function Write-CadLisp {
 # and nothing is written to the Startup Suite (which AutoCAD rewrites when it closes).
 $script:AcadBundle = Join-Path $env:APPDATA 'Autodesk\ApplicationPlugins\SteveAI.bundle'
 function Write-AcadBundle {
+  if ($env:STEVECAD_DRYRUN) { return }   # tests never touch the CAD settings of this PC
   $bin = Join-Path $script:ToolDir 'chat\bin'
   $con = Join-Path $script:AcadBundle 'Contents'
   New-Item -ItemType Directory -Force $con | Out-Null
@@ -662,9 +664,10 @@ function Write-AcadBundle {
   $xml = "<?xml version=`"1.0`" encoding=`"utf-8`"?>`r`n<ApplicationPackage SchemaVersion=`"1.0`" AutodeskProduct=`"AutoCAD`" ProductType=`"Application`" Name=`"Steve AI`" Description=`"Steve AI Connect`" AppVersion=`"$($script:Version -replace '^v', '')`" Author=`"$($script:Author)`" ProductCode=`"{5B0D7D63-2C1E-4B4E-9F0B-6F3B1A7C9E21}`" UpgradeCode=`"{B7C2A1E4-88D3-4E7A-A6F5-0D1C2E3F4A55}`">`r`n  <CompanyDetails Name=`"$($script:Author)`" Url=`"$($script:RepoUrl)`" />`r`n$comp</ApplicationPackage>`r`n"
   [IO.File]::WriteAllText((Join-Path $script:AcadBundle 'PackageContents.xml'), $xml, $script:Utf8)
 }
-function Remove-AcadBundle { if (Test-Path $script:AcadBundle) { Remove-Item $script:AcadBundle -Recurse -Force -ErrorAction SilentlyContinue } }
+function Remove-AcadBundle { if ($env:STEVECAD_DRYRUN) { return }; if (Test-Path $script:AcadBundle) { Remove-Item $script:AcadBundle -Recurse -Force -ErrorAction SilentlyContinue } }
 # earlier versions used the Startup Suite for AutoCAD: take those entries out
 function Remove-AcadStartup {
+  if ($env:STEVECAD_DRYRUN) { return }   # tests never touch the CAD settings of this PC
   foreach ($k in Get-StartupKeys 'autocad') {
     $all = @(Get-StartupList $k)
     if ($all -match 'SteveAI\.lsp$') { Set-StartupList $k @($all | Where-Object { $_ -notmatch 'SteveAI\.lsp$' }) }
@@ -675,6 +678,7 @@ function Remove-AcadStartup {
 # own three folders, never their subfolders; other entries stay as they are. AutoCAD must be closed: it writes the list on exit.
 function Get-AcadTrustDirs { return @($script:AppHome, (Join-Path $script:ToolDir 'chat\bin'), (Join-Path $script:AcadBundle 'Contents')) }
 function Set-AcadTrust([bool]$On) {
+  if ($env:STEVECAD_DRYRUN) { return $true }   # tests
   if (@(Get-CadProcess 'autocad').Count) { return $false }
   $mine = @(Get-AcadTrustDirs)
   foreach ($k in @(Get-Item 'HKCU:\Software\Autodesk\AutoCAD\R*\ACAD-*\Profiles\*' -ErrorAction SilentlyContinue)) {
@@ -696,6 +700,7 @@ function Set-AcadTrust([bool]$On) {
 
 # Adds SteveAI.lsp to the Startup Suite of ZWCAD (AutoCAD: plug-in bundle) and loads it into a running session.
 function Install-CadAddon([string[]]$Cads) {
+  if ($env:STEVECAD_DRYRUN) { return }   # tests never touch the CAD settings of this PC
   Write-CadLisp
   $want = @(@(Get-Setting 'CadAddon' @()) + @($Cads | ForEach-Object { if ($_ -eq 'adscivil') { 'zwcad' } else { $_ } } | Where-Object { $_ -in 'zwcad', 'autocad' }) | Select-Object -Unique)
   Set-Setting 'CadAddon' $want
@@ -735,7 +740,7 @@ function Remove-CadAddon {
 # ZWCAD / AutoCAD write their in-memory Startup Suite back to the registry when they close, so an entry
 # added while the CAD was open is lost. Put it back when that CAD is not running (GUI start, before Start-Cad).
 function Repair-CadAddon {
-  if ($env:STEVECAD_SELFTEST -or $env:STEVECAD_SNAPSHOT) { return }   # tests never touch the CAD settings of this PC
+  if ($env:STEVECAD_SELFTEST -or $env:STEVECAD_SNAPSHOT -or $env:STEVECAD_DRYRUN) { return }   # tests never touch the CAD settings of this PC
   # commands and ribbon for every CAD on this PC, also before anything is connected (the tables need no assistant)
   if (-not (Test-Path $script:CadLisp)) { Write-CadLisp }
   # installs from before SteveAI.mnl existed: write it (with the current lsp / menu) so AI loads with the menu

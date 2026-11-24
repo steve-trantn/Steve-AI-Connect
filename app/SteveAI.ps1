@@ -25,7 +25,7 @@ function Show-Msg([string]$m) {
 try {
   if (-not (Test-AccessOk)) {
     Show-Msg "Cần đăng ký một lần (miễn phí) để dùng Steve AI. Bấm OK để mở cửa sổ đăng ký."
-    Start-Process (Join-Path $PSHOME 'powershell.exe') -ArgumentList "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -STA -File `"$(Join-Path $PSScriptRoot 'SteveCADConnect.ps1')`"" -WindowStyle Hidden
+    if (-not $env:STEVECAD_DRYRUN) { Start-Process (Join-Path $PSHOME 'powershell.exe') -ArgumentList "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -STA -File `"$(Join-Path $PSScriptRoot 'SteveCADConnect.ps1')`"" -WindowStyle Hidden }
     exit 1
   }
   # the chat window (it calls this script back with -Info / -Prepare). Terminal window when it cannot run, or when the user prefers it.
