@@ -228,7 +228,7 @@ const Panels = (() => {
   const list = { 'chuan-layer': ['Chuẩn layer', layers], 'kiem-tra-ban-ve': ['Kiểm tra bản vẽ', audit], 'boc-khoi-luong': ['Bóc khối lượng', quantities], 'khung-ten': ['Khung tên', titles] };
   function open(name) {
     if (!list[name]) return false;
-    pop.hidden = true; view.hidden = false;
+    Ui.hide(); pop.hidden = true; view.hidden = false;
     if (cur !== name) { cur = name; ttl.textContent = list[name][0]; body.replaceChildren(); busy = false; view.classList.remove('busy'); list[name][1](); }
     return true;
   }

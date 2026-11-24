@@ -1,5 +1,6 @@
 ﻿// Thin CAD plugin: a dockable palette that hosts SteveAIChat.exe (separate process).
 //   (steveai-show client skill)   LISP function used by the AI commands; T when the panel is shown, nil = use the window instead
+//   (steveai-ui part)             help, report, feature request, share a skill, update check inside the panel
 //   STEVEAIPANEL                  shows / hides the panel
 // SteveAI.lsp loads this DLL by itself. Compiled per CAD: ZWCAD (default) or AutoCAD with /define:ACAD.
 using System;
@@ -55,6 +56,24 @@ namespace SteveAI
                 return true;
             }
             catch (System.Exception ex) { Say(ex.Message); return null; }
+        }
+
+        // (steveai-ui "help" | "diag" | "feature" | "share" | "update"): that view inside the panel; nil = use the window instead
+        [LispFunction("steveai-ui")]
+        public static object LispUi(ResultBuffer args)
+        {
+            try
+            {
+                if (!CanRun() || args == null) return null;
+                foreach (TypedValue v in args.AsArray())
+                {
+                    string s = v.Value as string;
+                    if (s == null || Array.IndexOf(new[] { "help", "diag", "feature", "share", "update" }, s) < 0) continue;
+                    Open("", "ui-" + s); return true;
+                }
+            }
+            catch (System.Exception ex) { Say(ex.Message); }
+            return null;
         }
 
         [CommandMethod("STEVEAIPANEL", CommandFlags.Session)]

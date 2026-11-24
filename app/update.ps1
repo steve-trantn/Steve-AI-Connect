@@ -195,6 +195,20 @@ function New-SkillPack([string]$dir) {
   $p.zip = $z; $p.sha = Get-Sha256 $z; $p.text = $body.ToString()
   return $p
 }
+# keeps a copy on this PC first (whatever happens on the way, nothing is lost), then sends -> @{ ok; text; file }
+function Send-SkillPack($o, $p, [string]$mail, [string]$author) {
+  if (-not (Test-EmailText $mail)) { return @{ ok = $false; text = 'Email chưa đúng.'; file = '' } }
+  if ($o.name.Length -gt 40 -or $o.name -cnotmatch '^[a-z0-9]+(-[a-z0-9]+)*$') { return @{ ok = $false; text = 'Tên thư mục skill phải là chữ thường không dấu, số và dấu -, tối đa 40 ký tự.'; file = '' } }
+  $dir = Join-Path $script:Workspace 'skills-da-gui'; $file = ''
+  try { New-Item -ItemType Directory -Force $dir | Out-Null; $f0 = Join-Path $dir "$($o.name)-$($p.sha.Substring(0, 8)).zip"; [IO.File]::WriteAllBytes($f0, $p.zip); $file = $f0 } catch {}
+  $r = Invoke-Register @{ action = 'skillpack'; email = $mail.Trim().ToLower(); name = $o.name; title = $o.title; desc = $o.desc; author = $author.Trim(); license = $true; version = [string]$script:Version; sha = $p.sha; zip = [Convert]::ToBase64String($p.zip) } 240
+  if ($r.ok -and [string]$r.sha -ceq $p.sha -and $r.receipt) {   # only the server's receipt counts as "sent"
+    try { if ($file) { [IO.File]::AppendAllText((Join-Path $dir 'bien-nhan.txt'), "$(Get-Date -Format 'yyyy-MM-dd HH:mm')  $($r.receipt)  $($o.name)  SHA-256 $($p.sha)`r`n", $script:Utf8) } } catch {}
+    return @{ ok = $true; text = "✓ Đã gửi nguyên vẹn. Mã biên nhận: $($r.receipt). Steve sẽ xem và phản hồi qua email."; file = $file }
+  }
+  $e = [string]$r.error; if ($r.ok) { $e = 'server' }
+  return @{ ok = $false; text = $script:RegErrors[$e] + $(if ($file) { ' Gói đã lưu trên máy: gửi lại sau, hoặc gửi file đó cho Steve qua Zalo.' } else { '' }); file = $file }
+}
 function Show-ShareSkill {
   $own = @(Get-OwnSkills)
   if (-not $own) { [void][Windows.Forms.MessageBox]::Show($form, "Bạn chưa có skill riêng.`n`nMở Steve AI, bấm ＋ → Tạo skill để AI giúp bạn viết một skill, rồi quay lại đây chia sẻ.", $script:AppName, 'OK', 'Information'); return }
@@ -236,19 +250,8 @@ function Show-ShareSkill {
     if ($o.name.Length -gt 40 -or $o.name -cnotmatch '^[a-z0-9]+(-[a-z0-9]+)*$') { $sm.Text = 'Tên thư mục skill phải là chữ thường không dấu, số và dấu -, tối đa 40 ký tự.'; return }
     if ($p.notes -and -not $ss.sure) { $ss.sure = $true; $sm.Text = 'Có mục cần xem lại (⚠ ở khung trên). Vẫn muốn gửi thì bấm Gửi lần nữa.'; return }
     $ss.busy = $true; foreach ($x in $go, $no, $cb, $tA, $tM, $ck) { $x.Enabled = $false }; $sm.ForeColor = $Pal.muted; $sm.Text = 'Đang gửi…'
-    $file = ''; $r = $null
-    try {
-      # the copy on this PC comes first: whatever happens on the way, nothing is lost
-      try { New-Item -ItemType Directory -Force $outDir | Out-Null; $f0 = Join-Path $outDir "$($o.name)-$($p.sha.Substring(0, 8)).zip"; [IO.File]::WriteAllBytes($f0, $p.zip); $file = $f0; $lk.Visible = $true } catch {}
-      $r = Invoke-Register @{ action = 'skillpack'; email = $tM.Text.Trim().ToLower(); name = $o.name; title = $o.title; desc = $o.desc; author = $tA.Text.Trim(); license = $true; version = [string]$script:Version; sha = $p.sha; zip = [Convert]::ToBase64String($p.zip) } 240
-    } finally { $ss.busy = $false; foreach ($x in $go, $no, $cb, $tA, $tM, $ck) { $x.Enabled = $true }; Set-ButtonLook $go 'primary' }
-    if ($r.ok -and [string]$r.sha -ceq $p.sha -and $r.receipt) {   # only the server's receipt counts as "sent"
-      $sm.ForeColor = $Pal.green; $sm.Text = "✓ Đã gửi nguyên vẹn. Mã biên nhận: $($r.receipt). Steve sẽ xem và phản hồi qua email."
-      try { if ($file) { [IO.File]::AppendAllText((Join-Path $outDir 'bien-nhan.txt'), "$(Get-Date -Format 'yyyy-MM-dd HH:mm')  $($r.receipt)  $($o.name)  SHA-256 $($p.sha)`r`n", $script:Utf8) } } catch {}
-    } else {
-      $sm.ForeColor = $Pal.red; $e = [string]$r.error; if ($r.ok) { $e = 'server' }
-      $sm.Text = $script:RegErrors[$e] + $(if ($file) { ' Gói đã lưu trên máy: gửi lại sau, hoặc gửi file đó cho Steve qua Zalo.' } else { '' })
-    }
+    try { $r = Send-SkillPack $o $p $tM.Text $tA.Text; $lk.Visible = [bool]$r.file } finally { $ss.busy = $false; foreach ($x in $go, $no, $cb, $tA, $tM, $ck) { $x.Enabled = $true }; Set-ButtonLook $go 'primary' }
+    $sm.ForeColor = $(if ($r.ok) { $Pal.green } else { $Pal.red }); $sm.Text = $r.text
   })
   $no.add_Click({ if (-not $ss.busy) { $d.DialogResult = 'Cancel' } })
   $d.add_FormClosing({ param($s, $e) if ($ss.busy) { $e.Cancel = $true } })

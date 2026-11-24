@@ -39,6 +39,7 @@ $script:LogSink     = { param($m, $lvl) Write-Host $m }
 $script:ConfirmSink = { param($q) (Read-Host "$q (Y/N)") -match '^(y|yes|c|co)$' }
 function Write-Log([string]$m, [string]$lvl = 'info') { & $script:LogSink $m $lvl }
 function Confirm-User([string]$q) { return [bool](& $script:ConfirmSink $q) }
+function Get-Sha256([byte[]]$b) { $h = [Security.Cryptography.SHA256]::Create(); try { return [BitConverter]::ToString($h.ComputeHash($b)).Replace('-', '').ToLower() } finally { $h.Dispose() } }
 function Invoke-UiPump { if ($script:IsGui) { [System.Windows.Forms.Application]::DoEvents() } }
 
 function Update-PathEnv {

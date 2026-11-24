@@ -100,6 +100,7 @@ $('more').onclick = () => popup($('more'), [
   ...(inPanel ? [{ text: 'Hoàn tác bước cuối trong CAD (U)', sub: 'Kể cả thao tác bạn vừa làm tay', act: () => post({ t: 'undo' }) }] : []),
   { text: 'Dừng trợ lý', off: !running, act: () => { post({ t: 'stop' }); setRun(false); state('Đã dừng. Bấm ✚ để mở lại.'); } },
   { text: 'Chữ lớn hơn', keep: true, act: () => zoom(1) }, { text: 'Chữ nhỏ hơn', keep: true, act: () => zoom(-1) },
+  { text: 'Hướng dẫn & hỗ trợ', act: () => Ui.open('ui-help') }, { text: 'Báo lỗi cho Steve', act: () => Ui.open('ui-diag') },
   { head: 'AI có thể nhầm. Sai thì gõ UNDO trong CAD.' },
 ]);
 
@@ -114,10 +115,13 @@ host.addEventListener('message', ev => {
     $('client').value = client;
     if (!client) { state('Máy chưa có trợ lý AI. Mở Steve AI Connect để kết nối.', 'err'); return; }
     // a skill that has a table opens the table: instant, and no AI is used
-    if (tables && Panels.open(m.skill)) state('Trợ lý AI chưa mở (không cần cho bảng này)'); else start(m.skill);
+    if (Ui.isOpen()) state('Trợ lý AI chưa mở');
+    else if (tables && Panels.open(m.skill)) state('Trợ lý AI chưa mở (không cần cho bảng này)'); else start(m.skill);
     post({ t: 'snap' });
   }
   else if (m.t === 'started') { setRun(true); client = m.client; $('client').value = client; state(docName, 'on'); }
+  else if (m.t === 'uiopen') Ui.open(m.name);
+  else if (m.t === 'uires') Ui.reply(m);
   else if (m.t === 'toolres') Panels.reply(m);
   else if (m.t === 'toolfail') Panels.fail(m.text);
   else if (m.t === 'doc') { docName = m.name; if (running) state(docName, 'on'); }
@@ -126,6 +130,8 @@ host.addEventListener('message', ev => {
     if (p) { box.value = (box.value ? box.value.trimEnd() + ' ' : '') + p + ' '; grow(); box.focus(); }
   }
   else if (m.t === 'ask') {   // a command in the CAD asked for an assistant and / or a skill while the panel is open
+    if (Ui.open(m.skill)) return;
+    Ui.hide();
     if (tables && Panels.open(m.skill)) return;
     if (m.client && m.client !== client) { client = m.client; $('client').value = client; start(m.skill); }
     else if (m.skill) runSkill(m.skill);

@@ -158,7 +158,14 @@ class ChatForm : Form
         Uri x;
         if (Uri.TryCreate(u, UriKind.Absolute, out x) && (x.Scheme == "https" || x.Scheme == "http")) try { Process.Start(x.AbsoluteUri); } catch { }
     }
-    void Post(object o) { if (!closing && web.CoreWebView2 != null) web.CoreWebView2.PostWebMessageAsJson(json.Serialize(o)); }
+    void Post(object o) { PostJson(json.Serialize(o)); }
+    // when the palette goes away the control can be disposed before this form hears of it
+    void PostJson(string j)
+    {
+        if (closing || IsDisposed || web.IsDisposed) return;
+        try { if (web.CoreWebView2 != null) web.CoreWebView2.PostWebMessageAsJson(j); }
+        catch (InvalidOperationException) { closing = true; }
+    }
 
     void OnMessage(object sender, CoreWebView2WebMessageReceivedEventArgs e)
     {
@@ -168,10 +175,12 @@ class ChatForm : Form
         {
             case "ready":
                 cols = Convert.ToInt32(m["cols"]); rows = Convert.ToInt32(m["rows"]);
+                bool ui = startSkill.StartsWith("ui-");
+                if (ui) Post(new { t = "uiopen", name = startSkill });   // at once: these views do not need the assistant
                 RunPs("-Info", (r, err) =>
                 {
                     if (err != null) { Post(new { t = "error", text = err }); return; }
-                    r["t"] = "info"; r["panel"] = parent != IntPtr.Zero; r["doc"] = docName; r["tables"] = cadPid != 0; if (snap == "") RunPs("-SendErrors", (r2, e2) => { }); r["client"] = startClient; r["skill"] = startSkill; Post(r);
+                    r["t"] = "info"; r["panel"] = parent != IntPtr.Zero; r["doc"] = docName; r["tables"] = cadPid != 0; if (snap == "") RunPs("-SendErrors", (r2, e2) => { }); r["client"] = startClient; r["skill"] = ui ? "" : startSkill; Post(r);
                 });
                 break;
             case "start": Begin((string)m["client"], (string)m["skill"], m.ContainsKey("resume") && true.Equals(m["resume"])); break;
@@ -189,6 +198,8 @@ class ChatForm : Form
                 break;
             case "link": OpenLink((string)m["u"]); break;
             case "tool": Tool(json.Serialize(new { id = m["id"], name = m["name"], args = m["args"] })); break;
+            case "ui": RunUi(m); break;
+            case "connect": OpenConnect((string)m["part"]); break;
             case "open": OpenExcel((string)m["path"]); break;
             case "snap": SaveSnap(); break;
         }
@@ -229,6 +240,59 @@ class ChatForm : Form
         th.IsBackground = true; th.Start();
     }
 
+    // ---------- help, report, share...: app\SteveAIUi.ps1, one request per process; the request goes through stdin, never the command line ----------
+    static readonly string[] UiOps = { "ctx", "diag", "draft", "feature", "skills", "pack", "share", "update", "qr" };
+    void RunUi(Dictionary<string, object> m)
+    {
+        object id = m["id"]; string op = (string)m["op"];
+        var q = m["args"] as Dictionary<string, object> ?? new Dictionary<string, object>();
+        if (Array.IndexOf(UiOps, op) < 0) { Post(new { t = "uires", id = id, error = "Yêu cầu không hợp lệ." }); return; }
+        q["op"] = op;
+        byte[] body = new UTF8Encoding(false).GetBytes(json.Serialize(q));
+        int wait = op == "share" ? 300000 : 60000;
+        var th = new Thread(delegate()
+        {
+            string err = null; Dictionary<string, object> res = null;
+            try
+            {
+                var si = new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, @"WindowsPowerShell\v1.0\powershell.exe"),
+                    "-NoProfile -ExecutionPolicy Bypass -STA -File \"" + Path.Combine(Path.GetDirectoryName(ps1), "SteveAIUi.ps1") + "\"");
+                si.UseShellExecute = false; si.CreateNoWindow = true; si.RedirectStandardInput = true; si.RedirectStandardOutput = true; si.StandardOutputEncoding = Encoding.UTF8;
+                using (var p = Process.Start(si))
+                using (var guard = new System.Threading.Timer(delegate { try { p.Kill(); } catch { } }, null, wait, Timeout.Infinite))   // a busy CAD can hold the diagnostics forever
+                {
+                    p.StandardInput.BaseStream.Write(body, 0, body.Length); p.StandardInput.BaseStream.Flush(); p.StandardInput.Close();
+                    string o = p.StandardOutput.ReadToEnd(); p.WaitForExit();
+                    int i = o.IndexOf('{');
+                    var big = new JavaScriptSerializer(); big.MaxJsonLength = int.MaxValue;
+                    if (i >= 0) res = big.Deserialize<Dictionary<string, object>>(o.Substring(i));
+                    if (res == null) err = "Không có trả lời. Thử lại.";
+                    else if (res.ContainsKey("error")) err = (string)res["error"];
+                }
+            }
+            catch (Exception ex) { err = ex.Message; }
+            try
+            {
+                var big = new JavaScriptSerializer(); big.MaxJsonLength = int.MaxValue;
+                string j = big.Serialize(err != null ? (object)new { t = "uires", id = id, error = err } : new { t = "uires", id = id, r = res });
+                if (!closing) BeginInvoke((Action)delegate { PostJson(j); });
+            }
+            catch { }
+        });
+        th.IsBackground = true; th.Start();
+    }
+    void OpenConnect(string part)
+    {
+        if (part != "home" && part != "update") return;
+        try
+        {
+            var si = new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, @"WindowsPowerShell\v1.0\powershell.exe"),
+                "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -STA -File \"" + Path.Combine(Path.GetDirectoryName(ps1), "SteveCADConnect.ps1") + "\" -Open " + part);
+            si.UseShellExecute = false; si.CreateNoWindow = true; Process.Start(si);
+        }
+        catch (Exception ex) { LogError(ex); }
+    }
+
     // ---------- tables without AI: server\panel.py on the CAD that hosts this panel ----------
     readonly object toolGate = new object();
     void Tool(string line)
@@ -264,7 +328,7 @@ class ChatForm : Form
                 while ((line = p.StandardOutput.ReadLine()) != null)
                 {
                     var o = big.Deserialize<Dictionary<string, object>>(line); o["t"] = "toolres"; string j = big.Serialize(o);
-                    if (!closing) BeginInvoke((Action)delegate { if (!closing && web.CoreWebView2 != null) web.CoreWebView2.PostWebMessageAsJson(j); });
+                    if (!closing) BeginInvoke((Action)delegate { PostJson(j); });
                 }
             }
             catch { }

@@ -80,7 +80,6 @@ function Get-BuildStamp {
   foreach ($n in 'SteveCADConnect.ps1', 'gui.ps1', 'update.ps1', 'core.ps1') { try { $t += '|' + [IO.File]::GetLastWriteTimeUtc((Join-Path $PSScriptRoot $n)).Ticks } catch {} }
   return (Get-Sha256 ([Text.Encoding]::UTF8.GetBytes($t))).Substring(0, 16)
 }
-function Get-Sha256([byte[]]$b) { $h = [Security.Cryptography.SHA256]::Create(); try { return [BitConverter]::ToString($h.ComputeHash($b)).Replace('-', '').ToLower() } finally { $h.Dispose() } }
 $script:BuildStamp = Get-BuildStamp
 $script:OpenNext = $Open
 $script:OpenFile = Join-Path $script:AppHome "open-request-$($script:BuildStamp).txt"

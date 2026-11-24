@@ -116,7 +116,7 @@ ChatGPT bản web không dùng được vì chỉ nhận MCP server từ xa qua 
 ## Dòng lệnh (cho IT, cài hàng loạt)
 
 ```bat
-Steve-AI-Connect-Setup-v1.8.2.exe -Connect                                           :: cai + ket noi, khong mo giao dien
+Steve-AI-Connect-Setup-v1.8.3.exe -Connect                                           :: cai + ket noi, khong mo giao dien
 powershell -ExecutionPolicy Bypass -File app\SteveCADConnect.ps1 -Connect                 :: moi CAD + moi tro ly co tren may
 powershell -ExecutionPolicy Bypass -File app\SteveCADConnect.ps1 -Connect -Cad zwcad -Client codex,claude -Test
 powershell -ExecutionPolicy Bypass -File app\SteveCADConnect.ps1 -Connect -Ads2026 -GeminiKey <key>
