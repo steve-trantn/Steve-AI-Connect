@@ -380,6 +380,13 @@ def screenshot(zoom_extents: bool = False) -> Image:
     if win32gui.IsIconic(hwnd):
         raise UserError(f"Cửa sổ {C.conn.label} đang thu nhỏ (minimize) nên không chụp được. "
                         f"Nhờ người dùng mở lại cửa sổ {C.conn.label} rồi thử lại.")
+    # measure in the CAD's own DPI context: PrintWindow draws at that size (a system-aware CAD on a monitor with another scale)
+    u32 = ctypes.windll.user32
+    old = None
+    with contextlib.suppress(Exception):
+        u32.GetWindowDpiAwarenessContext.restype = u32.SetThreadDpiAwarenessContext.restype = ctypes.c_void_p
+        u32.GetWindowDpiAwarenessContext.argtypes = u32.SetThreadDpiAwarenessContext.argtypes = [ctypes.c_void_p]
+        old = u32.SetThreadDpiAwarenessContext(u32.GetWindowDpiAwarenessContext(hwnd))
     l, t, r, b = win32gui.GetWindowRect(hwnd)
     w, h = r - l, b - t
     wdc = win32gui.GetWindowDC(hwnd)
@@ -396,6 +403,8 @@ def screenshot(zoom_extents: bool = False) -> Image:
         mem.DeleteDC()
         src.DeleteDC()
         win32gui.ReleaseDC(hwnd, wdc)
+        if old:
+            u32.SetThreadDpiAwarenessContext(old)
     img.thumbnail((1400, 1400))
     buf = io.BytesIO()
     img.save(buf, "JPEG", quality=80)
