@@ -72,12 +72,24 @@ if ($Connect -or $Disconnect -or $Test -or $Uninstall -or $Launch -or $ListVersi
 }
 
 # ======================= GUI =======================
-# -Open from a CAD button: hand the request to a window that is already open (gui.ps1 reads the file), else start one
+# One window per installed build: a second start (shortcut, or -Open from a CAD button) hands its request to the window that
+# is already open (gui.ps1 reads the file). The names carry the build, so a window left over from an older build, which still
+# runs the old code, never takes a request.
+function Get-BuildStamp {
+  $t = $PSScriptRoot.ToLower()
+  foreach ($n in 'SteveCADConnect.ps1', 'gui.ps1', 'update.ps1', 'core.ps1') { try { $t += '|' + [IO.File]::GetLastWriteTimeUtc((Join-Path $PSScriptRoot $n)).Ticks } catch {} }
+  return (Get-Sha256 ([Text.Encoding]::UTF8.GetBytes($t))).Substring(0, 16)
+}
+function Get-Sha256([byte[]]$b) { $h = [Security.Cryptography.SHA256]::Create(); try { return [BitConverter]::ToString($h.ComputeHash($b)).Replace('-', '').ToLower() } finally { $h.Dispose() } }
+$script:BuildStamp = Get-BuildStamp
 $script:OpenNext = $Open
-$script:OpenFile = Join-Path $script:AppHome 'open-request.txt'
-if ($Open) {
+$script:OpenFile = Join-Path $script:AppHome "open-request-$($script:BuildStamp).txt"
+$mutexName = "Local\SteveAIConnectWindow-$($script:BuildStamp)"
+$ask = $Open
+if (-not $ask -and -not ($FirstRun -or $env:STEVECAD_SELFTEST -or $env:STEVECAD_SNAPSHOT)) { $ask = 'home' }   # plain second start
+if ($ask) {
   $running = $null
-  try { $running = [Threading.Mutex]::OpenExisting('Local\SteveAIConnectWindow') } catch {}
+  try { $running = [Threading.Mutex]::OpenExisting($mutexName) } catch {}
   if ($running) {
     $running.Dispose()
     try {
@@ -85,8 +97,8 @@ if ($Open) {
       [void][SteveCad.Fg]::AllowSetForegroundWindow(-1)
     } catch {}
     try {
-      [IO.File]::WriteAllText($script:OpenFile, $Open)
-      for ($i = 0; $i -lt 50 -and (Test-Path $script:OpenFile); $i++) { Start-Sleep -Milliseconds 100 }
+      [IO.File]::WriteAllText($script:OpenFile, $ask)
+      for ($i = 0; $i -lt 100 -and (Test-Path $script:OpenFile); $i++) { Start-Sleep -Milliseconds 100 }
       if (Test-Path $script:OpenFile) {
         Remove-Item $script:OpenFile -Force
         Add-Type -AssemblyName System.Windows.Forms
@@ -96,8 +108,8 @@ if ($Open) {
     exit 0
   }
 }
-Remove-Item $script:OpenFile -Force -ErrorAction SilentlyContinue
-$script:WindowMutex = New-Object Threading.Mutex $false, 'Local\SteveAIConnectWindow'   # lives as long as this window
+Remove-Item (Join-Path $script:AppHome 'open-request*.txt') -Force -ErrorAction SilentlyContinue
+$script:WindowMutex = New-Object Threading.Mutex $false, $mutexName   # lives as long as this window
 # started by Setup.exe: create the desktop / Start-menu shortcuts and the Apps entry right away
 # (done once the window is up, see gui.ps1: drawing the icon before the GUI turns on DPI awareness makes Windows keep 96 dpi)
 $script:FirstRun = [bool]$FirstRun

@@ -188,13 +188,26 @@ $tip.SetToolTip($themeBtn, $(if ($script:Dark) { 'Chuyển sang giao diện sán
 $nav.Controls.AddRange(@($tagline, $themeBtn))
 # replaces the tagline when a newer release exists (update.ps1)
 $updLink = Put (New-Link '' $Fnt.s $Pal.gold) ($W - 412) 13 350 18; $updLink.TextAlign = 'TopRight'; $updLink.Visible = $false
-$updLink.add_LinkClicked({ if ($script:NewRelease -and -not $script:Busy) { Show-Update $script:NewRelease } })
+$updLink.add_LinkClicked({ if ($script:Stale) { if (-not $script:Busy) { Restart-Self } } elseif ($script:NewRelease -and -not $script:Busy) { Show-Update $script:NewRelease } })
 $nav.Controls.Add($updLink)
 $themeBtn.add_Click({
   Set-Setting 'Theme' $(if ($script:Dark) { 'light' } else { 'dark' })
+  Restart-Self
+})
+function Restart-Self {
+  if ($script:WindowMutex) { $script:WindowMutex.Dispose(); $script:WindowMutex = $null }   # else the new start would hand over to this closing window
   Start-Process (Join-Path $PSHOME 'powershell.exe') -ArgumentList "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -STA -File `"$(Join-Path $PSScriptRoot 'SteveCADConnect.ps1')`"" -WindowStyle Hidden
   $form.Close()
-})
+}
+# another build was installed over this one while the window was open
+$script:Stale = $false
+function Test-Stale {
+  if (-not $script:Stale -and (Get-BuildStamp) -ne $script:BuildStamp) {
+    $script:Stale = $true; $tagline.Visible = $false
+    $updLink.Text = '⟳  Đã cài bản khác - bấm để mở lại cửa sổ này'; $updLink.Visible = $true; $updLink.BringToFront()
+  }
+  return $script:Stale
+}
 
 $pages = @{}
 foreach ($pk in 'home', 'conn', 'tools') {   # not $k: PowerShell names ignore case, $k would overwrite the DPI scale $K
@@ -1002,6 +1015,7 @@ $script:LiveTick = 0
 $timer.add_Tick({
   if ($script:Busy) { return }
   try { Update-RunState } catch {}
+  if (Test-Stale) { return }   # old code must not write the CAD files of the new build
   # every 15 s: a ZWCAD that runs without the Steve AI menu gets it
   $script:LiveTick++
   if (-not $env:STEVECAD_SELFTEST -and $script:LiveTick % 5 -eq 2) {

@@ -95,6 +95,7 @@ function Show-Update($rel) {
 }
 # called with the result of the background check
 function Set-NewRelease($rel) {
+  if ($script:Stale) { return }   # a newer build is installed already: the link asks to reopen
   $script:NewRelease = $rel
   if (-not $rel) { return }
   $tagline.Visible = $false
@@ -141,7 +142,6 @@ function Get-OwnSkills {
   return $out
 }
 $script:PackTypes = '.md', '.lsp', '.txt', '.csv', '.xlsx', '.png', '.jpg', '.jpeg'
-function Get-Sha256([byte[]]$b) { $h = [Security.Cryptography.SHA256]::Create(); try { return [BitConverter]::ToString($h.ComputeHash($b)).Replace('-', '').ToLower() } finally { $h.Dispose() } }
 # things the sender should look at before sharing; pictures and Excel files cannot be read here
 function Find-Private([string]$s) {
   $o = @()
