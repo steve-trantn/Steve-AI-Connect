@@ -80,7 +80,7 @@ Chi tiết: [server/README.md](server/README.md).
 ## Steve AI: làm việc với AI ngay trong CAD
 
 - **Bước 2 trên thẻ Bắt đầu:** khởi động ZWCAD / AutoCAD / ADSCivil. Máy cài nhiều phiên bản thì chọn bản trong danh sách xổ xuống; công cụ nhớ bản đã chọn cho lần sau. Logo là logo thật lấy từ phần mềm đã cài; thẻ có viền xanh lá là CAD đang chạy.
-- **Khung chat:** trong ZWCAD, gõ `AI` là khung Steve AI tự gắn cạnh bản vẽ (`STEVEAIPANEL` để ẩn/hiện). Từ công cụ, shortcut hoặc AutoCAD thì khung chat mở thành cửa sổ riêng. Cần Windows 10 1809+ và Microsoft Edge WebView2; thiếu thì dùng cửa sổ terminal như trước (hoặc tự chọn trong ⚙ Tùy chọn nâng cao).
+- **Khung chat:** trong ZWCAD, AutoCAD / Civil 3D (2021-2024, 2026-2027), gõ `AI` là khung Steve AI tự gắn cạnh bản vẽ (`STEVEAIPANEL` để ẩn/hiện). Từ công cụ, shortcut hoặc AutoCAD 2025 thì khung chat mở thành cửa sổ riêng. Cần Windows 10 1809+ và Microsoft Edge WebView2; thiếu thì dùng cửa sổ terminal như trước (hoặc tự chọn trong ⚙ Tùy chọn nâng cao).
 - **Mở Steve AI:** mở cửa sổ Claude Code / ChatGPT Codex / Gemini CLI đã nối sẵn với CAD, có thể chọn kèm một skill (ví dụ `cong-3d`).
 - **Trong ZWCAD / AutoCAD:** tab ribbon **Steve AI**, hoặc gõ lệnh `AI` (mở ngay trợ lý), `STEVEAI` (chọn trợ lý), `STEVEAI-SKILL` (chạy skill), `AI-CONG-3D`, `STEVECAD` (mở công cụ này). Lệnh được nạp tự động mỗi khi mở CAD.
 - Shortcut **Steve AI** trên Desktop mở thẳng cửa sổ AI.
@@ -103,6 +103,7 @@ ChatGPT bản web không dùng được vì chỉ nhận MCP server từ xa qua 
 - **Đăng ký server** vào cấu hình của từng trợ lý AI đã chọn. Mọi file cấu hình được sao lưu trước khi sửa (`*.bak-<thời gian>`).
 - **Tạo thư mục làm việc** `%USERPROFILE%\Steve-CAD-AI` với lời dặn cho AI (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`): luôn đọc bản vẽ thật bằng tool, hỏi trước khi xóa, lưu hoặc đóng bản vẽ.
 - **ADSCivil 2026** (tùy chọn): chép trợ lý AI của bản 2027 sang và cho nó tự nạp khi khởi động (lệnh `ADSAI`). Chỉ xin quyền admin khi cần.
+- **AutoCAD / Civil 3D:** plugin nằm ở `%APPDATA%\Autodesk\ApplicationPlugins\SteveAI.bundle`. Công cụ hỏi một lần có thêm 3 thư mục của Steve AI vào *Trusted Locations* không; chỉ thêm khi bạn đồng ý, tắt được trong ⚙ Tùy chọn nâng cao.
 - **Đăng ký:** công cụ chỉ gửi email, họ tên, SĐT, lựa chọn đồng ý và số phiên bản tới Google Sheet riêng của Steve Tran, dùng để hỗ trợ và báo bản cập nhật (giới thiệu sản phẩm chỉ khi bạn tích chọn). Công cụ không gửi bản vẽ về đó và không theo dõi việc sử dụng. Muốn xem hoặc xoá thông tin: liên hệ 0987 779 228.
 - **Cập nhật:** mỗi lần mở, công cụ hỏi GitHub xem có bản mới không (không gửi thông tin cá nhân). Có bản mới thì hiện link ở góc trên; bấm **Cập nhật ngay** là xong, hoặc bật **Tự động cập nhật** trong ⚙ Tùy chọn nâng cao. File tải về phải khớp mã SHA-256 của GitHub mới được chạy.
 - **Đề xuất tính năng:** bấm **✎ Đề xuất tính năng** ở chân cửa sổ. Nội dung bạn gõ và email được gửi tới Google Sheet của Steve Tran.
