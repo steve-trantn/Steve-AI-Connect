@@ -764,20 +764,30 @@ function Repair-CadAddon {
 }
 # A running ZWCAD without the Steve AI menu: load it there, once per ZWCAD session. The CAD remembers the menu, and the menu loads
 # the commands (SteveAI.mnl), so this also works when the Startup Suite entry was lost. Returns '' (nothing to do), 'ok' or 'busy'.
-$script:LiveDone = @{}
+$script:LiveTry = @{}
+$script:LiveLog = New-Object Collections.ArrayList
 function Update-RunningZwcad {
-  if (-not (Test-Path $script:CadLisp)) { return '' }
+  if (-not (Test-Path $script:CadMenu)) { return '' }
   foreach ($p in @(Get-CadProcess 'zwcad' | Where-Object { $_.MainWindowHandle -ne [IntPtr]::Zero })) {
-    if ($script:LiveDone[$p.Id] -or ((Get-Date) - $p.StartTime).TotalSeconds -lt 25) { continue }
+    if ([int]$script:LiveTry[$p.Id] -ge 6 -or ((Get-Date) - $p.StartTime).TotalSeconds -lt 20) { continue }
+    $note = { param($m) [void]$script:LiveLog.Add("$((Get-Date).ToString('HH:mm:ss')) $m"); while ($script:LiveLog.Count -gt 8) { $script:LiveLog.RemoveAt(0) } }
     try {
       $app = [Runtime.InteropServices.Marshal]::GetActiveObject('ZWCAD.Application')
-      foreach ($mg in @($app.MenuGroups)) { if ($mg.Name -eq 'STEVEAI') { $script:LiveDone[$p.Id] = 'ok'; return '' } }
+      $has = { [bool](@($app.MenuGroups) | Where-Object { $_.Name -eq 'STEVEAI' }) }
+      if (& $has) { $script:LiveTry[$p.Id] = 99; return '' }
       $doc = $app.ActiveDocument
-      if (-not $doc -or [string]$doc.GetVariable('CMDNAMES') -ne '') { return 'busy' }
-      $script:LiveDone[$p.Id] = 'ok'
-      $doc.SendCommand("(load `"$($script:CadLisp -replace '\\', '/')`") ")
-      return 'ok'
-    } catch { return 'busy' }
+      if (-not $doc -or [string]$doc.GetVariable('CMDNAMES') -ne '') { & $note 'dang do lenh'; return 'busy' }
+      $script:LiveTry[$p.Id] = [int]$script:LiveTry[$p.Id] + 1
+      # the menu itself, straight through COM; loading it runs SteveAI.mnl, which loads the commands
+      try { [void]$app.MenuGroups.Load($script:CadMenu) } catch { & $note "Load: $($_.Exception.Message)" }
+      if (& $has) { & $note 'Load ok'; return 'ok' }
+      # otherwise the LISP way
+      $doc.SendCommand("(progn (setq *steveai-from-menu* nil) (load `"$($script:CadLisp -replace '\', '/')`")) ")
+      Start-Sleep -Milliseconds 1500
+      if (& $has) { & $note 'lisp ok'; return 'ok' }
+      & $note 'chua thay menu'
+      return 'busy'
+    } catch { & $note $_.Exception.Message; return 'busy' }
   }
   return ''
 }
@@ -798,6 +808,9 @@ function Get-Diagnostics {
     $app = [Runtime.InteropServices.Marshal]::GetActiveObject('ZWCAD.Application')
     $o += "ZWCAD COM $($app.Version) menu STEVEAI=$([bool](@($app.MenuGroups) | Where-Object { $_.Name -eq 'STEVEAI' })) workspace=$($app.ActiveDocument.GetVariable('WSCURRENT'))"
   } catch { $o += "ZWCAD COM: $($_.Exception.Message)" }
+  try { $f = Join-Path (Split-Path (Get-Process ZWCAD -ErrorAction Stop | Select-Object -First 1).Path) 'ZwManaged.dll'; $o += "ZwManaged $([Reflection.AssemblyName]::GetAssemblyName($f).Version)" } catch {}
+  try { $o += "PROGRAM=$($app.ActiveDocument.GetVariable('PROGRAM')) CMDNAMES=[$($app.ActiveDocument.GetVariable('CMDNAMES'))] menus=$(@($app.MenuGroups | ForEach-Object { $_.Name }) -join ',')" } catch {}
+  $o += @($script:LiveLog | ForEach-Object { "nap: $_" })
   return ($o -join "`r`n")
 }
 function Test-CadAddon([string]$cad) {

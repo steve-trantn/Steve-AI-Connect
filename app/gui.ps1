@@ -1002,6 +1002,8 @@ $timer.add_Tick({
   # every 15 s: a ZWCAD that runs without the Steve AI menu gets it
   $script:LiveTick++
   if (-not $env:STEVECAD_SELFTEST -and $script:LiveTick % 5 -eq 2) {
+    # ZWCAD closed: write its start-up entry again (it overwrote the list on exit)
+    try { if (-not @(Get-CadProcess 'zwcad').Count -and -not (Test-CadAddon 'zwcad')) { Repair-CadAddon } } catch {}
     try { if ((Update-RunningZwcad) -eq 'ok') { Write-Log 'ZWCAD đang mở: đã nạp lệnh AI và tab ribbon Steve AI.' 'ok' } } catch {}
   }
 })
