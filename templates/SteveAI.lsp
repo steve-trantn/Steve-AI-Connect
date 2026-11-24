@@ -107,7 +107,7 @@
   (princ)
 )
 
-;; part: home | share | feature | diag | update | options. A window that is already open is reused.
+;; part: home | share | feature | diag (report a problem) | help | update | options. A window that is already open is reused.
 (defun steveai-open-part (part)
   (if (findfile *steveai-connect*)
     (progn (steveai-ps *steveai-connect* (strcat " -Open " part)) (princ "\nSteve AI: dang mo Steve AI Connect..."))
@@ -122,15 +122,7 @@
 (defun c:STEVEAI-UPDATE () (steveai-open-part "update"))
 (defun c:STEVEAI-OPTIONS () (steveai-open-part "options"))
 
-(defun c:STEVEAI-HELP ()
-  (alert (strcat "Steve AI - tro ly AI cho ZWCAD / AutoCAD / ADSCivil\n\n"
-                 "AI               mo ngay cua so chat voi AI\n"
-                 "STEVEAI          chon tro ly (Claude / Codex / Gemini) roi mo\n"
-                 "STEVEAI-SKILL    chay mot skill (vi du dung cong 3D)\n"
-                 "STEVECAD         ket noi / xem danh sach tool\n\n"
-                 "Ho tro: Steve Tran - 0987 779 228"))
-  (princ)
-)
+(defun c:STEVEAI-HELP () (steveai-open-part "help"))
 
 ;;@SKILLCMDS@
 

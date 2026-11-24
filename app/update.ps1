@@ -257,6 +257,90 @@ function Show-ShareSkill {
   [void]$d.ShowDialog($form)
 }
 
+# ---------- report a problem (goes to the same sheet as feature requests, kind "Báo lỗi") ----------
+# what the person typed + the ticked attachments, within the server's 3000 characters; the preview shows exactly this text
+function Get-ReportText([string]$say, [string[]]$diag, [string[]]$errs) {
+  $max = 3000; $cut = "`n(đã rút gọn)"
+  $t = ($say.Trim() -replace '\r\n?', "`n")
+  foreach ($p in @(, @('Lỗi gần đây', $errs)) + @(, @('Chẩn đoán', $diag))) {
+    if (-not $p[1]) { continue }
+    $t += "`n`n--- $($p[0]) ---`n" + (@($p[1]) -join "`n")
+  }
+  if ($t.Length -gt $max) { $t = $t.Substring(0, $max - $cut.Length) + $cut }
+  return $t
+}
+function Show-Report {
+  $d = New-SmallDialog 'Báo lỗi cho Steve' 520 590
+  $rs = @{ busy = $false; sent = $false; diag = @(); errs = @() }
+  $form.Cursor = 'WaitCursor'
+  try {
+    foreach ($l in ((Get-Diagnostics) -split '\r?\n')) { $x = Protect-Text $l; if (-not $x) { continue }; if ($x -match '^loi: ') { $rs.errs += $x } else { $rs.diag += $x } }
+  } catch { $rs.diag = @("Steve AI Connect $($script:Version)", "Không đọc được chẩn đoán: $(Protect-Text $_.Exception.Message)") } finally { $form.Cursor = 'Default' }
+  $r1 = Put (New-Label 'Bạn đang làm gì thì gặp lỗi?' $Fnt.h2 $Pal.text) 20 14 480 26
+  $r2 = Put (New-Label 'Ví dụ: "Bấm Bóc khối lượng trong ZWCAD 2026, khung chat báo...". Đừng ghi thông tin mật của dự án.' $Fnt.s $Pal.muted) 20 42 480 34
+  $mk = { param($max) $b = New-Object Windows.Forms.TextBox; $b.BackColor = $Pal.input; $b.ForeColor = $Pal.text; $b.BorderStyle = 'FixedSingle'; $b.MaxLength = $max; $b }
+  $tS = Put (& $mk 1200) 20 78 480 104; $tS.Multiline = $true; $tS.ScrollBars = 'Vertical'; $tS.AcceptsReturn = $true; $tS.Text = [string](Get-Setting 'ReportDraft' '')
+  $l2 = Put (New-Label 'Email để Steve phản hồi' $Fnt.s $Pal.muted) 20 190 480 18; $tM = Put (& $mk 120) 20 209 480 26
+  $acc = Get-Setting 'Account'; if ($acc -and $acc.email) { $tM.Text = [string]$acc.email }
+  $ckb = { param($text, $y) $c = New-Object Windows.Forms.CheckBox; $c.Text = $text; $c.Font = $Fnt.s; $c.ForeColor = $Pal.text; $c.Checked = $true; (Put $c 20 $y 480 22) }
+  $kD = & $ckb 'Kèm thông tin chẩn đoán (phiên bản Windows, CAD, kết nối)' 242
+  $kE = & $ckb "Kèm $($rs.errs.Count) lỗi gần đây của công cụ" 264; if (-not $rs.errs.Count) { $kE.Checked = $false; $kE.Enabled = $false; $kE.Text = 'Không có lỗi gần đây được ghi lại' }
+  $l3 = Put (New-Label 'Đúng nội dung sẽ gửi, không kèm bản vẽ (phần kèm thêm đã lọc thông tin riêng):' $Fnt.s $Pal.muted) 20 292 480 18
+  $pv = Put (& $mk 0) 20 312 480 170; $pv.Multiline = $true; $pv.ReadOnly = $true; $pv.ScrollBars = 'Vertical'
+  $sm = Put (New-Label '' $Fnt.s $Pal.muted) 20 488 480 44
+  $cp = Put (New-Button 'Chép để gửi Zalo') 20 540 150 36; $go = Put (New-Button 'Gửi cho Steve' 'primary') 262 540 130 36; $no = Put (New-Button 'Đóng') 400 540 100 36
+  $text = { Get-ReportText $tS.Text $(if ($kD.Checked) { $rs.diag }) $(if ($kE.Checked) { $rs.errs }) }
+  $show = { $pv.Text = ((& $text) -replace '\n', "`r`n") }
+  $tS.add_TextChanged({ $rs.sent = $false; & $show }); $kD.add_CheckedChanged({ & $show }); $kE.add_CheckedChanged({ & $show }); & $show
+  $cp.add_Click({ try { [Windows.Forms.Clipboard]::SetText($pv.Text); $sm.ForeColor = $Pal.green; $sm.Text = "✓ Đã chép. Dán (Ctrl+V) vào Zalo của $($script:Contact)." } catch { $sm.ForeColor = $Pal.red; $sm.Text = 'Chưa chép được, thử lại.' } })
+  $go.add_Click({
+    if ($rs.busy) { return }
+    $sm.ForeColor = $Pal.red
+    if ($rs.sent) { $sm.ForeColor = $Pal.green; $sm.Text = '✓ Nội dung này đã gửi rồi.'; return }
+    if ($tS.Text.Trim().Length -lt 15) { $sm.Text = 'Mô tả thêm một chút (ít nhất 15 ký tự).'; return }
+    if (-not (Test-EmailText $tM.Text)) { $sm.Text = 'Email chưa đúng.'; return }
+    $rs.busy = $true; foreach ($x in $go, $no, $cp, $tS, $tM, $kD, $kE) { $x.Enabled = $false }; $sm.ForeColor = $Pal.muted; $sm.Text = 'Đang gửi…'
+    try {
+      $say = ($tS.Text.Trim() -replace '\s+', ' '); if ($say.Length -gt 100) { $say = $say.Substring(0, 100).TrimEnd() + '…' }
+      $r = Invoke-Register @{ action = 'feature'; email = $tM.Text.Trim().ToLower(); kind = 'Báo lỗi'; cad = 'Chung'; title = "Báo lỗi: $say"; desc = (& $text); version = [string]$script:Version }
+    } finally { $rs.busy = $false; foreach ($x in $go, $no, $cp, $tS, $tM, $kD) { $x.Enabled = $true }; $kE.Enabled = [bool]$rs.errs.Count; Set-ButtonLook $go 'primary' }
+    if ($r.ok) { $rs.sent = $true; Set-Setting 'ReportDraft' ''; $sm.ForeColor = $Pal.green; $sm.Text = '✓ Đã gửi. Cảm ơn bạn, Steve sẽ xem và phản hồi qua email!' }
+    else { $sm.ForeColor = $Pal.red; $sm.Text = $script:RegErrors[[string]$r.error] + ' Nội dung được giữ lại; có thể bấm Chép để gửi Zalo.' }
+  })
+  $no.add_Click({ if (-not $rs.busy) { $d.DialogResult = 'Cancel' } })
+  $d.add_FormClosing({ param($s, $e) if ($rs.busy) { $e.Cancel = $true; return }; try { Set-Setting 'ReportDraft' $(if ($rs.sent) { '' } else { $tS.Text }) } catch {} })
+  $d.Controls.AddRange(@($r1, $r2, $tS, $l2, $tM, $kD, $kE, $l3, $pv, $sm, $cp, $go, $no)); $d.CancelButton = $no; $d.ActiveControl = $tS
+  $script:RepUi = @{ d = $d; say = $tS; mail = $tM; kD = $kD; pv = $pv; go = $go; cp = $cp; msg = $sm; ui = $rs }   # tests
+  [void]$d.ShowDialog($form)
+}
+
+# ---------- help & support (the ribbon's "Hướng dẫn"); the coffee QR only shows when its link is clicked ----------
+function Show-Help {
+  $d = New-SmallDialog 'Hướng dẫn & hỗ trợ' 460 440
+  $hs = @{ next = '' }
+  $h1 = Put (New-Label 'Các lệnh trong ZWCAD / AutoCAD' $Fnt.h2 $Pal.text) 20 14 420 26
+  $ctl = @($h1); $y = 48
+  foreach ($c in @(@('AI', 'Mở khung chat với trợ lý AI'), @('STEVEAI', 'Chọn trợ lý (Claude / Codex / Gemini) rồi mở'), @('STEVEAI-SKILL', 'Chạy một skill, ví dụ dựng cống 3D'), @('STEVECAD', 'Mở Steve AI Connect: kết nối, danh sách tool'), @('STEVEAI-UPDATE', 'Kiểm tra bản mới'))) {
+    $ctl += Put (New-Label $c[0] $Fnt.b $Pal.accent) 20 $y 136 20; $ctl += Put (New-Label $c[1] $Fnt.n $Pal.text) 160 $y 290 20; $y += 26
+  }
+  $ctl += Put (New-Label 'Gõ yêu cầu bằng tiếng Việt trong khung chat, ví dụ: "đếm block theo layer". AI sửa bản vẽ thì gõ U hoặc UNDO để hoàn tác.' $Fnt.s $Pal.muted) 20 184 420 36
+  $ln = Put (New-Object Windows.Forms.Panel) 20 230 420 1; $ln.BackColor = $Pal.line; $ctl += $ln
+  $ctl += Put (New-Label 'Cần hỗ trợ?' $Fnt.h2 $Pal.text) 20 240 420 26
+  $ctl += Put (New-Label "$($script:Author)  ·  $($script:Phone)" $Fnt.n $Pal.text) 20 268 420 20
+  $bR = Put (New-Button 'Báo lỗi' 'primary') 20 298 120 34; $bF = Put (New-Button 'Đề xuất tính năng') 150 298 150 34; $bP = Put (New-Button 'Chép số ĐT') 310 298 130 34
+  $hm = Put (New-Label '' $Fnt.s $Pal.green) 20 338 420 18
+  $cf = Put (New-Link '☕  Mời Steve ly cà phê' $Fnt.s $Pal.muted) 20 404 180 18
+  $ok = Put (New-Button 'Đóng') 340 394 100 34
+  $bR.add_Click({ $hs.next = 'report'; $d.DialogResult = 'OK' }); $bF.add_Click({ $hs.next = 'feature'; $d.DialogResult = 'OK' })
+  $bP.add_Click({ try { [Windows.Forms.Clipboard]::SetText([string]$script:Phone); $hm.Text = '✓ Đã chép số điện thoại.' } catch { $hm.Text = '' } })
+  $cf.add_LinkClicked({ $hs.next = 'coffee'; $d.DialogResult = 'OK' })
+  $ok.DialogResult = 'Cancel'
+  $d.Controls.AddRange(@($ctl + @($bR, $bF, $bP, $hm, $cf, $ok))); $d.CancelButton = $ok; $d.ActiveControl = $ok
+  $script:HelpUi = @{ d = $d; report = $bR; feature = $bF; cf = $cf; ok = $ok }   # tests
+  [void]$d.ShowDialog($form); $d.Dispose()
+  switch ($hs.next) { 'report' { Show-Report } 'feature' { Show-Feature } 'coffee' { Show-Coffee } }
+}
+
 # ---------- feature request ----------
 function Show-Feature {
   $d = New-SmallDialog 'Đề xuất tính năng' 480 496

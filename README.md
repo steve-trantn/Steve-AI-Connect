@@ -109,6 +109,7 @@ ChatGPT bản web không dùng được vì chỉ nhận MCP server từ xa qua 
 - **Cập nhật:** mỗi lần mở, công cụ hỏi GitHub xem có bản mới không (không gửi thông tin cá nhân). Có bản mới thì hiện link ở góc trên; bấm **Cập nhật ngay** là xong, hoặc bật **Tự động cập nhật** trong ⚙ Tùy chọn nâng cao. File tải về phải khớp mã SHA-256 của GitHub mới được chạy.
 - **Chia sẻ skill:** ⚙ Tùy chọn nâng cao → *Chia sẻ skill của tôi*. Công cụ đóng gói nguyên thư mục skill (kể cả file LISP, Excel, ảnh kèm theo, tối đa 5 MB), cho bạn xem trước, đồng ý giấy phép Apache 2.0 rồi mới gửi, kèm email và tên ghi công. Máy chủ kiểm tra mã SHA-256 rồi lưu vào Google Drive riêng của Steve và trả mã biên nhận; bản sao nằm ở `Steve-CAD-AI\skills-da-gui`. Steve duyệt và đưa vào bản cập nhật, có ghi công.
 - **Báo lỗi ẩn danh (chỉ khi bạn đồng ý):** công cụ hỏi một lần. Chỉ gửi nội dung lỗi, vị trí trong mã, phiên bản Windows, CAD và công cụ; tên người dùng, tên máy, email, SĐT, đường dẫn và tên file được lọc bỏ trước khi gửi. Bật / tắt trong ⚙ Tùy chọn nâng cao.
+- **Báo lỗi cho Steve:** nút *Báo lỗi* trên ribbon hoặc trong ⚙. Bạn xem đúng nội dung sẽ gửi (mô tả, email, thông tin chẩn đoán đã lọc tên, đường dẫn, email, SĐT) rồi mới bấm gửi; không kèm bản vẽ.
 - **Đề xuất tính năng:** bấm **✎ Đề xuất tính năng** ở chân cửa sổ. Nội dung bạn gõ và email được gửi tới Google Sheet của Steve Tran.
 - **Uninstall** gỡ sạch tất cả: ngắt kết nối, tắt tự nạp, xóa server, shortcut và mục trong Settings → Apps. Riêng thư mục làm việc (có API key) được giữ lại.
 

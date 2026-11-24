@@ -306,13 +306,8 @@ $miErr.Checked = ((Get-Setting 'SendErrors' $false) -eq $true); [void]$menu.Item
 $miErr.add_Click({ Set-Setting 'SendErrors' ([bool]$miErr.Checked) })
 # errors inside event handlers (PowerShell swallows them): keep them for the report
 [Windows.Forms.Application]::add_ThreadException({ param($s, $e) Add-ErrorLog 'window' $e.Exception.Message ([string]$e.Exception.StackTrace) })
-$miDiag = New-Object Windows.Forms.ToolStripMenuItem 'Chép thông tin chẩn đoán (gửi hỗ trợ)'; $miDiag.ForeColor = $Pal.text; [void]$menu.Items.Add($miDiag)
-$miDiag.add_Click({ $menu.Close(); Copy-Diag })
-function Copy-Diag {
-  $form.Cursor = 'WaitCursor'
-  try { [Windows.Forms.Clipboard]::SetText((Get-Diagnostics)); $t = 'Đã chép. Dán (Ctrl+V) vào Zalo hoặc email để gửi hỗ trợ. Không có thông tin cá nhân hay tên bản vẽ.' } catch { $t = $_.Exception.Message } finally { $form.Cursor = 'Default' }
-  [void][Windows.Forms.MessageBox]::Show($form, $t, $script:AppName, 'OK', 'Information')
-}
+$miDiag = New-Object Windows.Forms.ToolStripMenuItem 'Báo lỗi cho Steve…'; $miDiag.ForeColor = $Pal.text; [void]$menu.Items.Add($miDiag)
+$miDiag.add_Click({ $menu.Close(); Show-Report })
 $miAbout.add_Click({ $menu.Close(); Show-About })
 $bUninstall.ForeColor = $Pal.red; [void]$menu.Items.Add($bUninstall)
 $menu.add_Closing({ param($s, $e) if ($e.CloseReason -eq 'ItemClicked') { $e.Cancel = $true } })   # keep open while ticking options
@@ -1029,7 +1024,7 @@ function Open-Part([string]$part) {
   $script:Opening = $true
   try {
     switch ($part) {
-      'home' { Show-Page 'home' } 'share' { Show-ShareSkill } 'feature' { Show-Feature } 'diag' { Copy-Diag } 'update' { Invoke-UpdateCheckNow }
+      'home' { Show-Page 'home' } 'share' { Show-ShareSkill } 'feature' { Show-Feature } 'diag' { Show-Report } 'help' { Show-Help } 'update' { Invoke-UpdateCheckNow }
       'options' { $menu.Show($adv, (New-Object Drawing.Point 0, 0), [Windows.Forms.ToolStripDropDownDirection]::AboveRight) }
     }
   } finally { $script:Opening = $false }
@@ -1118,7 +1113,7 @@ $form.add_Shown({
         }
       })
       $script:SnapTimer.Start()
-      switch ($env:STEVECAD_SNAPDIALOG) { 'about' { Show-About } 'register' { [void](Show-Register) } 'feature' { Show-Feature } 'share' { Show-ShareSkill } 'update' { Show-Update @{ tag = 'v9.9.9'; notes = 'Bản thử' } } default { Show-Coffee } }
+      switch ($env:STEVECAD_SNAPDIALOG) { 'about' { Show-About } 'register' { [void](Show-Register) } 'feature' { Show-Feature } 'report' { Show-Report } 'help' { Show-Help } 'share' { Show-ShareSkill } 'update' { Show-Update @{ tag = 'v9.9.9'; notes = 'Bản thử' } } default { Show-Coffee } }
       $form.Close(); return
     }
     if ($env:STEVECAD_SNAPPICK) { $cadTile.zwcad.chk.Checked = $true; $aiTile.claudecode.chk.Checked = $true }

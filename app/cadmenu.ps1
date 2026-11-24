@@ -56,7 +56,7 @@ function Write-CadMenu {
   Add-Btn 'OPT'    'Tùy chọn'        'Mở Tùy chọn nâng cao của Steve AI Connect (STEVEAI-OPTIONS)' 'STEVEAI-OPTIONS' 'O' $blue $white
   Add-Btn 'SHARE'  'Chia sẻ skill'   'Gửi skill bạn tự tạo cho Steve duyệt (STEVEAI-SHARE)' 'STEVEAI-SHARE' 'S' $gold $dark
   Add-Btn 'FEAT'   'Đề xuất'         'Đề xuất tính năng mới hoặc góp ý (STEVEAI-FEATURE)' 'STEVEAI-FEATURE' '!' $gold $dark
-  Add-Btn 'DIAG'   'Chẩn đoán'       'Chép thông tin chẩn đoán để dán vào Zalo / email gửi hỗ trợ (STEVEAI-DIAG)' 'STEVEAI-DIAG' '+' $blue $white
+  Add-Btn 'DIAG'   'Báo lỗi'         'Báo lỗi cho Steve: mô tả, xem trước thông tin chẩn đoán rồi gửi (STEVEAI-DIAG)' 'STEVEAI-DIAG' '+' $blue $white
   Add-Btn 'HELP'   'Hướng dẫn'       "Các lệnh Steve AI và liên hệ hỗ trợ: $($script:Contact) (STEVEAI-HELP)" 'STEVEAI-HELP' '?' ([Drawing.Color]::FromArgb(95, 99, 104)) $white
 
   # drawn icons (app\icons.ps1); the assistants keep their real logos

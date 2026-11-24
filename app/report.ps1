@@ -13,7 +13,7 @@ function Protect-Text([string]$s) {
   $s = [regex]::Replace($s, '(?<![\w)])\\{1,2}[^\r\n"''<>|*?:]+\\[^\r\n"''<>|*?:]+', '[path]')   # \server\share\...
   $s = [regex]::Replace($s, '(?i)[^\s"''\\/:;,(){}\[\]]+( [^\s"''\\/:;,(){}\[\]]+){0,6}\.(dwg|dxf|pdf|xlsx?|docx?|lsp|ifc|rvt|dwt|csv)\b', '[file]')
   $s = [regex]::Replace($s, '[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}', '[email]')
-  $s = [regex]::Replace($s, '(?<!\d)(?:\+?84|0)[\d .\-]{8,12}\d(?!\d)', '[phone]')
+  $s = [regex]::Replace($s, '(?<!\d)(?<!\d\.)(?:\+?84|0)[\d .\-]{8,12}\d(?!\d)', '[phone]')
   $s = [regex]::Replace($s, '(?i)(sk-|AIza|ghp_|key[=: ]+)[A-Za-z0-9_\-]{8,}', '[key]')
   if ($s.Length -gt 1500) { $s = $s.Substring(0, 1500) }
   return $s

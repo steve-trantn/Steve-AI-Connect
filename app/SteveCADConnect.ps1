@@ -18,7 +18,7 @@ param(
   [switch]$Connect, [switch]$Disconnect, [switch]$Test, [switch]$Uninstall,
   [string[]]$Cad, [string[]]$Client, [switch]$Ads2026, [string]$GeminiKey = '', [switch]$AllowScript,
   [string]$Launch = '', [string]$CadVersion = '', [switch]$ListVersions, [switch]$FirstRun,
-  [ValidateSet('', 'home', 'share', 'feature', 'diag', 'update', 'options')][string]$Open = ''   # used by the CAD ribbon
+  [ValidateSet('', 'home', 'share', 'feature', 'diag', 'help', 'update', 'options')][string]$Open = ''   # used by the CAD ribbon
 )
 . (Join-Path $PSScriptRoot 'core.ps1')
 . (Join-Path $PSScriptRoot 'account.ps1')
