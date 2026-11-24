@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><title>Steve AI</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'">
+<link rel="stylesheet" href="vendor/xterm.css"><link rel="stylesheet" href="chat.css"></head>
+<body>
+<header>
+  <div class="brand"><b>Steve AI</b><span id="dot"></span><span id="state">Đang mở…</span></div>
+  <div class="seg" id="clients"></div>
+</header>
+<nav>
+  <button id="new" class="pri">Phiên mới</button>
+  <button id="stop">Dừng</button>
+  <select id="skill" title="Việc làm sẵn (skill)"></select>
+  <span class="grow"></span>
+  <button id="minus" title="Chữ nhỏ">A−</button><button id="plus" title="Chữ lớn">A+</button>
+</nav>
+<main id="term"></main>
+<div id="quick"></div>
+<footer>
+  <textarea id="box" rows="1" placeholder="Nhập yêu cầu bằng tiếng Việt… (Enter gửi, Shift+Enter xuống dòng)"></textarea>
+  <button id="send" class="pri">Gửi</button>
+</footer>
+<div id="hint">Ô trống: phím ↑ ↓ Enter Esc, số 1–9 chọn câu trả lời khi AI hỏi. AI có thể nhầm, sai thì gõ UNDO trong CAD.</div>
+<script src="vendor/xterm.js"></script><script src="vendor/addon-fit.js"></script><script src="chat.js"></script>
+</body></html>

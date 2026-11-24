@@ -8,12 +8,14 @@
     -Client claudecode|codex|gemini   (mặc định: trợ lý đã chọn trong Steve AI Connect)
     -Skill <tên skill>                (mở và chạy ngay skill, ví dụ cong-3d)
 #>
-param([string]$Client = '', [string]$Skill = '')
+param([string]$Client = '', [string]$Skill = '', [switch]$Info, [switch]$Prepare)   # -Info / -Prepare: JSON for the chat panel (chat\SteveAIChat.cs)
 . (Join-Path $PSScriptRoot 'core.ps1')
 . (Join-Path $PSScriptRoot 'account.ps1')
 $script:LogSink = { param($m, $lvl) }
+if ($Info -or $Prepare) { [Console]::OutputEncoding = New-Object Text.UTF8Encoding $false }
 
 function Show-Msg([string]$m) {
+  if ($Info -or $Prepare) { [Console]::Out.Write((@{ error = $m } | ConvertTo-Json -Compress)); return }   # the chat panel shows it itself
   Add-Type -AssemblyName System.Windows.Forms
   [void][Windows.Forms.MessageBox]::Show($m, 'Steve AI', 'OK', 'Information')
 }
@@ -26,17 +28,24 @@ try {
   }
   $exe = @{ claudecode = (Find-Exe 'claude'); codex = (Find-Codex); gemini = (Find-Exe 'gemini.cmd') }
   if (-not $exe.gemini) { $exe.gemini = Find-Exe 'gemini' }
+  if ($Info) {
+    $o = @{ default = [string](Get-Setting 'DefaultAI' ''); skills = @(Get-SkillList | ForEach-Object { @{ name = $_.name; description = $_.description } })
+      clients = @($script:LaunchClients | ForEach-Object { @{ id = $_; label = $script:ClientLabel[$_]; ok = ([bool]$exe[$_] -and ($_ -ne 'gemini' -or (Test-GeminiKey))) } }) }
+    [Console]::Out.Write(($o | ConvertTo-Json -Depth 5 -Compress)); exit 0
+  }
   $Client = $Client.Trim().ToLower()
+  $asked = [bool]$Client
   if (-not $Client) { $Client = [string](Get-Setting 'DefaultAI' '') }
+  if (-not $asked -and $Client -eq 'gemini' -and -not (Test-GeminiKey)) { $Client = '' }   # default without a key: use another assistant
   if (-not $Client -or -not $exe[$Client]) {
     $Client = @($script:LaunchClients | Where-Object { $exe[$_] } | Select-Object -First 1)[0]
   }
   if (-not $Client) {
-    Show-Msg "Máy chưa có trợ lý AI dạng cửa sổ lệnh (Claude Code, ChatGPT Codex hoặc Gemini CLI).`n`nMở Steve AI Connect và bấm “Kết nối tự động” ở bước 1.`n`nHỗ trợ: $($script:Contact)"
+    Show-Msg "Máy chưa có trợ lý AI dạng cửa sổ lệnh (Claude Code, ChatGPT Codex hoặc Gemini CLI).`n`nMở Steve AI Connect và bấm 'Kết nối tự động' ở bước 1.`n`nHỗ trợ: $($script:Contact)"
     exit 1
   }
   if ($Client -eq 'gemini' -and -not (Test-GeminiKey)) {
-    Show-Msg "Gemini chưa có API key.`n`nMở Steve AI Connect, ở bước 1 bấm “dán API key” tại dòng Gemini CLI.`nLấy key miễn phí: https://aistudio.google.com/apikey"
+    Show-Msg "Gemini chưa có API key.`n`nMở Steve AI Connect, ở bước 1 bấm 'dán API key' tại dòng Gemini CLI.`nLấy key miễn phí: https://aistudio.google.com/apikey"
     exit 1
   }
   New-Item -ItemType Directory -Force $script:Workspace | Out-Null
@@ -70,6 +79,7 @@ try {
     'if errorlevel 1 (', '  echo.', "  echo Tro ly AI dung voi loi. Can ho tro: $((ConvertTo-Ascii $script:Contact) -replace '\|', '-')", '  pause', ')'
   ) -join "`r`n"
   [IO.File]::WriteAllText($bat, $body + "`r`n", $script:Utf8)
+  if ($Prepare) { [Console]::Out.Write((@{ bat = $bat; dir = $script:Workspace; client = $Client; label = $script:ClientLabel[$Client] } | ConvertTo-Json -Compress)); exit 0 }
   Start-Process $bat -WorkingDirectory $script:Workspace
 } catch {
   Show-Msg "Không mở được cửa sổ AI: $($_.Exception.Message)`n`nHỗ trợ: $($script:Contact)"

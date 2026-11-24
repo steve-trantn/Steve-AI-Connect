@@ -1,0 +1,28 @@
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{display:flex;flex-direction:column;background:#0d1421;color:#e6edf6;font:13px "Segoe UI",sans-serif;overflow:hidden}
+header,nav,footer{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid #22304a;flex-wrap:wrap}
+header{background:#111b2d}
+.brand{display:flex;align-items:center;gap:7px;min-width:0}
+.brand b{font-size:14px;color:#60a5fa}
+#dot{width:8px;height:8px;border-radius:50%;background:#64748b;flex:none}
+#dot.on{background:#4ade80}#dot.err{background:#f87171}
+#state{color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.seg{display:flex;margin-left:auto}
+button,select{font:inherit;color:#e6edf6;background:#18243a;border:1px solid #2b3c5a;border-radius:6px;padding:5px 10px;cursor:pointer}
+button:hover:not(:disabled){background:#21314e}
+button:disabled{opacity:.4;cursor:default}
+button:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #60a5fa;outline-offset:1px}
+.pri,.seg button.on{background:#2563eb;border-color:#2563eb;color:#fff}
+.pri:hover:not(:disabled){background:#3b82f6}
+.seg button{border-radius:0;border-left-width:0}
+.seg button:first-child{border-radius:6px 0 0 6px;border-left-width:1px}.seg button:last-child{border-radius:0 6px 6px 0}
+.grow{flex:1}
+select{max-width:170px}
+#term{flex:1;min-height:60px;padding:6px 0 0 8px;overflow:hidden}
+#quick{display:flex;gap:6px;padding:6px 10px;overflow-x:auto;scrollbar-width:none;border-top:1px solid #22304a}
+#quick button{white-space:nowrap;font-size:12px;border-radius:12px;padding:3px 10px;color:#b6c6de}
+footer{border:0;padding:4px 10px 6px;align-items:flex-end;flex-wrap:nowrap}
+textarea{flex:1;min-width:0;resize:none;max-height:140px;font:14px "Segoe UI",sans-serif;color:#e6edf6;background:#18243a;border:1px solid #2b3c5a;border-radius:8px;padding:8px 10px}
+#send{padding:8px 14px}
+#hint{color:#7c8ca5;font-size:11px;padding:0 12px 7px}

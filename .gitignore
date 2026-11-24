@@ -17,3 +17,6 @@ __pycache__/
 
 # build output
 dist/
+
+# chat panel build output
+chat/bin/
