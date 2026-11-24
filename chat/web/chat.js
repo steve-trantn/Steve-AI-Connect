@@ -1,7 +1,7 @@
 'use strict';
 const host = window.chrome.webview, $ = id => document.getElementById(id);
 const post = m => host.postMessage(m);
-let size = +(localStorage.font || 13), running = false, client = '', skills = [], inPanel = false, tables = false, docName = '';
+let size = +(localStorage.font || 13), running = false, client = '', skills = [], inPanel = false, tables = false, started = false, docName = '';
 const term = new Terminal({ fontFamily: 'Cascadia Mono, Consolas, monospace', fontSize: size, cursorBlink: true, scrollback: 8000,
   theme: { background: '#0d1421', foreground: '#e6edf6', cursor: '#60a5fa', selectionBackground: '#2b4a7d' },
   linkHandler: { activate: (e, u) => post({ t: 'link', u }) } });
@@ -21,7 +21,7 @@ term.attachCustomKeyEventHandler(e => {
 function state(text, cls) { $('state').textContent = text; $('state').title = text; $('dot').className = cls || ''; }
 function setRun(on) { running = on; $('send').disabled = !on; }
 function start(skill, resume) {
-  term.reset(); setRun(false); state('Đang mở…');
+  started = true; term.reset(); setRun(false); state('Đang mở…');
   post({ t: 'start', client, skill: skill || '', resume: !!resume });
   box.focus();
 }
@@ -114,7 +114,7 @@ host.addEventListener('message', ev => {
     $('client').value = client;
     if (!client) { state('Máy chưa có trợ lý AI. Mở Steve AI Connect để kết nối.', 'err'); return; }
     // a skill that has a table opens the table: instant, and no AI is used
-    if (tables && Panels.open(m.skill)) start(); else start(m.skill);
+    if (tables && Panels.open(m.skill)) state('Trợ lý AI chưa mở (không cần cho bảng này)'); else start(m.skill);
     post({ t: 'snap' });
   }
   else if (m.t === 'started') { setRun(true); client = m.client; $('client').value = client; state(docName, 'on'); }

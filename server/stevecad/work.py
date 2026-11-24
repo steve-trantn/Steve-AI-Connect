@@ -268,6 +268,66 @@ def audit(max_objects: int = 2000, max_items: int = 40) -> dict:
             "note": "layers_without_model_objects chỉ tính không gian mô hình; layer có thể đang dùng trong block hoặc layout."}
 
 
+@tool("write")
+def map_layers(mapping: dict[str, str], colors: dict[str, int] | None = None) -> dict:
+    """Move every model-space and layout object from one layer to another: mapping = {"old": "new", ...}. Missing target layers are
+    created (colors = {"new": ACI}). Objects inside block definitions are not touched and no layer is deleted. One undo step.
+    Show the mapping to the user first."""
+    d = doc()
+    have = {}
+    for i in range(d.Layers.Count):
+        L = d.Layers.Item(i)
+        have[L.Name.lower()] = L
+    plan = []
+    for old, new in mapping.items():
+        new = new.strip()
+        if old.lower() not in have:
+            raise UserError(f"Không có layer '{old}'.")
+        if not new or re.search(r'[<>/\\":;?*|,=`]', new) or len(new) > 255:
+            raise UserError(f"Tên layer '{new}' không hợp lệ.")
+        if old.lower() != new.lower():
+            plan.append((old, new))
+    locked = [n for o, n2 in plan for n in (o, n2) if n.lower() in have and g(have[n.lower()], "Lock")]
+    if locked:
+        raise UserError("Layer đang khoá: " + ", ".join(sorted(set(locked))) + ". Mở khoá rồi làm lại.")
+    if not plan:
+        raise UserError("Chưa có layer nào cần đổi.")
+    # read every object first: a chain such as A -> B, B -> C must not move an object twice
+    todo = [(old, new, list(iter_space(d, None, old))) for old, new in plan]
+    moves = {old.lower(): new for old, new in plan}
+    paper = []
+    for i in range(d.Layouts.Count):
+        lay = d.Layouts.Item(i)
+        if not g(lay, "ModelType"):
+            for k in range(lay.Block.Count):
+                e = lay.Block.Item(k)
+                t = moves.get((g(e, "Layer") or "").lower())
+                if t:
+                    paper.append((e, t))
+    out, failed = [], 0
+    with editing() as d:
+        for _, new in plan:
+            if new.lower() not in have:
+                have[new.lower()] = d.Layers.Add(new)
+                if colors and colors.get(new):
+                    have[new.lower()].Color = int(colors[new])
+        for old, new, ents in todo:
+            n = 0
+            for e in ents:
+                try:
+                    e.Layer = new
+                    n += 1
+                except Exception:
+                    failed += 1
+            out.append({"from": old, "to": new, "objects": n})
+        for e, t in paper:
+            try:
+                e.Layer = t
+            except Exception:
+                failed += 1
+        return done(d, moved=out, layout_objects=len(paper), failed=failed)
+
+
 @tool()
 def zoom_to(handles: list[str]) -> dict:
     """Zoom the active tab to these model-space objects (with some margin)."""

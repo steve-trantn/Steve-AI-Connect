@@ -18,9 +18,10 @@ const Panels = (() => {
   const x = el('button', { className: 'ic', textContent: '✕', title: 'Đóng bảng, về chat' });
   view.append(el('div', { className: 'vhead' }, ttl, ask, x), bars, note, body);
   document.body.append(view);
-  const close = () => { view.hidden = true; cur = ''; };
+  // the assistant is only started when it is needed: opening a table alone costs nothing
+  const close = () => { view.hidden = true; cur = ''; if (!running && !started) start(); };
   x.onclick = close;
-  ask.onclick = () => { const k = cur; close(); runSkill(k); };
+  ask.onclick = () => { const k = cur; view.hidden = true; cur = ''; runSkill(k); };
   const say = (t, cls) => { note.textContent = t || ''; note.className = 'vnote ' + (cls || ''); };
   // one job at a time; errors go to the note line
   let busy = false;
@@ -166,7 +167,65 @@ const Panels = (() => {
     }
   }
 
-  const list = { 'kiem-tra-ban-ve': ['Kiểm tra bản vẽ', audit], 'boc-khoi-luong': ['Bóc khối lượng', quantities], 'khung-ten': ['Khung tên', titles] };
+  // ---------------------------------------------------------------- layer standard
+  function layers() {
+    let rows = [], dr = '';
+    const std = () => { try { return JSON.parse(localStorage.layerStd || '[]'); } catch (e) { return []; } };   // [{ from, to, color }]
+    const norm = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/gi, 'd').replace(/[\s_\-.]+/g, '').toLowerCase();
+    bars.replaceChildren(btn('Đọc layer', read, 'pri'), twice('Áp dụng', apply), btn('Bảng chuẩn', edit), btn('Excel', exp));
+    say('Gõ layer mới ở cột bên phải. Lưu bảng chuẩn một lần để lần sau tự điền.');
+    function read() {
+      job('Đang đọc…', async () => {
+        const i = await call('info'); dr = i._drawing;
+        const l = await call('list_layers', { count_objects: true }); const s = std();
+        rows = l.filter(q => !q.name.includes('|')).map(q => {
+          const hit = s.find(t => norm(t.from) === norm(q.name)) || s.find(t => t.to !== q.name && norm(t.to) === norm(q.name));
+          return { ...q, to: hit ? hit.to : '' };
+        });
+        show();
+      });
+    }
+    function show() {
+      const tb = el('table'), names = el('datalist', { id: 'lyr' }, ...[...new Set([...std().map(t => t.to), ...rows.map(q => q.name)])].map(n => el('option', { value: n })));
+      tb.append(el('tr', {}, ...['Layer hiện có', 'SL', 'Chuyển sang'].map(t => el('th', { textContent: t }))));
+      for (const q of rows) {
+        const inp = el('input', { value: q.to, placeholder: q.name === '0' || /^defpoints$/i.test(q.name) ? '(giữ nguyên)' : '' }); inp.setAttribute('list', 'lyr');
+        inp.oninput = () => { q.to = inp.value.trim(); inp.classList.toggle('chg', !!q.to && q.to !== q.name); }; inp.oninput();
+        tb.append(el('tr', {}, el('td', { textContent: q.name + (q.locked ? ' 🔒' : '') }), el('td', { textContent: num(q.objects, 0) }), el('td', {}, inp)));
+      }
+      body.replaceChildren(names, tb);
+      const n = rows.filter(q => q.to && q.to !== q.name).length;
+      say(`${rows.length} layer, ${n} layer sẽ chuyển. Không gồm đối tượng trong block; layer cũ không bị xoá.`, 'ok');
+    }
+    function apply() {
+      const m = {}, c = {};
+      for (const q of rows) if (q.to && q.to !== q.name) m[q.name] = q.to;
+      if (!Object.keys(m).length) { say('Chưa có layer nào cần chuyển.', 'err'); return; }
+      for (const t of std()) if (t.color) c[t.to] = t.color;
+      job('Đang chuyển…', async () => {
+        const r = await call('map_layers', { _drawing: dr, mapping: m, colors: c });
+        const n = r.moved.reduce((s, q) => s + q.objects, 0);
+        busy = false; view.classList.remove('busy');
+        for (const q of rows) { const k = r.moved.find(v => v.from === q.name); if (k) { q.objects -= k.objects; q.to = ''; } }
+        show(); say(`✓ Đã chuyển ${num(n, 0)} đối tượng (layout: ${r.layout_objects}${r.failed ? ', lỗi: ' + r.failed : ''}). Sai thì gõ UNDO, rồi bấm Đọc layer.`, r.failed ? 'err' : 'ok');
+      });
+    }
+    function edit() {
+      const ta = el('textarea', { className: 'std', value: std().map(t => [t.from, t.to, t.color || ''].join('\t')).join('\n'), placeholder: 'Mỗi dòng: layer cũ <Tab> layer chuẩn <Tab> màu ACI (không bắt buộc)\nDán thẳng từ Excel được.' });
+      body.replaceChildren(ta, btn('Lưu bảng chuẩn', () => {
+        const out = [];
+        for (const line of ta.value.split('\n')) { const f = line.split(/\t|;/).map(s => s.trim()); if (f[0] && f[1]) { const c = parseInt(f[2], 10); out.push({ from: f[0], to: f[1], color: c >= 1 && c <= 255 ? c : 0 }); } }
+        localStorage.layerStd = JSON.stringify(out); body.replaceChildren(); say(`✓ Đã lưu ${out.length} dòng. Bấm Đọc layer để áp vào bản vẽ.`, 'ok');
+      }, 'pri'));
+      say('Bảng chuẩn được nhớ trên máy này.'); ta.focus();
+    }
+    function exp() {
+      if (!rows.length) { say('Bấm Đọc layer trước.', 'err'); return; }
+      job('Đang xuất…', () => xlsx('Layer', dr, { Layer: [['Layer', 'Số đối tượng', 'Màu', 'Kiểu nét', 'Chuyển sang'], ...rows.map(q => [q.name, q.objects, q.color, q.linetype, q.to])] }));
+    }
+  }
+
+  const list = { 'chuan-layer': ['Chuẩn layer', layers], 'kiem-tra-ban-ve': ['Kiểm tra bản vẽ', audit], 'boc-khoi-luong': ['Bóc khối lượng', quantities], 'khung-ten': ['Khung tên', titles] };
   function open(name) {
     if (!list[name]) return false;
     pop.hidden = true; view.hidden = false;

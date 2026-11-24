@@ -41,3 +41,4 @@ textarea:focus{border-color:#60a5fa}
 #view th,#view td{border:1px solid #22304a;padding:3px 6px;text-align:left}#view th{position:sticky;top:0;background:#18243a;white-space:nowrap}
 #view tr:hover td{background:#16223a}#view .sum td{font-weight:600;background:#111b2d}.lnk{cursor:pointer;color:#60a5fa}
 #view input:not([type]){width:100%;min-width:70px;background:#18243a;color:#e6edf6;border:1px solid transparent;font:inherit;padding:2px 4px}#view input.chg{border-color:#fbbf24;background:#3a2f12}
+.std{width:100%;height:220px;max-height:none;border-radius:6px;margin-bottom:8px;font:12px Consolas,monospace;resize:vertical}

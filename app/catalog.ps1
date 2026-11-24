@@ -55,7 +55,8 @@ $script:ToolCatalog = [ordered]@{
     @('array_polar', 'Mảng tròn', 'Rải 12 lỗ bu lông quanh tâm'),
     @('set_props', 'Đổi layer, màu, kiểu đường...', 'Đổi các đối tượng đang chọn sang layer KICHTHUOC'),
     @('delete', 'Xoá (có hỏi trước)', 'Xoá các đường trùng'),
-    @('layer', 'Tạo / sửa layer', 'Tạo layer TUONG màu đỏ')
+    @('layer', 'Tạo / sửa layer', 'Tạo layer TUONG màu đỏ'),
+    @('map_layers', 'Chuyển đối tượng sang layer chuẩn', 'Chuyển layer WALL sang TUONG')
   )
   'Bản vẽ' = @(
     @('new_drawing', 'Tạo bản vẽ mới', 'Mở bản vẽ mới'),
