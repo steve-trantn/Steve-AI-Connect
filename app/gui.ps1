@@ -229,15 +229,19 @@ function New-SmallDialog([string]$title, [int]$w, [int]$h) {
   return $d
 }
 function Show-Coffee {
-  $d = New-SmallDialog 'Mời Steve ly cà phê' 360 404
-  $t1 = Put (New-Label 'Steve AI Connect miễn phí cho mọi người.' $Fnt.b $Pal.text) 20 16 320 22
-  $t2 = Put (New-Label 'Nếu công cụ giúp ích cho công việc của bạn, có thể mời Steve một ly cà phê để có thêm động lực làm tiếp. Cảm ơn bạn!' $Fnt.n $Pal.muted) 20 40 320 56
+  $d = New-SmallDialog 'Mời Steve ly cà phê' 380 590
+  $t1 = Put (New-Label 'Steve AI Connect miễn phí cho mọi người.' $Fnt.b $Pal.text) 20 16 340 22
+  $t2 = Put (New-Label 'Nếu công cụ giúp ích cho công việc của bạn, có thể mời Steve một ly cà phê để có thêm động lực làm tiếp. Cảm ơn bạn!' $Fnt.n $Pal.muted) 20 40 340 56
   $qrFile = Join-Path $PSScriptRoot 'donate-qr.png'
-  $pb = Put (New-Object Windows.Forms.PictureBox) 70 102 220 220; $pb.SizeMode = 'Zoom'; $pb.BackColor = [Drawing.Color]::White
+  $pb = Put (New-Object Windows.Forms.PictureBox) 80 102 220 220; $pb.SizeMode = 'Zoom'; $pb.BackColor = [Drawing.Color]::White
   if (Test-Path $qrFile) { $pb.Image = [Drawing.Image]::FromFile($qrFile) }
-  $t3 = Put (New-Label 'Quét bằng MoMo hoặc app ngân hàng bất kỳ' $Fnt.s $Pal.muted) 20 328 320 18; $t3.TextAlign = 'TopCenter'
-  $ok = Put (New-Button 'Đóng') 130 356 100 34; $ok.DialogResult = 'OK'
-  $d.Controls.AddRange(@($t1, $t2, $pb, $t3, $ok)); $d.AcceptButton = $ok; $d.CancelButton = $ok
+  $t3 = Put (New-Label 'Quét bằng MoMo hoặc app ngân hàng bất kỳ' $Fnt.s $Pal.muted) 20 328 340 18; $t3.TextAlign = 'TopCenter'
+  $ln = Put (New-Object Windows.Forms.Panel) 20 356 340 1; $ln.BackColor = $Pal.line
+  $t4 = Put (New-Label 'Hoặc bạn có thể mua phần mềm ủng hộ mình, mình có bán những món này nhé hihi ^_^' $Fnt.n $Pal.text) 20 366 340 40
+  $t5 = Put (New-Label (($script:Products | ForEach-Object { "•  $_" }) -join "`r`n") $Fnt.n $Pal.muted) 32 408 190 130
+  $t6 = Put (New-Label "Liên hệ:`r`n$($script:Author)`r`n$($script:Phone)" $Fnt.b $Pal.accent) 232 408 130 66
+  $ok = Put (New-Button 'Đóng') 140 544 100 34; $ok.DialogResult = 'OK'
+  $d.Controls.AddRange(@($t1, $t2, $pb, $t3, $ln, $t4, $t5, $t6, $ok)); $d.AcceptButton = $ok; $d.CancelButton = $ok
   [void]$d.ShowDialog($form)
   if ($pb.Image) { $pb.Image.Dispose() }
 }
@@ -248,6 +252,8 @@ function Show-About {
   $logo2 = Put (New-Object Windows.Forms.PictureBox) 20 18 44 44; $logo2.SizeMode = 'Zoom'; try { $logo2.Image = (New-AppIcon).ToBitmap() } catch {}
   $a1 = Put (New-Label "$($script:AppName) $($script:Version)" $Fnt.h2 $Pal.text) 76 16 380 24
   $a2 = Put (New-Label "Tác giả: Steve Tran  ·  $($script:Phone)" $Fnt.n $Pal.muted) 76 42 380 20
+  $acc = Get-Setting 'Account'
+  $a5 = Put (New-Label $(if ($acc -and $acc.email) { "Đã đăng ký: $($acc.email)" } else { '' }) $Fnt.s $Pal.muted) 20 280 330 18
   $a3 = Put (New-Link $script:RepoUrl $Fnt.n $Pal.accent) 76 64 380 20; $a3.add_LinkClicked({ Start-Process $script:RepoUrl })
   $a4 = Put (New-Label 'Miễn phí, mã nguồn mở theo giấy phép Apache 2.0. Bạn được dùng, sửa và chia sẻ lại, với điều kiện ghi nguồn tác giả. Khi chia sẻ hoặc dùng lại, vui lòng dán dòng sau:' $Fnt.n $Pal.text) 20 98 440 60
   $tb = Put (New-Object Windows.Forms.TextBox) 20 162 440 50; $tb.Multiline = $true; $tb.ReadOnly = $true; $tb.Text = Get-CreditText
@@ -256,7 +262,7 @@ function Show-About {
   $msg = Put (New-Label '' $Fnt.s $Pal.green) 250 236 210 20
   $cp.add_Click({ [Windows.Forms.Clipboard]::SetText((Get-CreditText)); $msg.Text = '✓ Đã chép, dán (Ctrl+V) vào bài viết.' })
   $ok = Put (New-Button 'Đóng') 360 272 100 34; $ok.DialogResult = 'OK'
-  $d.Controls.AddRange(@($logo2, $a1, $a2, $a3, $a4, $tb, $cp, $msg, $ok)); $d.AcceptButton = $ok; $d.CancelButton = $ok
+  $d.Controls.AddRange(@($logo2, $a1, $a2, $a3, $a4, $a5, $tb, $cp, $msg, $ok)); $d.AcceptButton = $ok; $d.CancelButton = $ok
   [void]$d.ShowDialog($form)
 }
 
@@ -968,6 +974,10 @@ $form.add_Shown({
   if ($script:FirstRun) { try { Install-Self; Write-Log 'Đã tạo shortcut Steve AI Connect và Steve AI trên Desktop.' 'detail' } catch {} }
   try { Repair-CadAddon } catch {}
   try { Fill-Launchers } catch { Write-Log "Lỗi tìm phiên bản CAD: $($_.Exception.Message)" 'error' }
+  # one-time registration (email code). Not for self-tests and screenshots.
+  if (-not ($env:STEVECAD_SELFTEST -or $env:STEVECAD_SNAPSHOT) -and $script:RegisterUrl -and -not (Test-Registered)) {
+    if (-not (Show-Register)) { $form.Close(); return }
+  }
   $script:Shown = $true
   Fill-Tools ''
   try { [void][SteveCad.Win]::SendMessage($search.Handle, 0x1501, [IntPtr]1, 'Tìm tool, ví dụ: kích thước, 3D, PDF...') } catch {}
@@ -995,6 +1005,7 @@ $form.add_Shown({
     & $try 'Tiếp tục / Quay lại' { Show-Step 2; $bNext.PerformClick(); $bBack.PerformClick() }
     foreach ($c in $segs.Keys) { if ($segs[$c].Enabled) { & $try "chọn trợ lý $c" { $segs[$c].PerformClick() } } }
     & $try 'bấm Mở Steve AI' { Show-Step 3; $bOpen.PerformClick() }
+    if ($env:STEVECAD_REGTEST) { . $env:STEVECAD_REGTEST }   # registration test script (needs a local test server)
     & $try 'mở trang nâng cao và quay về' { Show-Page 'conn'; Show-Page 'home' }
     & $try 'tab Công cụ & tìm kiếm' { Show-Page 'tools'; $search.Text = 'kich thuoc'; $search.Text = ''; Show-Page 'home' }
     [IO.File]::WriteAllLines($env:STEVECAD_SELFTEST, [string[]]$res, (New-Object Text.UTF8Encoding $false))
@@ -1015,7 +1026,7 @@ $form.add_Shown({
         }
       })
       $script:SnapTimer.Start()
-      if ($env:STEVECAD_SNAPDIALOG -eq 'about') { Show-About } else { Show-Coffee }
+      switch ($env:STEVECAD_SNAPDIALOG) { 'about' { Show-About } 'register' { [void](Show-Register) } default { Show-Coffee } }
       $form.Close(); return
     }
     if ($env:STEVECAD_SNAPPICK) { $cadTile.zwcad.chk.Checked = $true; $aiTile.claudecode.chk.Checked = $true }

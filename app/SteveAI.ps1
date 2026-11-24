@@ -10,6 +10,7 @@
 #>
 param([string]$Client = '', [string]$Skill = '')
 . (Join-Path $PSScriptRoot 'core.ps1')
+. (Join-Path $PSScriptRoot 'account.ps1')
 $script:LogSink = { param($m, $lvl) }
 
 function Show-Msg([string]$m) {
@@ -18,6 +19,11 @@ function Show-Msg([string]$m) {
 }
 
 try {
+  if (-not (Test-AccessOk)) {
+    Show-Msg "Cần đăng ký một lần (miễn phí) để dùng Steve AI. Bấm OK để mở cửa sổ đăng ký."
+    Start-Process (Join-Path $PSHOME 'powershell.exe') -ArgumentList "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -STA -File `"$(Join-Path $PSScriptRoot 'SteveCADConnect.ps1')`"" -WindowStyle Hidden
+    exit 1
+  }
   $exe = @{ claudecode = (Find-Exe 'claude'); codex = (Find-Codex); gemini = (Find-Exe 'gemini.cmd') }
   if (-not $exe.gemini) { $exe.gemini = Find-Exe 'gemini' }
   $Client = $Client.Trim().ToLower()

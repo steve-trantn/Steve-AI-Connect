@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Đóng gói Steve AI Connect thành MỘT file exe để gửi cho người khác:
     dist\Steve-AI-Connect-Setup-<version>.exe
@@ -6,10 +6,14 @@
 .EXAMPLE
   powershell -ExecutionPolicy Bypass -File build\build-exe.ps1
 #>
+param([switch]$NoRegister)   # -NoRegister: test exe while $script:RegisterUrl is still empty
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot
 $ver = (Get-Content (Join-Path $root 'VERSION') | Select-Object -First 1).Trim()   # v4.0.0
 $num = $ver.TrimStart('v')
+if (-not $NoRegister -and (Get-Content (Join-Path $root 'app\core.ps1') -Raw) -notmatch "RegisterUrl = 'https://script\.google\.com/macros/s/[^']+/exec'") {
+  throw 'Chưa điền $script:RegisterUrl trong app\core.ps1 (xem register\README.md). Bản thử: thêm -NoRegister.'
+}
 $dist = Join-Path $root 'dist'
 $work = Join-Path $env:TEMP "SteveCADBuild-$PID"
 New-Item -ItemType Directory -Force $dist, $work | Out-Null

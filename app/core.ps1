@@ -16,6 +16,11 @@ $script:Author    = 'Steve Tran'
 $script:Phone     = '0987 779 228'
 $script:Contact   = "$($script:Author) | $($script:Phone)"
 $script:RepoUrl   = 'https://github.com/steve-trantn/Steve-AI-Connect'
+# registration server (register\Code.gs deployed as a web app, the .../exec address). Empty = no registration.
+$script:RegisterUrl = 'https://script.google.com/macros/s/AKfycbxxGPIt7HH86zXb0LUuc4nDyPKUPjdZn0vUT8df73YQha0gQfTZahNctXeyKDUraFXh3Q/exec'
+if ($env:STEVECAD_REGURL) { $script:RegisterUrl = $env:STEVECAD_REGURL }   # tests
+# products and services shown in the "buy me a coffee" dialog
+$script:Products = @('ADSCivil BIM', 'ZWCAD', 'ADSCivil CDE', 'ADSCivil BIM Studio', 'ADSCivil IFC', 'Đào tạo BIM', 'Thuê làm dự án BIM')
 
 # our own MCP server for ZWCAD / AutoCAD (folder server\ of this tool), installed to %LOCALAPPDATA%
 $script:ServerDir = Join-Path $script:AppHome 'server'

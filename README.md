@@ -12,6 +12,7 @@ Sau khi kết nối, bạn chỉ cần trò chuyện với trợ lý AI và nó 
 
 1. **Tải về:** vào trang [**Releases**](https://github.com/steve-trantn/Steve-AI-Connect/releases/latest), tải file **`Steve-AI-Connect-Setup-*.exe`** (một file duy nhất, có thể gửi qua Zalo, email, USB).
 2. **Bấm đúp file exe.** Công cụ tự cài (không cần quyền admin), tạo shortcut trên Desktop rồi mở ra ở thẻ **Bắt đầu**, dẫn bạn đi qua 3 bước. Bước nào xong có dấu ✓ xanh, lần sau mở công cụ sẽ vào thẳng bước còn dang dở.
+   - **Đăng ký một lần** (miễn phí): nhập email, họ và tên, SĐT, nhận mã 6 số qua email rồi xác nhận. Máy khác chỉ cần **Đăng nhập** bằng email. Đăng ký xong dùng được cả khi không có mạng; nếu lúc đăng ký không kết nối được máy chủ thì được dùng tạm 7 ngày.
    - **Bước 1 · Kết nối** (làm một lần): công cụ tự tìm phần mềm CAD và trợ lý AI có trên máy. Bấm **Kết nối tự động**. Máy chưa có trợ lý AI thì công cụ chỉ chỗ tải Claude Code.
    - **Bước 2 · Mở phần mềm CAD:** chọn phiên bản (máy có nhiều bản, ví dụ ADSCivil 2026 và 2027, thì chọn trong danh sách xổ xuống) rồi bấm **Khởi động**. CAD mở xong, công cụ tự chuyển sang bước 3.
    - **Bước 3 · Hỏi AI:** bấm **Mở Steve AI**, gõ yêu cầu bằng tiếng Việt, ví dụ *"Bản vẽ đang mở có những layer nào?"*. Chưa biết hỏi gì thì bấm một câu gợi ý để chép rồi dán (Ctrl+V).
@@ -101,12 +102,13 @@ ChatGPT bản web không dùng được vì chỉ nhận MCP server từ xa qua 
 - **Đăng ký server** vào cấu hình của từng trợ lý AI đã chọn. Mọi file cấu hình được sao lưu trước khi sửa (`*.bak-<thời gian>`).
 - **Tạo thư mục làm việc** `%USERPROFILE%\Steve-CAD-AI` với lời dặn cho AI (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`): luôn đọc bản vẽ thật bằng tool, hỏi trước khi xóa, lưu hoặc đóng bản vẽ.
 - **ADSCivil 2026** (tùy chọn): chép trợ lý AI của bản 2027 sang và cho nó tự nạp khi khởi động (lệnh `ADSAI`). Chỉ xin quyền admin khi cần.
+- **Đăng ký:** công cụ chỉ gửi email, họ tên, SĐT, lựa chọn đồng ý và số phiên bản tới Google Sheet riêng của Steve Tran, dùng để hỗ trợ và báo bản cập nhật (giới thiệu sản phẩm chỉ khi bạn tích chọn). Công cụ không gửi bản vẽ về đó và không theo dõi việc sử dụng. Muốn xem hoặc xoá thông tin: liên hệ 0987 779 228.
 - **Uninstall** gỡ sạch tất cả: ngắt kết nối, tắt tự nạp, xóa server, shortcut và mục trong Settings → Apps. Riêng thư mục làm việc (có API key) được giữ lại.
 
 ## Dòng lệnh (cho IT, cài hàng loạt)
 
 ```bat
-Steve-AI-Connect-Setup-v4.0.0.exe -Connect                                           :: cai + ket noi, khong mo giao dien
+Steve-AI-Connect-Setup-v1.0.0.exe -Connect                                           :: cai + ket noi, khong mo giao dien
 powershell -ExecutionPolicy Bypass -File app\SteveCADConnect.ps1 -Connect                 :: moi CAD + moi tro ly co tren may
 powershell -ExecutionPolicy Bypass -File app\SteveCADConnect.ps1 -Connect -Cad zwcad -Client codex,claude -Test
 powershell -ExecutionPolicy Bypass -File app\SteveCADConnect.ps1 -Connect -Ads2026 -GeminiKey <key>
@@ -117,6 +119,8 @@ powershell -ExecutionPolicy Bypass -File app\SteveCADConnect.ps1 -Launch adscivi
 powershell -ExecutionPolicy Bypass -File app\SteveCADConnect.ps1 -Launch autocad -CadVersion 2024
 powershell -ExecutionPolicy Bypass -File app\SteveCADConnect.ps1 -Uninstall
 ```
+
+Cài bằng dòng lệnh không cần đăng ký ngay: máy được dùng tạm 7 ngày, sau đó mở Steve AI Connect để đăng ký.
 
 ## Xử lý sự cố
 
@@ -144,6 +148,7 @@ CAD/AutoCAD/                lời dặn AI cho AutoCAD
 server/                     Steve CAD MCP (ZWCAD, AutoCAD)
 CAD/ADSCivil/               lời dặn AI, tự nạp ADSCivil 2026 (ads-ai-autoload.lsp, install-2026-autoload.ps1)
 templates/                  lời dặn chung, SteveAI.lsp (lệnh AI, STEVEAI trong CAD), launcher Gemini
+register/                   máy chủ đăng ký (Google Apps Script) và cách cài
 build/                      build-exe.ps1 + SteveCADSetup.cs: đóng gói thành dist\Steve-AI-Connect-Setup-<version>.exe
 ```
 
@@ -173,4 +178,9 @@ Công cụ miễn phí. Nếu nó giúp ích cho công việc của bạn, có t
 
 <img src="app/donate-qr.png" alt="QR ủng hộ Steve Tran" width="160">
 
-Cảm ơn bạn!
+Hoặc bạn có thể mua phần mềm ủng hộ mình, mình có bán những món này nhé hihi ^_^
+
+- **Phần mềm:** ADSCivil BIM, ZWCAD, ADSCivil CDE, ADSCivil BIM Studio, ADSCivil IFC
+- **Dịch vụ:** đào tạo BIM, thuê làm dự án BIM
+
+Liên hệ **Steve Tran**, 0987 779 228. Cảm ơn bạn!

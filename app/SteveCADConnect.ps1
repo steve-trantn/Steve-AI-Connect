@@ -20,6 +20,7 @@ param(
   [string]$Launch = '', [string]$CadVersion = '', [switch]$ListVersions, [switch]$FirstRun
 )
 . (Join-Path $PSScriptRoot 'core.ps1')
+. (Join-Path $PSScriptRoot 'account.ps1')
 Get-ChildItem $script:Root -Recurse -File -ErrorAction SilentlyContinue | Unblock-File -ErrorAction SilentlyContinue
 
 # ======================= command line =======================
@@ -55,7 +56,14 @@ if ($Connect -or $Disconnect -or $Test -or $Uninstall -or $Launch -or $ListVersi
     }
     if ($Uninstall)  { Invoke-Uninstall }
     elseif ($Disconnect) { Invoke-Disconnect $Cad $Client ([bool]$Ads2026) }
-    elseif ($Connect) { if (-not (Invoke-Connect $Cad $Client ([bool]$Ads2026) $GeminiKey)) { $code = 1 } }
+    elseif ($Connect) {
+      # the email code needs a person: an unattended install gets the trial, the window asks to register later
+      if (-not (Test-AccessOk)) {
+        if (Get-Setting 'TrialStart' '') { throw "Hết thời gian dùng tạm. Mở $($script:AppName) để đăng ký (miễn phí) rồi chạy lại." }
+        Start-Trial; Write-Log "Chưa đăng ký: được dùng tạm $($script:TrialDays) ngày. Mở $($script:AppName) để đăng ký (miễn phí)." 'warn'
+      }
+      if (-not (Invoke-Connect $Cad $Client ([bool]$Ads2026) $GeminiKey)) { $code = 1 }
+    }
     if ($Test) { Invoke-Test $Cad }
   } catch { Write-Log "LỖI: $($_.Exception.Message)" 'error'; $code = 1 }
   exit $code
