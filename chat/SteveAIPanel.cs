@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 #if ACAD
@@ -56,6 +57,28 @@ namespace SteveAI
         {
             try { if (ps != null && ps.Visible) ps.Visible = false; else Open("", ""); }
             catch (System.Exception ex) { Say(ex.Message); }
+        }
+
+        [DllImport("user32.dll")] static extern IntPtr GetParent(IntPtr h);
+        [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr h, out RECT r);
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetClassName(IntPtr h, System.Text.StringBuilder s, int n);
+        [StructLayout(LayoutKind.Sequential)] struct RECT { public int L, T, R, B; }
+        static Size lastFit;
+        // AutoCAD 2027 does not stretch a docked palette to its dock bar by itself
+        static void Fit()
+        {
+            try
+            {
+                if (ps == null || !ps.Visible || ps.Dock == DockSides.None) return;
+                IntPtr pal = GetParent(GetParent(host.Handle)), bar = GetParent(pal);
+                var cls = new System.Text.StringBuilder(64); GetClassName(bar, cls, 64);
+                if (!cls.ToString().StartsWith("AfxControlBar")) return;
+                RECT p, b; GetWindowRect(pal, out p); GetWindowRect(bar, out b);
+                var want = new Size(b.R - b.L, b.B - p.T - 3);
+                if (b.B - p.B < 24 || want.Height < 200 || want == lastFit) return;   // fits, or already tried this size
+                lastFit = want; ps.Size = want;
+            }
+            catch { }
         }
 
         static string Safe(string s) { return Regex.Replace(s ?? "", @"[^\w\-]", ""); }
@@ -114,7 +137,11 @@ namespace SteveAI
                 ps.MinimumSize = new Size(280, 240);
                 ps.DockEnabled = DockSides.Left | DockSides.Right;
                 CadApp.DocumentManager.DocumentActivated += delegate { SendDoc(); };
-                ps.Visible = true; ps.Dock = DockSides.Right; ps.Size = new Size(420, 700);
+                float k; using (Graphics gr = host.CreateGraphics()) k = gr.DpiX / 96f;   // 380 px at 100 %
+                int w = (int)(380 * k);
+                ps.Size = new Size(w, (int)(600 * k));   // before docking: a size set afterwards stays, and leaves half of the dock empty
+                ps.Visible = true; ps.Dock = DockSides.Right;
+                var fit = new System.Windows.Forms.Timer(); fit.Interval = 700; fit.Tick += delegate { Fit(); }; fit.Start();
             }
             else if (!ps.Visible) ps.Visible = true;
             ps.KeepFocus = true;

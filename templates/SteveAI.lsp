@@ -15,7 +15,7 @@
 (setq *steveai-launcher* "@LAUNCHER@")
 (setq *steveai-connect* "@CONNECT@")
 (setq *steveai-cuix* "@CUIX@")
-(setq *steveai-panel-zw* "@PANELZW@")
+(setq *steveai-bin* "@BIN@")
 (setq *steveai-skills* '(@SKILLS@))
 
 (defun steveai-ps (file extra)
@@ -25,17 +25,26 @@
 
 ;; Panel inside the CAD: the plugin is loaded once per session, nobody has to type NETLOAD.
 ;; Returns T when the panel is shown; nil = open the separate window instead.
-(defun steveai-panel (client skill / fd r *error*)
+;; ZWCAD | AutoCAD / Civil 3D 2021-2024 | 2026 and newer. Other versions: nil = separate window.
+(defun steveai-dll ( / v f)
+  (setq v (atof (getvar "ACADVER")))
+  (setq f (cond ((wcmatch (strcase (getvar "PROGRAM")) "*ZWCAD*") "SteveAIPanel.ZWCAD.dll")
+                ((and (>= v 24.0) (< v 25.0)) "SteveAIPanel.ACAD48.dll")
+                ((>= v 25.1) "SteveAIPanel.ACADNET.dll")))
+  (if f (findfile (strcat *steveai-bin* f)))
+)
+
+(defun steveai-panel (client skill / dll fd r *error*)
   ;; Esc or an error while loading must not leave FILEDIA at 0 (no open / save dialogs)
   (defun *error* (m) (if fd (setvar "FILEDIA" fd)) (princ))
-  (if (and (wcmatch (strcase (getvar "PROGRAM")) "*ZWCAD*") (/= *steveai-panel-zw* "") (findfile *steveai-panel-zw*))
+  (if (setq dll (steveai-dll))
     (progn
       (vl-load-com)
       (if (not (vl-bb-ref '*steveai-net*))
         (progn
           (setq fd (getvar "FILEDIA"))
           (setvar "FILEDIA" 0)
-          (vl-catch-all-apply 'vl-cmdf (list "_.NETLOAD" *steveai-panel-zw*))
+          (vl-catch-all-apply 'vl-cmdf (list "_.NETLOAD" dll))
           (setvar "FILEDIA" fd)
           (setq fd nil)
           (vl-bb-set '*steveai-net* T)

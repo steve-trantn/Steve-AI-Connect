@@ -627,7 +627,7 @@ function Write-CadLisp {
   $menu = ''
   try { Write-CadMenu; $menu = $script:CadMenu -replace '\\', '/' } catch { Write-Log "  Không tạo được tab ribbon Steve AI: $($_.Exception.Message)" 'warn' }
   $t = $t.Replace('@CUIX@', $menu)
-  $t = $t.Replace('@PANELZW@', ((Join-Path $script:ToolDir 'chat\bin\SteveAIPanel.ZWCAD.dll') -replace '\\', '/'))
+  $t = $t.Replace('@BIN@', ((Join-Path $script:ToolDir 'chat\bin') -replace '\\', '/') + '/')
   New-Item -ItemType Directory -Force $script:AppHome | Out-Null
   [IO.File]::WriteAllText($script:CadLisp, $t, [Text.Encoding]::ASCII)
   # SteveAI.mnl next to SteveAI.cuix: ZWCAD / AutoCAD load a menu's .mnl into every drawing together with the
@@ -679,8 +679,11 @@ function Repair-CadAddon {
   # installs from before SteveAI.mnl existed: write it (with the current lsp / menu) so AI loads with the menu
   if (-not (Test-Path ($script:CadMenu -replace '\.cuix$', '.mnl'))) { try { Write-CadLisp } catch {} }
   foreach ($cad in @(Get-Setting 'CadAddon' @())) {
-    if (-not $cad -or (Get-CadProcess $cad).Count -or (Test-CadAddon $cad)) { continue }
-    foreach ($k in Get-StartupKeys $cad) { Set-StartupList $k (@(Get-StartupList $k) + $script:CadLisp) }
+    if (-not $cad -or (Get-CadProcess $cad).Count) { continue }
+    # every profile by itself: a version installed later (e.g. Civil 3D 2027) has its own, still without the entry
+    $miss = @(Get-StartupKeys $cad | Where-Object { -not (@(Get-StartupList $_) -match 'SteveAI\.lsp$') })
+    if (-not $miss) { continue }
+    foreach ($k in $miss) { Set-StartupList $k (@(Get-StartupList $k) + $script:CadLisp) }
     Write-Log "Đã đăng ký lại lệnh AI cho $($script:CadLabel[$cad])." 'detail'
   }
 }
