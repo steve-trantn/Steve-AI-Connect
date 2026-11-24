@@ -73,6 +73,7 @@ function Show-Update($rel) {
   $cb = New-Object Windows.Forms.CheckBox; $cb.Text = 'Những lần sau tự cập nhật, không cần hỏi'; $cb.Font = $Fnt.s; $cb.ForeColor = $Pal.text
   [void](Put $cb 20 254 440 22); $cb.Checked = [bool](Get-Setting 'AutoUpdate' $false)
   $um = Put (New-Label '' $Fnt.s $Pal.muted) 20 280 440 36
+  if (@('zwcad', 'autocad' | ForEach-Object { Get-CadProcess $_ }).Count) { $um.Text = 'CAD đang mở: cập nhật xong hãy lưu bản vẽ, đóng hẳn CAD rồi mở lại để dùng bản mới.' }
   $go = Put (New-Button 'Cập nhật ngay' 'primary') 222 322 130 36
   $no = Put (New-Button 'Để sau') 360 322 100 36
   $busy = @{ on = $false }

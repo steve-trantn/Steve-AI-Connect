@@ -17,7 +17,8 @@
 param(
   [switch]$Connect, [switch]$Disconnect, [switch]$Test, [switch]$Uninstall,
   [string[]]$Cad, [string[]]$Client, [switch]$Ads2026, [string]$GeminiKey = '', [switch]$AllowScript,
-  [string]$Launch = '', [string]$CadVersion = '', [switch]$ListVersions, [switch]$FirstRun
+  [string]$Launch = '', [string]$CadVersion = '', [switch]$ListVersions, [switch]$FirstRun,
+  [ValidateSet('', 'home', 'share', 'feature', 'diag', 'update', 'options')][string]$Open = ''   # used by the CAD ribbon
 )
 . (Join-Path $PSScriptRoot 'core.ps1')
 . (Join-Path $PSScriptRoot 'account.ps1')
@@ -71,6 +72,32 @@ if ($Connect -or $Disconnect -or $Test -or $Uninstall -or $Launch -or $ListVersi
 }
 
 # ======================= GUI =======================
+# -Open from a CAD button: hand the request to a window that is already open (gui.ps1 reads the file), else start one
+$script:OpenNext = $Open
+$script:OpenFile = Join-Path $script:AppHome 'open-request.txt'
+if ($Open) {
+  $running = $null
+  try { $running = [Threading.Mutex]::OpenExisting('Local\SteveAIConnectWindow') } catch {}
+  if ($running) {
+    $running.Dispose()
+    try {
+      Add-Type -Namespace SteveCad -Name Fg -MemberDefinition '[DllImport("user32.dll")] public static extern bool AllowSetForegroundWindow(int pid);'
+      [void][SteveCad.Fg]::AllowSetForegroundWindow(-1)
+    } catch {}
+    try {
+      [IO.File]::WriteAllText($script:OpenFile, $Open)
+      for ($i = 0; $i -lt 50 -and (Test-Path $script:OpenFile); $i++) { Start-Sleep -Milliseconds 100 }
+      if (Test-Path $script:OpenFile) {
+        Remove-Item $script:OpenFile -Force
+        Add-Type -AssemblyName System.Windows.Forms
+        [void][Windows.Forms.MessageBox]::Show('Steve AI Connect đang mở và đang bận hoặc chờ bạn trả lời một câu hỏi. Chuyển sang cửa sổ đó rồi thử lại.', $script:AppName, 'OK', 'Information')
+      }
+    } catch { Add-ErrorLog 'open' $_.Exception.Message $_.ScriptStackTrace }
+    exit 0
+  }
+}
+Remove-Item $script:OpenFile -Force -ErrorAction SilentlyContinue
+$script:WindowMutex = New-Object Threading.Mutex $false, 'Local\SteveAIConnectWindow'   # lives as long as this window
 # started by Setup.exe: create the desktop / Start-menu shortcuts and the Apps entry right away
 # (done once the window is up, see gui.ps1: drawing the icon before the GUI turns on DPI awareness makes Windows keep 96 dpi)
 $script:FirstRun = [bool]$FirstRun

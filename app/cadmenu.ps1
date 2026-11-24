@@ -52,10 +52,15 @@ function Write-CadMenu {
   }
   Add-Btn 'SKILL'  'Chọn skill…'     'Chọn một skill trong danh sách rồi mở AI chạy skill đó (STEVEAI-SKILL)' 'STEVEAI-SKILL' '≡' $gold $dark
   Add-Btn 'CONN'   "Kết nối"         'Mở Steve AI Connect: kết nối CAD với AI, xem danh sách tool (STEVECAD)' 'STEVECAD' 'S' $blue $white
+  Add-Btn 'UPD'    'Cập nhật'        'Kiểm tra và cài bản mới của Steve AI Connect; cài xong cần đóng rồi mở lại CAD (STEVEAI-UPDATE)' 'STEVEAI-UPDATE' '^' $blue $white
+  Add-Btn 'OPT'    'Tùy chọn'        'Mở Tùy chọn nâng cao của Steve AI Connect (STEVEAI-OPTIONS)' 'STEVEAI-OPTIONS' 'O' $blue $white
+  Add-Btn 'SHARE'  'Chia sẻ skill'   'Gửi skill bạn tự tạo cho Steve duyệt (STEVEAI-SHARE)' 'STEVEAI-SHARE' 'S' $gold $dark
+  Add-Btn 'FEAT'   'Đề xuất'         'Đề xuất tính năng mới hoặc góp ý (STEVEAI-FEATURE)' 'STEVEAI-FEATURE' '!' $gold $dark
+  Add-Btn 'DIAG'   'Chẩn đoán'       'Chép thông tin chẩn đoán để dán vào Zalo / email gửi hỗ trợ (STEVEAI-DIAG)' 'STEVEAI-DIAG' '+' $blue $white
   Add-Btn 'HELP'   'Hướng dẫn'       "Các lệnh Steve AI và liên hệ hỗ trợ: $($script:Contact) (STEVEAI-HELP)" 'STEVEAI-HELP' '?' ([Drawing.Color]::FromArgb(95, 99, 104)) $white
 
   # drawn icons (app\icons.ps1); the assistants keep their real logos
-  foreach ($p0 in @(@('OPEN', 'open'), @('SKILL', 'list'), @('CONN', 'connect'), @('HELP', 'help'))) { $btn[$p0[0]].draw = $p0[1] }
+  foreach ($p0 in @(@('OPEN', 'open'), @('SKILL', 'list'), @('CONN', 'connect'), @('HELP', 'help'), @('UPD', 'update'), @('OPT', 'options'), @('SHARE', 'share'), @('FEAT', 'feature'), @('DIAG', 'diag'))) { $btn[$p0[0]].draw = $p0[1] }
 
   $hdr = '<?xml version="1.0"?>'
   $ns = 'xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'
@@ -106,7 +111,7 @@ $body
     $all = @($skillIds) + 'SKILL'; $out = ''
     for ($j = 0; $j -lt $all.Count; $j += 3) { $out += (& $stack "SK$j" @($all[$j..([Math]::Min($j + 2, $all.Count - 1))])) + "`r`n" }
     $out })
-  $pCn = & $panel 'CONN' 'Steve AI Connect' (& $stack 'CN' @('CONN', 'HELP'))
+  $pCn = & $panel 'CONN' 'Steve AI Connect' ((& $stack 'CN' @('CONN', 'UPD', 'OPT')) + "`r`n" + (& $stack 'CN2' @('SHARE', 'FEAT', 'DIAG')) + "`r`n" + (& $stack 'CN3' @('HELP')))
   $refs = foreach ($p in 'AI', 'SKILL', 'CONN') { "      <RibbonPanelSourceReference UID=`"RBN_SAI_PR_$p`" PanelId=`"RBN_SAI_P_$p`" ResizeStyle=`"Default`">`r`n        $rev`r`n      </RibbonPanelSourceReference>" }
   $ribbon = @"
 $hdr
@@ -128,7 +133,7 @@ $($refs -join "`r`n")
   $pmi = { param($id) "    <PopMenuItem IsSeparator=`"false`" hasDiesel=`"false`" UID=`"PMI_SAI_$id`">`r`n      $rev`r`n      <NameRef UID=`"XLS_SAI_M_$id`" xlate=`"true`">$(ConvertTo-Xml $btn[$id].text)</NameRef>`r`n      <MenuItem>`r`n        <MacroRef MenuMacroID=`"MMU_SAI_$id`" />`r`n      </MenuItem>`r`n    </PopMenuItem>" }
   $sepItem = { $script:SaiSep++; "    <PopMenuItem IsSeparator=`"true`" hasDiesel=`"false`" UID=`"PMI_SAI_S$($script:SaiSep)`">`r`n      $rev`r`n    </PopMenuItem>" }
   $script:SaiSep = 0
-  $items = @('OPEN', 'CLAUDE', 'CODEX', 'GEMINI' | ForEach-Object { & $pmi $_ }) + (& $sepItem) + @($skillIds + 'SKILL' | ForEach-Object { & $pmi $_ }) + (& $sepItem) + @('CONN', 'HELP' | ForEach-Object { & $pmi $_ })
+  $items = @('OPEN', 'CLAUDE', 'CODEX', 'GEMINI' | ForEach-Object { & $pmi $_ }) + (& $sepItem) + @($skillIds + 'SKILL' | ForEach-Object { & $pmi $_ }) + (& $sepItem) + @('CONN', 'UPD', 'OPT', 'SHARE', 'FEAT', 'DIAG', 'HELP' | ForEach-Object { & $pmi $_ })
   $pop = "$hdr`r`n<PopMenuRoot $ns>`r`n  <PopMenu hasDiesel=`"false`" UID=`"PMU_SAI_ROOT`">`r`n    $rev`r`n    <Alias>POP1</Alias>`r`n    <Name xlate=`"true`" UID=`"XLS_SAI_POP`">Steve AI</Name>`r`n$($items -join "`r`n")`r`n  </PopMenu>`r`n</PopMenuRoot>`r`n"
 
   $parts = [ordered]@{
@@ -164,7 +169,7 @@ $($refs -join "`r`n")
   # the same buttons for the AutoCAD / Civil 3D plugin (chat\SteveAIRibbon.cs): a text file and the icons
   $icoDir = Join-Path $script:AppHome 'icons'; New-Item -ItemType Directory -Force $icoDir | Out-Null
   foreach ($n in $images.Keys) { try { [IO.File]::WriteAllBytes((Join-Path $icoDir $n), [byte[]]$images[$n]) } catch {} }
-  $rows = foreach ($d0 in @(@('Trợ lý AI', @('OPEN', 'CLAUDE', 'CODEX', 'GEMINI')), @('Skill', (@($skillIds) + 'SKILL')), @('Steve AI Connect', @('CONN', 'HELP')))) {
+  $rows = foreach ($d0 in @(@('Trợ lý AI', @('OPEN', 'CLAUDE', 'CODEX', 'GEMINI')), @('Skill', (@($skillIds) + 'SKILL')), @('Steve AI Connect', @('CONN', 'UPD', 'OPT', 'SHARE', 'FEAT', 'DIAG', 'HELP')))) {
     foreach ($id in $d0[1]) { $b = $btn[$id]; (@($d0[0], $(if ($id -eq 'OPEN') { 'large' } else { 'small' }), $b.text, $b.tip, "(if (not steveai-run) (load `"$lisp`")) $($b.cmd)", "SAI_$id") | ForEach-Object { $_ -replace '[\t\r\n]+', ' ' }) -join "`t" }
   }
   [IO.File]::WriteAllLines((Join-Path $script:AppHome 'ribbon.txt'), [string[]]$rows, (New-Object Text.UTF8Encoding $false))

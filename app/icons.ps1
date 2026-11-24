@@ -78,6 +78,24 @@ function New-DrawnIcon([string]$name, [int]$size) {
       & $line '#7C8FA5' 3 '8,23 24,9'; $g.FillEllipse((& $br '#0068EC'), 1, 15, 15, 15); $g.FillEllipse((& $br '#F5B301'), 17, 2, 13, 13)
       & $line '#FFFFFF' 2 '5.5,22.5 8,25 12,20'
     }
+    'update' {   # arrow up out of a tray
+      & $poly '#16A34A' '16,2 27,13 20,13 20,22 12,22 12,13 5,13'; & $line '#5F748A' 3 '4,23 4,29 28,29 28,23'
+    }
+    'options' {   # three sliders
+      foreach ($a0 in @(6, 20), @(16, 10), @(26, 22)) { & $line '#7C8FA5' 2.6 "3,$($a0[0]) 29,$($a0[0])"; $g.FillEllipse((& $br '#0068EC'), ($a0[1] - 4), ($a0[0] - 4), 8, 8) }
+    }
+    'share' {   # one node to two
+      & $line '#7C8FA5' 2.6 '7,16 25,6'; & $line '#7C8FA5' 2.6 '7,16 25,26'
+      $g.FillEllipse((& $br '#F5B301'), 1, 10, 12, 12); $g.FillEllipse((& $br '#0068EC'), 20, 1, 10, 10); $g.FillEllipse((& $br '#0068EC'), 20, 21, 10, 10)
+    }
+    'feature' {   # light bulb
+      $g.FillEllipse((& $br '#F5B301'), 6, 1, 20, 20); & $poly '#F5B301' '11,18 21,18 20,24 12,24'
+      & $poly '#5F748A' '12,24 20,24 20,28 12,28'; & $line '#5F748A' 2 '14,30 18,30'; & $line '#FFFFFF' 1.8 '16,20 16,13'
+    }
+    'diag' {   # clipboard with a pulse
+      & $poly '#F4F7FA' '4,4 28,4 28,30 4,30'; & $edge '#4C6075' 1.4 '4,4 28,4 28,30 4,30'; & $poly '#5F748A' '11,1 21,1 21,7 11,7'
+      & $line '#DC3B3B' 2.2 '7,19 12,19 15,12 18,25 21,19 25,19'
+    }
     'help' {
       $g.FillEllipse((& $br '#5F748A'), 2, 2, 28, 28)
       $f = New-Object Drawing.Font 'Segoe UI', ([float]20), ([Drawing.FontStyle]::Bold), ([Drawing.GraphicsUnit]::Pixel)

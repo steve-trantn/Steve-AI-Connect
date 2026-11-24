@@ -10,6 +10,7 @@
 ;;   STEVEAI-SKILL    chon mot skill roi mo AI chay skill do
 ;;   AI-<SKILL>       chay ngay mot skill, vi du AI-CONG-3D
 ;;   STEVECAD         mo Steve AI Connect (ket noi, danh sach tool)
+;;   STEVEAI-SHARE / STEVEAI-FEATURE / STEVEAI-DIAG / STEVEAI-UPDATE / STEVEAI-OPTIONS   mo thang muc do trong Steve AI Connect
 ;;   Tab ribbon "Steve AI" (file SteveAI.cuix) duoc nap tu dong.
 ;; ========================================================
 (setq *steveai-launcher* "@LAUNCHER@")
@@ -106,13 +107,20 @@
   (princ)
 )
 
-(defun c:STEVECAD ()
+;; part: home | share | feature | diag | update | options. A window that is already open is reused.
+(defun steveai-open-part (part)
   (if (findfile *steveai-connect*)
-    (progn (steveai-ps *steveai-connect* "") (princ "\nSteve AI: dang mo Steve AI Connect..."))
+    (progn (steveai-ps *steveai-connect* (strcat " -Open " part)) (princ "\nSteve AI: dang mo Steve AI Connect..."))
     (princ "\nSteve AI: khong thay Steve AI Connect. Cai lai tu GitHub steve-trantn/Steve-AI-Connect.")
   )
   (princ)
 )
+(defun c:STEVECAD () (steveai-open-part "home"))
+(defun c:STEVEAI-SHARE () (steveai-open-part "share"))
+(defun c:STEVEAI-FEATURE () (steveai-open-part "feature"))
+(defun c:STEVEAI-DIAG () (steveai-open-part "diag"))
+(defun c:STEVEAI-UPDATE () (steveai-open-part "update"))
+(defun c:STEVEAI-OPTIONS () (steveai-open-part "options"))
 
 (defun c:STEVEAI-HELP ()
   (alert (strcat "Steve AI - tro ly AI cho ZWCAD / AutoCAD / ADSCivil\n\n"

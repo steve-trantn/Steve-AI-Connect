@@ -307,11 +307,12 @@ $miErr.add_Click({ Set-Setting 'SendErrors' ([bool]$miErr.Checked) })
 # errors inside event handlers (PowerShell swallows them): keep them for the report
 [Windows.Forms.Application]::add_ThreadException({ param($s, $e) Add-ErrorLog 'window' $e.Exception.Message ([string]$e.Exception.StackTrace) })
 $miDiag = New-Object Windows.Forms.ToolStripMenuItem 'Chép thông tin chẩn đoán (gửi hỗ trợ)'; $miDiag.ForeColor = $Pal.text; [void]$menu.Items.Add($miDiag)
-$miDiag.add_Click({
-  $menu.Close(); $form.Cursor = 'WaitCursor'
+$miDiag.add_Click({ $menu.Close(); Copy-Diag })
+function Copy-Diag {
+  $form.Cursor = 'WaitCursor'
   try { [Windows.Forms.Clipboard]::SetText((Get-Diagnostics)); $t = 'Đã chép. Dán (Ctrl+V) vào Zalo hoặc email để gửi hỗ trợ. Không có thông tin cá nhân hay tên bản vẽ.' } catch { $t = $_.Exception.Message } finally { $form.Cursor = 'Default' }
   [void][Windows.Forms.MessageBox]::Show($form, $t, $script:AppName, 'OK', 'Information')
-})
+}
 $miAbout.add_Click({ $menu.Close(); Show-About })
 $bUninstall.ForeColor = $Pal.red; [void]$menu.Items.Add($bUninstall)
 $menu.add_Closing({ param($s, $e) if ($e.CloseReason -eq 'ItemClicked') { $e.Cancel = $true } })   # keep open while ticking options
@@ -1015,6 +1016,33 @@ $timer.add_Tick({
   }
 })
 
+# a CAD ribbon button asked for one part of this window (-Open, or a file written by a second start)
+$script:Opening = $false
+function Show-Front {
+  if ($form.WindowState -eq 'Minimized') { $form.WindowState = 'Normal' }
+  $top = @($form.OwnedForms | Where-Object { $_.Visible })[-1]; if (-not $top) { $top = $form }
+  $top.TopMost = $true; $top.TopMost = $false; $top.Activate()
+}
+function Open-Part([string]$part) {
+  Show-Front
+  if ($script:Opening -or $script:Busy -or $form.OwnedForms.Count) { return }   # a dialog or a job is on: only bring it to the front
+  $script:Opening = $true
+  try {
+    switch ($part) {
+      'home' { Show-Page 'home' } 'share' { Show-ShareSkill } 'feature' { Show-Feature } 'diag' { Copy-Diag } 'update' { Invoke-UpdateCheckNow }
+      'options' { $menu.Show($adv, (New-Object Drawing.Point 0, 0), [Windows.Forms.ToolStripDropDownDirection]::AboveRight) }
+    }
+  } finally { $script:Opening = $false }
+}
+$openTimer = New-Object Windows.Forms.Timer; $openTimer.Interval = 300
+$openTimer.add_Tick({
+  $p = $script:OpenNext; $script:OpenNext = ''
+  if ($script:OpenFile -and [IO.File]::Exists($script:OpenFile)) {
+    try { $p = [IO.File]::ReadAllText($script:OpenFile).Trim(); if (-not $p) { return }; [IO.File]::Delete($script:OpenFile) } catch { return }   # still being written: next tick
+  }
+  if ($p) { try { Open-Part $p } catch { Add-ErrorLog 'open' $_.Exception.Message $_.ScriptStackTrace } }
+})
+
 $form.add_HandleCreated({
   if ($script:Dark) { try { $v = 1; [void][SteveCad.Win]::DwmSetWindowAttribute($form.Handle, 20, [ref]$v, 4) } catch {} }
 })
@@ -1051,6 +1079,7 @@ $form.add_Shown({
   }
   if (-not ($env:STEVECAD_SELFTEST -or $env:STEVECAD_SNAPSHOT)) { try { [void](Send-ErrorReports) } catch {} }
   if (-not ($env:STEVECAD_SELFTEST -or $env:STEVECAD_SNAPSHOT)) { try { Start-UpdateCheck } catch {} }
+  if (-not ($env:STEVECAD_SELFTEST -or $env:STEVECAD_SNAPSHOT) -or $env:STEVECAD_OPENTEST) { $openTimer.Start() }
   if ($env:STEVECAD_SELFTEST) {
     # Self-test: click every button of the guided page for real (with STEVECAD_DRYRUN no CAD / AI is started),
     # after the timer's refresh has run, and write PASS / FAIL lines to the file named by STEVECAD_SELFTEST.
