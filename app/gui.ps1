@@ -281,6 +281,14 @@ $miConn = New-Object Windows.Forms.ToolStripMenuItem 'Kết nối từng mục, 
 $miConn.ForeColor = $Pal.text; [void]$menu.Items.Add($miConn); [void]$menu.Items.Add((New-Object Windows.Forms.ToolStripSeparator))
 $miConn.add_Click({ $menu.Close(); Show-Page 'conn' })
 foreach ($m in $mi26, $miScript) { $m.ForeColor = $Pal.text; [void]$menu.Items.Add($m) }
+$miTrust = New-Object Windows.Forms.ToolStripMenuItem 'AutoCAD / Civil 3D: thêm Steve AI vào Trusted Locations'; $miTrust.CheckOnClick = $true; $miTrust.ForeColor = $Pal.text
+$miTrust.Checked = [bool](Get-Setting 'TrustAcad' $false); [void]$menu.Items.Add($miTrust)
+$miTrust.add_Click({ Set-Trust ([bool]$miTrust.Checked) })
+function Set-Trust([bool]$on) {
+  Set-Setting 'TrustAcad' $on; $miTrust.Checked = $on
+  $done = Set-AcadTrust $on
+  if (-not $done) { [void][Windows.Forms.MessageBox]::Show($form, 'AutoCAD / Civil 3D đang mở. Đóng hết rồi mở lại Steve AI Connect để áp dụng.', $script:AppName, 'OK', 'Information') }
+}
 $miTerm = New-Object Windows.Forms.ToolStripMenuItem 'Mở Steve AI bằng cửa sổ terminal (kiểu cũ)'; $miTerm.CheckOnClick = $true; $miTerm.ForeColor = $Pal.text
 $miTerm.Checked = [bool](Get-Setting 'UseTerminal' $false); [void]$menu.Items.Add($miTerm)
 $miTerm.add_Click({ Set-Setting 'UseTerminal' ([bool]$miTerm.Checked) })
@@ -993,6 +1001,11 @@ $form.add_Shown({
   if ($script:FirstRun -and -not $env:STEVECAD_SELFTEST) { Invoke-Busy { Update-Installed } }
   try { Repair-CadAddon } catch {}
   try { Fill-Launchers } catch { Write-Log "Lỗi tìm phiên bản CAD: $($_.Exception.Message)" 'error' }
+  # asked once, in plain words: a security setting is never changed silently
+  if (-not ($env:STEVECAD_SELFTEST -or $env:STEVECAD_SNAPSHOT) -and (Test-CadAddon 'autocad') -and $null -eq (Get-Setting 'TrustAcad' $null)) {
+    $q = "AutoCAD / Civil 3D sẽ hỏi bảo mật khi nạp Steve AI.`n`nThêm 3 thư mục của Steve AI vào Trusted Locations (Options > Files) để không phải hỏi nữa?`n`n" + (@(Get-AcadTrustDirs) -join "`n") + "`n`nAutoCAD sẽ nạp mọi file chương trình trong các thư mục này mà không hỏi. Có thể tắt trong Tùy chọn nâng cao."
+    Set-Trust ([Windows.Forms.MessageBox]::Show($form, $q, $script:AppName, 'YesNo', 'Question') -eq 'Yes')
+  }
   # one-time registration (email code). Not for self-tests and screenshots.
   if (-not ($env:STEVECAD_SELFTEST -or $env:STEVECAD_SNAPSHOT) -and $script:RegisterUrl -and -not (Test-Registered)) {
     if (-not (Show-Register)) { $form.Close(); return }

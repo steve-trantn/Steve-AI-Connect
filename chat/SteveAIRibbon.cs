@@ -20,17 +20,13 @@ namespace SteveAI
     {
         const string TabId = "STEVEAI_TAB";
         static string Home { get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SteveCADConnect"); } }
-        static int tries;
+        static DateTime next = DateTime.MinValue;
 
         public void Initialize()
         {
             try
             {
-                CadApp.Idle += OnIdle;                                   // the ribbon is created after start-up
-                CadApp.SystemVariableChanged += delegate(object s, Autodesk.AutoCAD.ApplicationServices.SystemVariableChangedEventArgs e)
-                {
-                    if (e.Name.Equals("WSCURRENT", StringComparison.OrdinalIgnoreCase)) { tries = 0; CadApp.Idle += OnIdle; }   // a workspace switch drops the tab
-                };
+                CadApp.Idle += OnIdle;   // the ribbon appears after start-up, and Civil 3D / a workspace switch rebuilds it: keep looking
             }
             catch { }
         }
@@ -40,11 +36,11 @@ namespace SteveAI
         {
             try
             {
-                if (ComponentManager.Ribbon == null) { if (++tries > 2000) CadApp.Idle -= OnIdle; return; }
-                CadApp.Idle -= OnIdle;
-                Build();
+                if (DateTime.UtcNow < next) return;
+                next = DateTime.UtcNow.AddSeconds(2);
+                if (ComponentManager.Ribbon != null && ComponentManager.Ribbon.FindTab(TabId) == null) Build();
             }
-            catch { CadApp.Idle -= OnIdle; }
+            catch { next = DateTime.UtcNow.AddSeconds(10); }   // still starting: try again later
         }
 
         static BitmapImage Img(string file)

@@ -670,6 +670,29 @@ function Remove-AcadStartup {
   }
 }
 
+# Options > Files > Trusted Locations (variable TRUSTEDPATHS): only with the user's consent (setting TrustAcad), only Steve AI's
+# own three folders, never their subfolders; other entries stay as they are. AutoCAD must be closed: it writes the list on exit.
+function Get-AcadTrustDirs { return @($script:AppHome, (Join-Path $script:ToolDir 'chat\bin'), (Join-Path $script:AcadBundle 'Contents')) }
+function Set-AcadTrust([bool]$On) {
+  if (@(Get-CadProcess 'autocad').Count) { return $false }
+  $mine = @(Get-AcadTrustDirs)
+  foreach ($k in @(Get-Item 'HKCU:\Software\Autodesk\AutoCAD\R*\ACAD-*\Profiles\*' -ErrorAction SilentlyContinue)) {
+    $v = Join-Path $k.PSPath 'Variables'
+    if (-not (Test-Path -LiteralPath $v)) { continue }
+    $old = [string](Get-Item -LiteralPath $v).GetValue('TRUSTEDPATHS', '')
+    $miss = @($mine | Where-Object { @($old -split ';' | ForEach-Object { $_.Trim().TrimEnd('\') }) -notcontains $_ })
+    if ($On) {
+      if (-not $miss) { continue }
+      $new = (@($old.TrimEnd(';')) + $miss | Where-Object { $_ }) -join ';'
+    } else {
+      if ($miss.Count -eq $mine.Count) { continue }
+      $new = @($old -split ';' | Where-Object { $mine -notcontains $_.Trim().TrimEnd('\') }) -join ';'
+    }
+    Set-ItemProperty -LiteralPath $v -Name 'TRUSTEDPATHS' -Value $new -Type String
+  }
+  return $true
+}
+
 # Adds SteveAI.lsp to the Startup Suite of ZWCAD (AutoCAD: plug-in bundle) and loads it into a running session.
 function Install-CadAddon([string[]]$Cads) {
   Write-CadLisp
@@ -704,6 +727,7 @@ function Remove-CadAddon {
   }
   Remove-Item $script:CadLisp, ($script:CadMenu -replace '\.cuix$', '.mnl') -Force -ErrorAction SilentlyContinue
   Remove-CadMenu
+  [void](Set-AcadTrust $false)
   Remove-AcadBundle
   Set-Setting 'CadAddon' @()
 }
@@ -725,6 +749,7 @@ function Repair-CadAddon {
         # an older cuix run has no ribbon.txt yet
         if (-not (Test-Path (Join-Path $script:AppHome 'ribbon.txt'))) { Write-CadLisp }
         Write-AcadBundle; if (-not @(Get-CadProcess 'autocad').Count) { Remove-AcadStartup }
+        if (Get-Setting 'TrustAcad' $false) { [void](Set-AcadTrust $true) }
       } catch { Write-Log "Không ghi được plugin AutoCAD: $($_.Exception.Message)" 'warn' }
       continue
     }
