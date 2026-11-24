@@ -679,8 +679,16 @@ function Repair-CadAddon {
   if (-not (Test-Path $script:CadLisp)) { return }
   # installs from before SteveAI.mnl existed: write it (with the current lsp / menu) so AI loads with the menu
   if (-not (Test-Path ($script:CadMenu -replace '\.cuix$', '.mnl'))) { try { Write-CadLisp } catch {} }
-  foreach ($cad in @(Get-Setting 'CadAddon' @())) {
-    if (-not $cad -or (Get-CadProcess $cad).Count) { continue }
+  $cads = @(Get-Setting 'CadAddon' @() | Where-Object { $_ })
+  if (-not $cads) {   # the list was lost: every CAD that is connected to an assistant
+    $con = Get-Connections
+    $cads = @($script:ClientList | ForEach-Object { $con[$_] } | ForEach-Object { if ($_ -eq 'adscivil') { 'zwcad' } else { $_ } } | Where-Object { $_ -in 'zwcad', 'autocad' } | Select-Object -Unique)
+    if ($cads) { Set-Setting 'CadAddon' $cads }
+  }
+  foreach ($cad in $cads) {
+    # a left-over process without a window (older than 2 minutes) does not count as running
+    $run = @(Get-CadProcess $cad | Where-Object { $_.MainWindowHandle -ne [IntPtr]::Zero -or ((Get-Date) - $_.StartTime).TotalMinutes -lt 2 })
+    if ($run) { continue }
     # every profile by itself: a version installed later (e.g. Civil 3D 2027) has its own, still without the entry
     $miss = @(Get-StartupKeys $cad | Where-Object { -not (@(Get-StartupList $_) -match 'SteveAI\.lsp$') })
     if (-not $miss) { continue }
