@@ -16,6 +16,8 @@ Gọi `info` (đơn vị bản vẽ), rồi `export_ifc(path="IFC\\xem-truoc", p
 - Chỉ xuất **khối solid 3D**. Corridor, surface, pipe network của Civil 3D và block chứa khối không được xuất: nói rõ nếu bản vẽ có.
 - Khối không do tool Steve CAD dựng (hoặc đã bị sửa) chỉ xuất dạng **hộp bao**. Nêu số lượng trước khi xuất.
 
+Cấu trúc file: công trình > nhóm (Thân cống, Móng thân cống, Cửa thượng lưu, Cửa hạ lưu) > bộ phận. `solid_info(units=...)` trả cây này kèm số đốt, chiều dài, khẩu độ hoặc đường kính, khối lượng: cho người dùng xem trước. `detail="part"` gộp bộ phận giống nhau thành một; `"solid"` tách từng khối. `unit_hint` khác đơn vị khai báo thì phải hỏi lại. Nhóm sai thì sửa bằng `props.group`.
+
 ## Bước 2. Thông tin phi hình học
 
 `solid_info` đọc tên, bộ phận, vật liệu, công trình, lý trình, loại và các thông tin thêm. Nêu ô còn trống; hỏi giá trị, không tự bịa. Cho xem bảng **cũ → mới**, đồng ý thì `tag_solids(rows=[...])` (một bước `UNDO`). `name` là Name trong IFC.

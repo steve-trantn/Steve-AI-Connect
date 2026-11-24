@@ -8,7 +8,7 @@ import re
 import unicodedata
 import uuid
 
-from . import __version__, meta
+from . import __version__, culvert, meta
 from .drawing import UserError, by_handle, ensure_layer, etype, g, iter_space, r3, vpt
 from .tools import C, done, editing, selection_handles, tool
 
@@ -66,9 +66,10 @@ def _scope(d, handles, from_layer, selection_only):
 
 
 @tool()
-def solid_info(handles: list[str] | None = None, from_layer: str = "", selection_only: bool = False, limit: int = 500) -> dict:
+def solid_info(handles: list[str] | None = None, from_layer: str = "", selection_only: bool = False, limit: int = 500, units: str = "") -> dict:
     """Read the non-graphic data of 3D solids as export_ifc will write it: name, part, material, structure, station, type and
-    extra fields, plus layer, volume (drawing units) and whether the geometry is only approximate. Edit with tag_solids(rows=...)."""
+    extra fields, plus layer, volume (drawing units) and whether the geometry is only approximate. Edit with tag_solids(rows=...).
+    units (m | mm | cm | ft | us-ft | inch): also the structure tree (segments, lengths, sizes, volumes in m3) as export_ifc writes it."""
     d = C.drawings.target()
     ents = _scope(d, handles, from_layer, selection_only)
     items, extra = [], []
@@ -78,11 +79,18 @@ def solid_info(handles: list[str] | None = None, from_layer: str = "", selection
         row = {"handle": g(e, "Handle"), "layer": g(e, "Layer") or "", "name": rec.get("name") or "", "part": rec.get("part") or "",
                "material": rec.get("material") or "", "material_guess": meta.guess_material(rec.get("part") or ""),
                "structure": props.pop("structure", ""), "station": props.pop("station", ""), "type": props.pop("type", ""),
+               "group": props.pop("group", ""), "group_guess": culvert.group_of({"part": rec.get("part") or ""}),
                "props": {str(k): v for k, v in props.items()}, "volume": g(e, "Volume") or 0.0,
                "approximate": not ("geo" in rec and meta.is_current(e, rec))}
         extra += [k for k in row["props"] if k not in extra]
         items.append(row)
-    return {"total": len(ents), "partial": len(ents) > len(items), "extra_fields": extra, "items": items}
+    try:
+        hint = unit_hint(ents, d.GetVariable("INSUNITS"))
+    except Exception:
+        hint = ""
+    k = UNITS.get((hint or units).lower()) if units else None
+    return {"total": len(ents), "partial": len(ents) > len(items), "extra_fields": extra, "items": items, "unit_hint": hint,
+            "structures": [culvert.slim(c) for c in culvert.build([_record(e, k) for e in ents], k)] if k else []}
 
 
 @tool("write")
@@ -286,6 +294,37 @@ def _perp(n):
     return _unit(_cross(n, a))
 
 
+def _bbox(e):
+    """GetBoundingBox, repaired: for coordinates over 1 000 000 ZWCAD 2026 answers exactly 1000000 as the minimum."""
+    lo, hi = e.GetBoundingBox()
+    lo, hi = list(lo), list(hi)
+    cen = list(g(e, "Centroid") or [(a + b) / 2 for a, b in zip(lo, hi)])
+    for i in range(3):
+        if lo[i] == 1000000.0 and hi[i] > 1000000.0 and cen[i] - lo[i] > 4 * (hi[i] - cen[i]):
+            lo[i] = 2 * cen[i] - hi[i]
+    return lo, hi
+
+
+def _record(e, k) -> dict:
+    """What culvert.build and the IFC writer need to know about one solid (volume in m3)."""
+    rec = meta.read(e) or {}
+    props = dict(rec.get("props") or {})
+    part = rec.get("part") or ""
+    return {"handle": g(e, "Handle"), "layer": g(e, "Layer") or "", "name": rec.get("name") or "", "part": part,
+            "material": rec.get("material") or meta.guess_material(part) or "", "structure": str(props.pop("structure", "") or ""),
+            "station": str(props.pop("station", "") or ""), "type": str(props.pop("type", "") or ""), "group": str(props.pop("group", "") or ""),
+            "extra": {str(a): v for a, v in props.items()}, "vol": (g(e, "Volume") or 0.0) * k ** 3, "geo": rec.get("geo"),
+            "near": not ("geo" in rec and meta.is_current(e, rec))}
+
+
+def unit_hint(ents, ins) -> str:
+    """'m' when the drawing says mm or cm but its solids are far too small for that (drawn in metres)."""
+    if ins not in (4, 5) or not ents:
+        return ""
+    import statistics
+    return "m" if statistics.median((g(e, "Volume") or 0.0) for e in ents) < 2000 else ""
+
+
 UNITS = {"m": 1.0, "mm": 0.001, "cm": 0.01, "ft": 0.3048, "us-ft": 1200 / 3937, "inch": 0.0254}
 
 
@@ -340,16 +379,18 @@ def _geo(st: Step, node, k) -> tuple[str, str]:
 @tool()
 def export_ifc(path: str, schema: str = "IFC4", handles: list[str] | None = None, from_layer: str = "",
                units: str = "m", project: str = "", site: str = "", road: str = "", author: str = "",
-               selection_only: bool = False, preview: bool = False) -> dict:
+               selection_only: bool = False, preview: bool = False, detail: str = "part") -> dict:
     """Export 3D solids to an IFC file with basic non-graphic data.
     schema: IFC4 or IFC4X3 (IFC 4.3: elements placed in an IfcRoad under the site).
     Geometry is exact (extrusions, booleans, clipping) for solids built with the Steve CAD tools; solids edited
     by other means are exported as a box around them and listed in the result. Only 3D solids are exported.
     preview=True writes nothing: counts of exact / approximate solids, by layer. selection_only: the user's selection.
     Relative paths go to the Steve-CAD-AI folder.
-    Each structure (props.structure + station) becomes an IfcElementAssembly; each solid an
-    IfcBuildingElementProxy with: name = part, material, color, Pset_SteveCAD (Công trình, Lý trình, Loại, Bộ phận,
-    Vật liệu, Layer, Màu ACI...) and Qto (NetVolume). units = drawing units: m | mm | cm | ft | us-ft | inch."""
+    One tree per structure (props.structure + station): structure (with segments, lengths, clear size or diameter, wall, volumes
+    by material) > group (Thân cống, Móng thân cống, Cửa thượng lưu, Cửa hạ lưu; props.group overrides) > part.
+    detail="part": equal parts are ONE element (e.g. 22 segments x 2 m); "solid": one element per solid. Elements are
+    IfcPipeSegment(CULVERT), IfcWall, IfcSlab, IfcFooting or a proxy, with Pset_SteveCAD, Qto, material and colour.
+    units = drawing units: m | mm | cm | ft | us-ft | inch."""
     schema = schema.upper().replace(".", "").replace("_", "")
     sch = {"IFC4": "IFC4", "IFC43": "IFC4X3_ADD2", "IFC4X3": "IFC4X3_ADD2", "IFC4X3ADD2": "IFC4X3_ADD2"}.get(schema)
     if not sch:
@@ -364,6 +405,8 @@ def export_ifc(path: str, schema: str = "IFC4", handles: list[str] | None = None
     ents = _scope(d, handles, from_layer, selection_only)
     if not ents:
         raise UserError("Không có khối 3D (solid) nào để xuất" + (" trong vùng chọn." if selection_only else "."))
+    if detail not in ("part", "solid"):
+        raise UserError("detail phải là part hoặc solid.")
     if preview:
         by, exact = {}, 0
         for e in ents:
@@ -394,68 +437,119 @@ def export_ifc(path: str, schema: str = "IFC4", handles: list[str] | None = None
         holder = st.add(f"IFCROAD('{ifc_guid()}',$,{s_(road or 'Road')},$,$,{holder_pl},$,$,.ELEMENT.,.NOTDEFINED.);")
         st.add(f"IFCRELAGGREGATES('{ifc_guid()}',$,$,$,{site_id},({holder}));")
 
-    groups: dict[str, list[str]] = {}
     mats: dict[str, list[str]] = {}
     styles: dict[int, str] = {}
-    approx, n_ok = [], 0
+    approx, n_ok, recs = [], 0, []
     for e in ents:
-        rec = meta.read(e) or {"part": "", "props": {}}
-        props = rec.get("props") or {}
-        part = rec.get("part") or etype(e)
-        col = g(e, "Color")
-        if col in (None, 256):
+        q = _record(e, k)
+        q["col"] = g(e, "Color")
+        if q["col"] in (None, 256):
             try:
-                col = d.Layers.Item(e.Layer).Color
+                q["col"] = d.Layers.Item(e.Layer).Color
             except Exception:
-                col = 7
-        vol = (g(e, "Volume") or 0.0) * k ** 3
-        near = False
-        if "geo" in rec and meta.is_current(e, rec):
-            item, rtype = _geo(st, rec["geo"], k)
+                q["col"] = 7
+        if not q["near"]:
+            q["item"], q["rtype"] = _geo(st, q["geo"], k)
             n_ok += 1
         else:
-            lo, hi = e.GetBoundingBox()
-            item, rtype = _box(st, lo, hi, k), "SweptSolid"
-            near = True
-            approx.append(g(e, "Handle"))
+            lo, hi = _bbox(e)
+            q["item"], q["rtype"] = _box(st, lo, hi, k), "SweptSolid"
+            approx.append(q["handle"])
+        col = q["col"]
         if col not in styles:
             r, gg, b = aci_rgb(col)
             rgb = st.add(f"IFCCOLOURRGB($,{f_(r / 255)},{f_(gg / 255)},{f_(b / 255)});")
             shade = st.add(f"IFCSURFACESTYLESHADING({rgb},0.);")
             styles[col] = st.add(f"IFCSURFACESTYLE($,.BOTH.,({shade}));")
-        st.add(f"IFCSTYLEDITEM({item},({styles[col]}),$);")
-        rep = st.add(f"IFCSHAPEREPRESENTATION({body},'Body',{s_(rtype)},({item}));")
-        pds = st.add(f"IFCPRODUCTDEFINITIONSHAPE($,$,({rep}));")
-        pl = st.add(f"IFCLOCALPLACEMENT({holder_pl},{st.a2p3([0, 0, 0], [0, 0, 1], [1, 0, 0])});")
-        el = st.add(f"IFCBUILDINGELEMENTPROXY('{ifc_guid()}',$,{s_(rec.get('name') or part_short(part))},{s_(part)},{s_(part_short(part))},{pl},{pds},{s_(g(e, 'Handle'))},.USERDEFINED.);")
-        material = rec.get("material") or meta.guess_material(part) or ""
-        fields = [("Công trình", props.get("structure")), ("Lý trình", props.get("station")), ("Loại", props.get("type")),
-                  ("Tên", rec.get("name")), ("Bộ phận", part), ("Vật liệu", material), ("Layer", g(e, "Layer")), ("Handle CAD", g(e, "Handle")),
-                  ("Nguồn", dname)]
-        fields += [(str(kk), vv) for kk, vv in props.items() if kk not in ("structure", "station", "type")]
-        pv = [st.add(f"IFCPROPERTYSINGLEVALUE({s_(n)},$,IFCLABEL({s_(v)}),$);") for n, v in fields if v not in (None, "")]
-        pv.append(st.add(f"IFCPROPERTYSINGLEVALUE({s_('Màu ACI')},$,IFCINTEGER({int(col)}),$);"))
-        pv.append(st.add(f"IFCPROPERTYSINGLEVALUE({s_('Thể tích')},$,IFCVOLUMEMEASURE({f_(vol)}),$);"))
-        pv.append(st.add(f"IFCPROPERTYSINGLEVALUE({s_('Hình học gần đúng')},$,IFCBOOLEAN({'.T.' if near else '.F.'}),$);"))
-        ps = st.add(f"IFCPROPERTYSET('{ifc_guid()}',$,'Pset_SteveCAD',$,({','.join(pv)}));")
-        st.add(f"IFCRELDEFINESBYPROPERTIES('{ifc_guid()}',$,$,$,({el}),{ps});")
-        q = st.add(f"IFCQUANTITYVOLUME('NetVolume',$,$,{f_(vol)},$);")
-        qs = st.add(f"IFCELEMENTQUANTITY('{ifc_guid()}',$,'Qto_SteveCAD',$,$,({q}));")
+        st.add(f"IFCSTYLEDITEM({q['item']},({styles[col]}),$);")
+        recs.append(q)
+
+    def place():
+        return st.add(f"IFCLOCALPLACEMENT({holder_pl},{st.a2p3([0, 0, 0], [0, 0, 1], [1, 0, 0])});")
+
+    def pset(el, name, fields):
+        """fields: (name, value, kind) with kind text | len | vol | int | bool; empty text is left out"""
+        pv = []
+        for n, v, kind in fields:
+            if v in (None, ""):
+                continue
+            t = {"text": lambda: f"IFCLABEL({s_(str(v)[:255])})", "len": lambda: f"IFCLENGTHMEASURE({f_(v)})", "vol": lambda: f"IFCVOLUMEMEASURE({f_(v)})",
+                 "int": lambda: f"IFCINTEGER({int(v)})", "bool": lambda: f"IFCBOOLEAN({'.T.' if v else '.F.'})"}[kind]()
+            pv.append(st.add(f"IFCPROPERTYSINGLEVALUE({s_(n)},$,{t},$);"))
+        if pv:
+            ps = st.add(f"IFCPROPERTYSET('{ifc_guid()}',$,{s_(name)},$,({','.join(pv)}));")
+            st.add(f"IFCRELDEFINESBYPROPERTIES('{ifc_guid()}',$,$,$,({el}),{ps});")
+
+    def qto(el, vol, count=None, length=None):
+        ql = [st.add(f"IFCQUANTITYVOLUME('NetVolume',$,$,{f_(vol)},$);")]
+        if count:
+            ql.append(st.add(f"IFCQUANTITYCOUNT('Count',$,$,{int(count)}{'.' if sch == 'IFC4' else ''},$);"))
+        if length:
+            ql.append(st.add(f"IFCQUANTITYLENGTH('Length',$,$,{f_(length)},$);"))
+        qs = st.add(f"IFCELEMENTQUANTITY('{ifc_guid()}',$,'Qto_SteveCAD',$,$,({','.join(ql)}));")
         st.add(f"IFCRELDEFINESBYPROPERTIES('{ifc_guid()}',$,$,$,({el}),{qs});")
-        if material:
-            mats.setdefault(material, []).append(el)
-        key = " ".join(x for x in (props.get("structure"), props.get("station")) if x) or "Công trình"
-        groups.setdefault(key, []).append(el)
+
+    def element(qs, name, desc, otype, tag):
+        kinds = {q["rtype"] for q in qs}
+        rep = st.add(f"IFCSHAPEREPRESENTATION({body},'Body',{s_(kinds.pop() if len(kinds) == 1 else 'SolidModel')},({','.join(q['item'] for q in qs)}));")
+        pds = st.add(f"IFCPRODUCTDEFINITIONSHAPE($,$,({rep}));")
+        cls, pre = culvert.ifc_class(qs[0])
+        el = st.add(f"{cls}('{ifc_guid()}',$,{s_(name)},{s_(desc)},{s_(otype)},{place()},{pds},{s_(tag)},.{pre}.);")
+        if qs[0]["material"]:
+            mats.setdefault(qs[0]["material"], []).append(el)
+        return el
+
+    def solid_fields(q):
+        base = [("Công trình", q["structure"], "text"), ("Lý trình", q["station"], "text"), ("Loại", q["type"], "text"), ("Nhóm", culvert.group_of(q), "text"),
+                ("Tên", q["name"], "text"), ("Bộ phận", q["part"], "text"), ("Vật liệu", q["material"], "text"), ("Layer", q["layer"], "text"),
+                ("Handle CAD", q["handle"], "text"), ("Nguồn", dname, "text")]
+        base += [(kk, vv, "text") for kk, vv in q["extra"].items()]
+        return base + [("Màu ACI", q["col"], "int"), ("Thể tích", q["vol"], "vol"), ("Hình học gần đúng", q["near"], "bool")]
+
+    def assembly(name, desc, otype, kids):
+        a = st.add(f"IFCELEMENTASSEMBLY('{ifc_guid()}',$,{s_(name)},{s_(desc) if desc else '$'},{s_(otype)},{place()},$,$,.SITE.,.USERDEFINED.);")
+        st.add(f"IFCRELAGGREGATES('{ifc_guid()}',$,$,$,{a},({','.join(kids)}));")
+        return a
+
+    tops, trees = [], culvert.build(recs, k)
+    for c in trees:
+        gels = []
+        for grp in c["groups"]:
+            kids = []
+            for p in grp["parts"]:
+                ss, seg = p["solids"], p.get("segment_length")
+                if detail == "solid":
+                    for q in ss:
+                        el = element([q], q["name"] or p["name"], q["part"] or p["name"], p["name"], q["handle"])
+                        pset(el, "Pset_SteveCAD", solid_fields(q))
+                        qto(el, q["vol"], None, seg)
+                        kids.append(el)
+                    continue
+                label = p["name"] + (f" ({p['count']} {'đốt' if grp['name'] == culvert.BARREL else 'khối'}" + (f" x {culvert.num(seg)} m" if seg else "") + ")" if p["count"] > 1 else "")
+                el = element(ss, ss[0]["name"] if p["count"] == 1 and ss[0]["name"] else label, ss[0]["part"] if p["count"] == 1 else label, p["name"], ",".join(q["handle"] for q in ss)[:250])
+                common = {n: v for n, v in ss[0]["extra"].items() if all(q["extra"].get(n) == v for q in ss)}
+                pset(el, "Pset_SteveCAD", [("Công trình", c["structure"], "text"), ("Lý trình", c["station"], "text"), ("Nhóm", grp["name"], "text"), ("Bộ phận", p["name"], "text"),
+                     ("Vật liệu", p["material"], "text"), ("Số lượng", p["count"], "int"), ("Chiều dài một đốt", seg, "len"), ("Tổng chiều dài", seg * p["count"] if seg else None, "len"),
+                     ("Khẩu độ rộng", p.get("clear_w"), "len"), ("Khẩu độ cao", p.get("clear_h"), "len"), ("Đường kính trong", p.get("inner_d"), "len"), ("Đường kính ngoài", p.get("outer_d"), "len"),
+                     ("Chiều dày thành", p.get("wall"), "len"), ("Thể tích", p["volume"], "vol"), ("Số khối hình học gần đúng", p["approximate"], "int"), ("Hình học gần đúng", p["approximate"] > 0, "bool"), ("Nguồn", dname, "text")]
+                     + [(n, v, "text") for n, v in common.items()])
+                qto(el, p["volume"], p["count"], seg * p["count"] if seg else None)
+                kids.append(el)
+            a = assembly(grp["name"], "", "Nhóm bộ phận", kids)
+            qto(a, grp["volume"], grp["count"])
+            gels.append(a)
+        b = c["barrel"]
+        top = assembly(c["key"], c["title"], "CULVERT" if b else (c["type"] or "Công trình"), gels)
+        pset(top, "Pset_SteveCAD_CongTrinh", [("Công trình", c["structure"], "text"), ("Loại", c["type"], "text"), ("Lý trình", c["station"], "text"), ("Số đốt", b.get("segments"), "int"),
+             ("Chiều dài một đốt", b.get("segment_length"), "len"), ("Chiều dài thân cống", b.get("length"), "len"), ("Khẩu độ rộng", b.get("clear_w"), "len"), ("Khẩu độ cao", b.get("clear_h"), "len"),
+             ("Đường kính trong", b.get("inner_d"), "len"), ("Đường kính ngoài", b.get("outer_d"), "len"), ("Chiều dày thành", b.get("wall"), "len"), ("Tổng số khối", c["count"], "int"),
+             ("Tổng thể tích", c["volume"], "vol")] + [("Thể tích " + m, v, "vol") for m, v in sorted(c["by_material"].items())])
+        qto(top, c["volume"], None, b.get("length"))
+        tops.append(top)
     for mname, els in mats.items():
         m = st.add(f"IFCMATERIAL({s_(mname)},$,$);")
         st.add(f"IFCRELASSOCIATESMATERIAL('{ifc_guid()}',$,$,$,({','.join(els)}),{m});")
-    assemblies = []
-    for gname, els in groups.items():
-        apl = st.add(f"IFCLOCALPLACEMENT({holder_pl},{st.a2p3([0, 0, 0], [0, 0, 1], [1, 0, 0])});")
-        asm = st.add(f"IFCELEMENTASSEMBLY('{ifc_guid()}',$,{s_(gname)},$,$,{apl},$,$,.SITE.,.USERDEFINED.);")
-        st.add(f"IFCRELAGGREGATES('{ifc_guid()}',$,$,$,{asm},({','.join(els)}));")
-        assemblies.append(asm)
-    st.add(f"IFCRELCONTAINEDINSPATIALSTRUCTURE('{ifc_guid()}',$,$,$,({','.join(assemblies)}),{holder});")
+    st.add(f"IFCRELCONTAINEDINSPATIALSTRUCTURE('{ifc_guid()}',$,$,$,({','.join(tops)}),{holder});")
 
     now = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
     head = ["ISO-10303-21;", "HEADER;",
@@ -468,5 +562,5 @@ def export_ifc(path: str, schema: str = "IFC4", handles: list[str] | None = None
     with open(path, "w", encoding="ascii", newline="\n") as fh:
         fh.write("\n".join(head + body_lines + ["ENDSEC;", "END-ISO-10303-21;", ""]))
     return {"ok": True, "path": path, "schema": sch, "elements": len(ents), "exact": n_ok,
-            "bounding_box_only": approx, "structures": {kk: len(v) for kk, v in groups.items()},
+            "bounding_box_only": approx, "structures": {c["title"]: c["count"] for c in trees},
             "materials": list(mats), "size_kb": round(os.path.getsize(path) / 1024, 1)}

@@ -245,16 +245,17 @@ const Panels = typeof document === 'undefined' ? null : (() => {
 
   // ---------------------------------------------------------------- IFC
   // reads and edits the non-graphic data kept on the solids, then exports where the person chooses
-  const FIX = [['name', 'Tên'], ['part', 'Bộ phận'], ['material', 'Vật liệu'], ['structure', 'Công trình'], ['station', 'Lý trình'], ['type', 'Loại']];
+  const FIX = [['name', 'Tên'], ['part', 'Bộ phận'], ['material', 'Vật liệu'], ['structure', 'Công trình'], ['station', 'Lý trình'], ['type', 'Loại'], ['group', 'Nhóm']];
   function ifc() {
-    const scope = el('select'), sch = el('select'), unit = el('select'), inp = (ph, max) => el('input', { placeholder: ph, maxLength: max || 120 });
+    const scope = el('select'), sch = el('select'), unit = el('select'), det = el('select'), inp = (ph, max) => el('input', { placeholder: ph, maxLength: max || 120 });
     const proj = inp('Tên dự án'), site = inp('Công trường / địa điểm'), road = inp('Tên tuyến (IFC4X3)'), author = inp('Người lập');
     let dr = '', r = null, cols = [];
     for (const [t, v] of [['Mọi khối 3D', '*'], ['Đang chọn', '+']]) scope.append(el('option', { textContent: t, value: v }));
     for (const [t, v] of [['IFC4', 'IFC4'], ['IFC4X3 (4.3)', 'IFC4X3']]) sch.append(el('option', { textContent: t, value: v }));
     for (const [t, v] of [['Đơn vị bản vẽ?', ''], ['m', 'm'], ['mm', 'mm'], ['cm', 'cm'], ['feet', 'ft'], ['US survey feet', 'us-ft'], ['inch', 'inch']]) unit.append(el('option', { textContent: t, value: v }));
+    for (const [t, v] of [['Gộp theo bộ phận', 'part'], ['Tách từng khối', 'solid']]) det.append(el('option', { textContent: t, value: v }));
     const more = el('details', { className: 'ifcmeta' }, el('summary', { textContent: 'Thông tin dự án (ghi vào file)' }), proj, site, road, author);
-    bars.replaceChildren(scope, btn('Đọc khối', read, 'pri'), twice('Ghi vào bản vẽ', write), btn('Excel', exp), btn('Dán từ Excel', paste), btn('+ Cột', addCol), sch, unit, btn('Xuất IFC…', save, 'pri'), more);
+    bars.replaceChildren(scope, btn('Đọc khối', read, 'pri'), twice('Ghi vào bản vẽ', write), btn('Excel', exp), btn('Dán từ Excel', paste), btn('+ Cột', addCol), det, sch, unit, btn('Xuất IFC…', save, 'pri'), more);
     job('Đang đọc bản vẽ…', async () => {
       const i = await call('info'); dr = i._drawing;
       unit.value = { m: 'm', mm: 'mm', cm: 'cm', feet: 'ft', 'US survey feet': 'us-ft', inch: 'inch' }[i.units] || '';
@@ -266,10 +267,12 @@ const Panels = typeof document === 'undefined' ? null : (() => {
     let wanted = '*';
     scope.onchange = () => { if (edits().length) { scope.value = wanted; say(`Còn ${edits().length} ô chưa ghi vào bản vẽ.`, 'err'); return; } wanted = scope.value; r = null; body.replaceChildren(); say('Bấm Đọc khối.'); };
     async function load() {
-      const v = await call('solid_info', { ...where(), limit: 500 });
+      const v = await call('solid_info', { ...where(), limit: 500, units: unit.value || 'm' });
       if (!v.total) { r = null; body.replaceChildren(); throw new Error('Không có khối 3D (solid) nào trong phạm vi này.'); }
-      r = v; dr = v._drawing; cols = [...FIX.map(f => f[0]), ...v.extra_fields.map(k => 'p:' + k)]; show();
+      r = v; dr = v._drawing; cols = [...FIX.map(f => f[0]), ...v.extra_fields.map(k => 'p:' + k)]; if (v.unit_hint && unit.value !== v.unit_hint && !unitByHand) { unit.value = v.unit_hint; fixed = true; } show();
     }
+    let unitByHand = false, fixed = false;
+    unit.onchange = () => { unitByHand = true; if (r && !edits().length) job('Đang tính lại…', async () => { await load(); summary(); }); };
     function read() {
       if (edits().length) { say(`Còn ${edits().length} ô chưa ghi. Ghi vào bản vẽ trước, hoặc đóng bảng để bỏ.`, 'err'); return; }
       job('Đang đọc khối…', async () => { await load(); summary(); });
@@ -277,7 +280,8 @@ const Panels = typeof document === 'undefined' ? null : (() => {
     function summary(lead) {
       const n = r.items.filter(q => q.approximate).length, miss = r.items.filter(q => !q.name && !q.part).length;
       say((lead ? lead + ' ' : '') + `${num(r.total, 0)} khối` + (r.partial ? ` (bảng hiện ${r.items.length} khối đầu; xuất vẫn đủ)` : '') + (miss ? `, ${miss} khối chưa có tên` : '')
-        + (n ? `. ⚠ ${n} khối chỉ xuất dạng HỘP BAO (không do Steve AI dựng hoặc đã sửa).` : '.'), n || miss ? 'run' : 'ok');
+        + (n ? `. ⚠ ${n} khối chỉ xuất dạng HỘP BAO (không do Steve AI dựng hoặc đã sửa).` : '.')
+        + (r.unit_hint && unit.value !== r.unit_hint ? ' ⚠ Kích thước giống MÉT, ô đơn vị đang khác: xuất sẽ sai tỷ lệ.' : fixed ? ' ⚠ Bản vẽ khai báo mm/cm nhưng kích thước giống mét: đã chọn đơn vị m, hãy kiểm tra.' : ''), n || miss || r.unit_hint ? 'run' : 'ok');
     }
     const label = c => c.startsWith('p:') ? c.slice(2) : FIX.find(f => f[0] === c)[1];
     const val = (q, c) => String((c.startsWith('p:') ? q.props[c.slice(2)] : q[c]) ?? '');
@@ -301,11 +305,20 @@ const Panels = typeof document === 'undefined' ? null : (() => {
         tb.append(el('tr', {}, el('td', {}, ck), go, ...cols.map(c => {
           const i = el('input', { value: val(q, c), maxLength: 500 }); i.dataset.old = i.value; i.dataset.c = c; i.dataset.h = q.handle; i.oninput = () => mark(i);
           if (c === 'material' && q.material_guess) i.placeholder = q.material_guess;
+          if (c === 'group') i.placeholder = q.group_guess;
           if (keep && keep[q.handle + '|' + c] !== undefined) { i.value = keep[q.handle + '|' + c]; mark(i); }
           return el('td', {}, i);
         }), el('td', { textContent: q.layer })));
       }
-      body.replaceChildren(tb);
+      body.replaceChildren(...tree(), el('details', { className: 'vrow mid', open: !r.structures.length || !!keep }, el('summary', {}, el('span', { textContent: 'Thông tin từng khối (xem, sửa)' }), el('b', { textContent: r.items.length })), el('div', { className: 'vscroll' }, tb)));
+    }
+    // what the file will look like: structure > group > part
+    function tree() {
+      const z = p => () => job('Đang zoom…', async () => { await call('zoom_to', { handles: p.handles, _drawing: dr }); say('Đã zoom tới ' + p.name); });
+      return (r.structures || []).map(c => el('details', { className: 'vrow okk', open: true },
+        el('summary', {}, el('span', { textContent: c.title }), el('b', { textContent: num(c.volume) + ' m³' })),
+        el('div', { className: 'chips' }, Object.entries(c.by_material).map(([m, v]) => `${m}: ${num(v)} m³`).join('   ')),
+        ...c.groups.map(g => { const t = el('table'); t.append(el('tr', {}, el('th', { textContent: `${g.name} (${g.count} khối, ${num(g.volume)} m³)`, colSpan: 4 })), ...g.parts.map(p => { const a = el('td', { textContent: p.name + (p.approximate ? ' ⚠' : ''), className: 'lnk', title: 'Bấm để zoom' }); a.onclick = z(p); return el('tr', {}, a, el('td', { textContent: p.material }), el('td', { textContent: num(p.count, 0) + (p.segment_length ? ` x ${num(p.segment_length)} m` : '') }), el('td', { textContent: num(p.volume) + ' m³' })); })); return t; })));
     }
     const pending = () => Object.fromEntries(edits().map(i => [i.dataset.h + '|' + i.dataset.c, i.value]));
     function addCol() {
@@ -347,8 +360,8 @@ const Panels = typeof document === 'undefined' ? null : (() => {
         const f = await new Promise((ok, no) => { const id = ++seq; calls.set(id, { ok, no }); post({ t: 'savefile', id, name: `${base(dr)}.ifc`, dir: localStorage.ifcDir || '' }); });
         if (!f.path) { say('Chưa xuất: bạn chưa chọn chỗ lưu.'); return; }
         localStorage.ifcDir = f.dir; say('Đang xuất…', 'run');
-        const w = await call('export_ifc', { _drawing: dr, path: f.path, schema: sch.value, units: unit.value, project: proj.value.trim(), site: site.value.trim(), road: road.value.trim(), author: author.value.trim(), ...where() });
-        say(`✓ Đã xuất ${num(w.elements, 0)} khối` + (w.bounding_box_only.length ? `, ${num(w.bounding_box_only.length, 0)} khối là hộp bao` : '') + `. ${w.path}`, 'ok');
+        const w = await call('export_ifc', { _drawing: dr, path: f.path, detail: det.value, schema: sch.value, units: unit.value, project: proj.value.trim(), site: site.value.trim(), road: road.value.trim(), author: author.value.trim(), ...where() });
+        say(`✓ Đã xuất ${Object.keys(w.structures).length} công trình, ${num(w.elements, 0)} khối` + (w.bounding_box_only.length ? `, ${num(w.bounding_box_only.length, 0)} khối là hộp bao` : '') + `. ${w.path}`, 'ok');
         note.append(' ', btn('Mở thư mục', () => post({ t: 'open', path: w.path })));
       });
     }
