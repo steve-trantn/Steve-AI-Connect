@@ -12,5 +12,10 @@ $si.UseShellExecute = $false; $si.RedirectStandardInput = $true; $si.RedirectSta
 $chat = [Diagnostics.Process]::Start($si); Start-Sleep 6
 if ($chat.HasExited) { Write-Host 'FAIL  orphan: the chat ended too early'; $cad.Kill(); exit 1 }
 $cad.Kill()
-if ($chat.WaitForExit(8000)) { Write-Host 'PASS  chat ends with its CAD'; exit 0 }
+if ($chat.WaitForExit(8000)) {
+  Write-Host 'PASS  chat ends with its CAD'
+  $log = Join-Path $env:LOCALAPPDATA 'SteveCADConnect\errors.log'
+  if ((Test-Path $log) -and (Select-String $log -Pattern '"src":"chat"' -Quiet)) { Write-Host 'FAIL  closing the CAD is logged as an error'; exit 1 }
+  Write-Host 'PASS  closing the CAD is not logged as an error'; exit 0
+}
 Write-Host 'FAIL  chat keeps running after its CAD is gone'; $chat.Kill(); exit 1

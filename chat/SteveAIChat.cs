@@ -123,7 +123,7 @@ class ChatForm : Form
                 };
                 t.Start();
             }
-            string data = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"SteveCADConnect\chat-data");
+            string data = Path.Combine(LocalData, @"SteveCADConnect\chat-data");
             var env = await CoreWebView2Environment.CreateAsync(null, data);
             await web.EnsureCoreWebView2Async(env);
             var s = web.CoreWebView2.Settings;
@@ -161,12 +161,16 @@ class ChatForm : Form
         }
         catch (Exception ex) { LogError(ex); MessageBox.Show(this, ex.Message, "Steve AI"); Close(); }
     }
+    // the environment variable first: tests run in their own folder
+    static string LocalData { get { string v = Environment.GetEnvironmentVariable("LOCALAPPDATA"); return string.IsNullOrEmpty(v) ? Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) : v; } }
     public static void LogError(Exception ex)
     {
         try
         {
             if (ex == null) return;
-            string home = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SteveCADConnect");
+            // the CAD closed and Windows destroyed our window: WebView2's own Dispose then throws. Nothing is wrong, and nobody is left to show it to.
+            if (ex is InvalidOperationException && (ex.StackTrace ?? "").Contains("WebView2.Dispose(")) return;
+            string home = Path.Combine(LocalData, "SteveCADConnect");
             string line = new JavaScriptSerializer().Serialize(new { t = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), src = "chat", ver = "v@VERSION@", msg = ex.GetType().Name + ": " + ex.Message, stack = ex.StackTrace ?? "" });
             File.AppendAllText(Path.Combine(home, "errors.log"), line + "\n", new UTF8Encoding(false));
         }
@@ -333,7 +337,7 @@ class ChatForm : Form
     void ToolFail(string text) { try { if (!closing) BeginInvoke((Action)delegate { Post(new { t = "toolfail", text = text }); }); } catch { } }
     void StartTools()
     {
-        string home = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SteveCADConnect");
+        string home = Path.Combine(LocalData, "SteveCADConnect");
         string py = Path.Combine(home, @"venv\Scripts\python.exe"), script = Path.Combine(home, @"server\panel.py");
         if (!File.Exists(py) || !File.Exists(script)) throw new Exception("chưa kết nối. Mở Steve AI Connect, bước 1, bấm Kết nối tự động.");
         var si = new ProcessStartInfo(py, "-I \"" + script + "\" --cad " + cad + " --pid " + cadPid);
