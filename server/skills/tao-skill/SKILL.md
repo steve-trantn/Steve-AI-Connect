@@ -29,4 +29,4 @@ Không đưa vào skill: mật khẩu, thông tin cá nhân hay mật của dự
 
 ## Bước 4. Thử
 
-Chạy thử một lần trên bản vẽ nhỏ, sửa chỗ chưa rõ rồi lưu lại. Thấy hữu ích cho người khác thì gợi ý gửi Steve qua **Đề xuất tính năng**.
+Chạy thử một lần trên bản vẽ nhỏ, sửa chỗ chưa rõ rồi lưu lại. Thấy hữu ích cho người khác thì gợi ý: Steve AI Connect → ⚙ Tùy chọn nâng cao → **Chia sẻ skill của tôi**.

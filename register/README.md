@@ -8,8 +8,10 @@ Làm một lần, khoảng 5 phút. Nên dùng một tài khoản Google riêng 
 4. **Triển khai → Tùy chọn triển khai mới → Ứng dụng web**: *Thực thi với tư cách* = **Tôi**, *Ai có quyền truy cập* = **Bất kỳ ai**. Bấm Triển khai.
 5. Chép URL kết thúc bằng `/exec`, dán vào `$script:RegisterUrl` trong `app/core.ps1`.
 
+**Cập nhật code không làm mất dữ liệu:** dữ liệu nằm trong Sheet, code chỉ thêm dòng hoặc cập nhật dòng có sẵn. Dán code mới xong chạy `caiDat`: hàm này sao lưu từng bảng sang sheet ẩn rồi mới định dạng. Đừng đổi tên sheet, đổi thứ tự hay chèn cột; muốn thêm cột riêng thì thêm ở bên phải cùng.
+
 Sửa `Code.gs` về sau: **Triển khai → Quản lý các tùy chọn triển khai → Sửa → Phiên bản mới** (URL giữ nguyên).
 
 - Không chia sẻ Google Sheet công khai: nó chứa thông tin cá nhân.
 - Gmail thường gửi được khoảng 100 mail/ngày, Google Workspace nhiều hơn. Hết hạn mức thì người mới được dùng tạm 7 ngày.
-- Có người yêu cầu xoá thông tin: xoá dòng của họ trong sheet `DangKy`.
+- Có người yêu cầu xoá thông tin: xoá dòng của họ trong sheet `DangKy`, và cả trong các sheet ẩn `..._SaoLuu_...`.

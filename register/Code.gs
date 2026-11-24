@@ -7,6 +7,7 @@
  *   {action:'verify', email, code, name?, phone?, consent?, news?, version?}
  *        -> {ok:true, name}; email mới mà chưa có họ tên/SĐT -> {ok:false, error:'profile'} (mã vẫn còn hiệu lực)
  *   {action:'feature', email, kind, cad, title, desc, version}        -> ghi vào sheet 'YeuCau'
+ *   {action:'skill', email, name, title, desc, body, author, license, version} -> sheet 'SkillGopY' chờ duyệt
  *   {action:'report', key, src, version, msg, stack, sys}              -> gộp vào sheet 'Loi' (ẩn danh)
  * error: many | empty | email | wait | limit | quota | code | expired | profile | busy | server
  * 'send' trả lời giống nhau dù email đã đăng ký hay chưa, để không ai dò được danh sách.
@@ -31,6 +32,7 @@ function doPost(e) {
     if (q.action === 'send') return out_(send_(email));
     if (q.action === 'verify') return out_(verify_(email, q));
     if (q.action === 'feature') return out_(feature_(email, q));
+    if (q.action === 'skill') return out_(skill_(email, q));
     return out_({ ok: false, error: 'server' });
   } catch (err) {
     console.error(err);
@@ -127,6 +129,20 @@ function report_(q) {
   return { ok: true };
 }
 
+// Skill người dùng chia sẻ để Steve duyệt. Chưa duyệt thì không ai dùng được; đọc kỹ nội dung trước khi đưa vào công cụ.
+var SHEET4 = 'SkillGopY';
+var HEAD4 = ['Gửi lúc', 'Tên skill', 'Tiêu đề', 'Mô tả', 'Nội dung skill', 'Tên ghi công', 'Email', 'Đồng ý giấy phép', 'Phiên bản', 'Trạng thái', 'Ghi chú của Steve'];
+function skill_(email, q) {
+  var txt = function (v, n) { return String(v || '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, ' ').trim().slice(0, n); };
+  var name = txt(q.name, 40), body = txt(q.body, 45000);
+  if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(name) || body.length < 50 || q.license !== true) return { ok: false, error: 'empty' };
+  var c = CacheService.getScriptCache(), k = 's' + hash_(email), n = Number(c.get(k) || 0), all = Number(c.get('sall') || 0);
+  if (n >= 5 || all >= 100) return { ok: false, error: 'many' };
+  sheet_(SHEET4, HEAD4).appendRow([new Date(), "'" + name, "'" + txt(q.title, 80), "'" + txt(q.desc, 400), "'" + body, "'" + txt(q.author, 80), "'" + email, 'Apache 2.0', "'" + txt(q.version, 20), 'Mới', '']);
+  c.put(k, String(n + 1), 21600); c.put('sall', String(all + 1), 21600);
+  return { ok: true };
+}
+
 function sheet_(name, head) {
   name = name || SHEET; head = head || HEAD;
   var ss = SpreadsheetApp.getActiveSpreadsheet(), sh = ss.getSheetByName(name);
@@ -147,5 +163,41 @@ function hash_(s) {
 }
 function out_(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
 
-/** Chạy hàm này một lần trong trình soạn Apps Script để cấp quyền (Sheet + gửi mail) và tạo sheet. */
-function caiDat() { sheet_(); sheet_(SHEET2, HEAD2); sheet_(SHEET3, HEAD3); Logger.log('Còn gửi được ' + MailApp.getRemainingDailyQuota() + ' mail hôm nay.'); }
+/**
+ * Chạy hàm này một lần sau mỗi lần dán code mới (cấp quyền nếu được hỏi). KHÔNG xoá hay sửa dữ liệu:
+ *  1. sao lưu từng bảng đang có dữ liệu sang một sheet ẩn "<tên>_SaoLuu_<ngày giờ>";
+ *  2. tạo bảng còn thiếu;
+ *  3. chỉ định dạng (màu, độ rộng, bộ lọc, danh sách trạng thái). Cột không đúng thứ tự thì dừng, không đụng vào bảng đó.
+ */
+function caiDat() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet(), all = [[SHEET, HEAD], [SHEET2, HEAD2], [SHEET3, HEAD3], [SHEET4, HEAD4]], msg = [];
+  var stamp = Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone(), 'yyyyMMdd_HHmmss');
+  all.forEach(function (t) {
+    var sh = ss.getSheetByName(t[0]);
+    if (sh && sh.getLastRow() > 1) { sh.copyTo(ss).setName(t[0] + '_SaoLuu_' + stamp).hideSheet(); msg.push('Đã sao lưu ' + t[0] + ': ' + (sh.getLastRow() - 1) + ' dòng.'); }
+  });
+  all.forEach(function (t) {
+    var sh = sheet_(t[0], t[1]), now = sh.getRange(1, 1, 1, t[1].length).getValues()[0];
+    if (now.join('|') !== t[1].join('|')) { msg.push('⚠ ' + t[0] + ': cột không đúng thứ tự chuẩn, KHÔNG định dạng. Cột chuẩn: ' + t[1].join(', ')); return; }
+    try { dinhDang_(sh, t[1]); msg.push('Đã định dạng ' + t[0] + '.'); } catch (e) { msg.push('⚠ ' + t[0] + ': ' + e.message); }
+  });
+  Logger.log(msg.join('\n') + '\nCòn gửi được ' + MailApp.getRemainingDailyQuota() + ' mail hôm nay.');
+}
+var DO_RONG = { 'Email': 220, 'Họ và tên': 170, 'SĐT': 110, 'Tên tính năng': 220, 'Mô tả': 380, 'Nội dung': 360, 'Vị trí': 280, 'Hệ thống': 220, 'Ghi chú': 220,
+  'Ghi chú của Steve': 240, 'Tên skill': 150, 'Tiêu đề': 160, 'Nội dung skill': 380, 'Mã lỗi': 130, 'Số lần': 70, 'Phiên bản': 85, 'Trạng thái': 105, 'Phần': 140 };
+function dinhDang_(sh, head) {
+  var n = head.length, rows = sh.getMaxRows();
+  if (!sh.getBandings().length) sh.getRange(1, 1, rows, n).applyRowBanding(SpreadsheetApp.BandingTheme.LIGHT_GREY, true, false);
+  sh.getRange(1, 1, 1, n).setBackground('#0b57d0').setFontColor('#ffffff').setFontWeight('bold').setVerticalAlignment('middle').setWrap(true);
+  sh.setRowHeight(1, 38); sh.setFrozenRows(1); sh.setFrozenColumns(2);
+  var body = sh.getRange(2, 1, rows - 1, n).setVerticalAlignment('top').setWrapStrategy(SpreadsheetApp.WrapStrategy.CLIP);
+  body.setFontFamily('Arial').setFontSize(10);
+  head.forEach(function (h, i) {
+    var col = sh.getRange(2, i + 1, rows - 1, 1);
+    sh.setColumnWidth(i + 1, DO_RONG[h] || 130);
+    if (/lúc|Lần đầu|Lần cuối|gần nhất|Đồng ý lưu/.test(h)) col.setNumberFormat('dd/MM/yyyy HH:mm');
+    if (/Số lần/.test(h)) col.setNumberFormat('0').setHorizontalAlignment('center');
+    if (h === 'Trạng thái') col.setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(['Mới', 'Đang xem', 'Đang làm', 'Đã xong', 'Không làm'], true).setAllowInvalid(true).build());
+  });
+  if (!sh.getFilter()) sh.getRange(1, 1, rows, n).createFilter();
+}

@@ -293,6 +293,8 @@ $miTerm = New-Object Windows.Forms.ToolStripMenuItem 'Mở Steve AI bằng cửa
 $miTerm.Checked = [bool](Get-Setting 'UseTerminal' $false); [void]$menu.Items.Add($miTerm)
 $miTerm.add_Click({ Set-Setting 'UseTerminal' ([bool]$miTerm.Checked) })
 [void]$menu.Items.Add((New-Object Windows.Forms.ToolStripSeparator))
+$miShare = New-Object Windows.Forms.ToolStripMenuItem 'Chia sẻ skill của tôi…'; $miShare.ForeColor = $Pal.text; [void]$menu.Items.Add($miShare)
+$miShare.add_Click({ $menu.Close(); Show-ShareSkill })
 $miUpd = New-Object Windows.Forms.ToolStripMenuItem 'Kiểm tra bản cập nhật…'; $miUpd.ForeColor = $Pal.text; [void]$menu.Items.Add($miUpd)
 $miUpd.add_Click({ $menu.Close(); if (-not $script:Busy) { Invoke-UpdateCheckNow } })
 $miAuto = New-Object Windows.Forms.ToolStripMenuItem 'Tự động cập nhật khi có bản mới'; $miAuto.CheckOnClick = $true; $miAuto.ForeColor = $Pal.text
@@ -1087,7 +1089,7 @@ $form.add_Shown({
         }
       })
       $script:SnapTimer.Start()
-      switch ($env:STEVECAD_SNAPDIALOG) { 'about' { Show-About } 'register' { [void](Show-Register) } 'feature' { Show-Feature } 'update' { Show-Update @{ tag = 'v9.9.9'; notes = 'Bản thử' } } default { Show-Coffee } }
+      switch ($env:STEVECAD_SNAPDIALOG) { 'about' { Show-About } 'register' { [void](Show-Register) } 'feature' { Show-Feature } 'share' { Show-ShareSkill } 'update' { Show-Update @{ tag = 'v9.9.9'; notes = 'Bản thử' } } default { Show-Coffee } }
       $form.Close(); return
     }
     if ($env:STEVECAD_SNAPPICK) { $cadTile.zwcad.chk.Checked = $true; $aiTile.claudecode.chk.Checked = $true }

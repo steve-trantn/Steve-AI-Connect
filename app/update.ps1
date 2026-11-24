@@ -128,6 +128,55 @@ function Invoke-UpdateCheckNow {
   else { [void][Windows.Forms.MessageBox]::Show($form, "Bạn đang dùng bản mới nhất ($($script:Version)).", $script:AppName, 'OK', 'Information') }
 }
 
+# ---------- share a skill the user made ----------
+function Get-OwnSkills {
+  $out = @()
+  foreach ($d in Get-ChildItem (Join-Path $script:Workspace 'skills') -Directory -ErrorAction SilentlyContinue) {
+    $f = Join-Path $d.FullName 'SKILL.md'; if (-not (Test-Path $f)) { continue }
+    $t = [IO.File]::ReadAllText($f); $h = @{ title = ''; description = '' }
+    foreach ($n in 'title', 'description') { if ($t -match "(?m)^$n`:\s*(.+)$") { $h[$n] = $Matches[1].Trim() } }
+    $out += @{ name = $d.Name; title = $h.title; desc = $h.description; body = $t }
+  }
+  return $out
+}
+function Show-ShareSkill {
+  $own = @(Get-OwnSkills)
+  if (-not $own) { [void][Windows.Forms.MessageBox]::Show($form, "Bạn chưa có skill riêng.`n`nMở Steve AI, bấm ＋ → Tạo skill để AI giúp bạn viết một skill, rồi quay lại đây chia sẻ.", $script:AppName, 'OK', 'Information'); return }
+  $d = New-SmallDialog 'Chia sẻ skill' 480 474
+  $ss = @{ busy = $false }
+  $c1 = Put (New-Label 'Chia sẻ skill của bạn cho mọi người' $Fnt.h2 $Pal.text) 20 14 440 26
+  $c2 = Put (New-Label 'Steve đọc và duyệt; được chọn thì skill có trong bản cập nhật, ghi công bạn. Xem kỹ để không gửi tên dự án, khách hàng, mật khẩu.' $Fnt.s $Pal.muted) 20 42 440 34
+  $cb = Put (New-Combo) 20 82 440 28; foreach ($o in $own) { [void]$cb.Items.Add($(if ($o.title) { "$($o.title)  ($($o.name))" } else { $o.name })) }
+  $mk = { param($max) $b = New-Object Windows.Forms.TextBox; $b.BackColor = $Pal.input; $b.ForeColor = $Pal.text; $b.BorderStyle = 'FixedSingle'; $b.MaxLength = $max; $b }
+  $pv = Put (& $mk 60000) 20 118 440 160; $pv.Multiline = $true; $pv.ReadOnly = $true; $pv.ScrollBars = 'Vertical'
+  $cb.add_SelectedIndexChanged({ $pv.Text = ($own[$cb.SelectedIndex].body -replace '\r?\n', "`r`n") }); $cb.SelectedIndex = 0
+  $l1 = Put (New-Label 'Tên ghi công (để trống = ẩn danh)' $Fnt.s $Pal.muted) 20 284 214 18; $tA = Put (& $mk 80) 20 303 214 26
+  $l2 = Put (New-Label 'Email để Steve phản hồi' $Fnt.s $Pal.muted) 246 284 214 18; $tM = Put (& $mk 120) 246 303 214 26
+  $acc = Get-Setting 'Account'; if ($acc -and $acc.email) { $tM.Text = [string]$acc.email }
+  $ck = New-Object Windows.Forms.CheckBox; $ck.Text = 'Nội dung này do tôi viết (hoặc tôi được phép chia sẻ) và tôi đồng ý phát hành theo giấy phép Apache 2.0'; $ck.Font = $Fnt.s; $ck.ForeColor = $Pal.text; $ck.CheckAlign = 'TopLeft'; $ck.TextAlign = 'TopLeft'
+  [void](Put $ck 20 338 440 38)
+  $sm = Put (New-Label '' $Fnt.s $Pal.muted) 20 382 440 34
+  $go = Put (New-Button 'Gửi cho Steve' 'primary') 222 424 130 36; $no = Put (New-Button 'Đóng') 360 424 100 36
+  $go.add_Click({
+    if ($ss.busy) { return }
+    $sm.ForeColor = $Pal.red
+    if (-not (Test-EmailText $tM.Text)) { $sm.Text = 'Email chưa đúng.'; return }
+    if (-not $ck.Checked) { $sm.Text = 'Cần tích đồng ý giấy phép để chia sẻ.'; return }
+    $o = $own[$cb.SelectedIndex]
+    if ($o.body.Length -gt 40000) { $sm.Text = 'Skill quá dài (tối đa 40.000 ký tự).'; return }
+    if ($o.name -notmatch '^[a-z0-9]+(-[a-z0-9]+)*$') { $sm.Text = 'Tên thư mục skill phải là chữ thường không dấu, số và dấu -.'; return }
+    $ss.busy = $true; $go.Enabled = $false; $no.Enabled = $false; $sm.ForeColor = $Pal.muted; $sm.Text = 'Đang gửi…'
+    try { $r = Invoke-Register @{ action = 'skill'; email = $tM.Text.Trim().ToLower(); name = $o.name; title = $o.title; desc = $o.desc; body = $o.body; author = $tA.Text.Trim(); license = $true; version = [string]$script:Version } }
+    finally { $ss.busy = $false; $go.Enabled = $true; $no.Enabled = $true; Set-ButtonLook $go 'primary' }
+    if ($r.ok) { $sm.ForeColor = $Pal.green; $sm.Text = '✓ Đã gửi. Cảm ơn bạn! Steve sẽ xem và phản hồi qua email.' } else { $sm.ForeColor = $Pal.red; $sm.Text = $script:RegErrors[[string]$r.error] }
+  })
+  $no.add_Click({ if (-not $ss.busy) { $d.DialogResult = 'Cancel' } })
+  $d.add_FormClosing({ param($s, $e) if ($ss.busy) { $e.Cancel = $true } })
+  $d.Controls.AddRange(@($c1, $c2, $cb, $pv, $l1, $tA, $l2, $tM, $ck, $sm, $go, $no)); $d.CancelButton = $no
+  $script:ShareUi = @{ d = $d; go = $go; ck = $ck; mail = $tM; msg = $sm; ui = $ss }   # tests
+  [void]$d.ShowDialog($form)
+}
+
 # ---------- feature request ----------
 function Show-Feature {
   $d = New-SmallDialog 'Đề xuất tính năng' 480 496
