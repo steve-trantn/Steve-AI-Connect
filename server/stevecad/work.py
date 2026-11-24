@@ -9,8 +9,8 @@ import zipfile
 from xml.sax.saxutils import escape
 
 from . import tools
-from .drawing import Drawings, UserError, area_of, bbox, count_matching, etype, g, iter_space, length_of, r3, run_cmd, text_of
-from .tools import C, Handles, doc, done, entities, tool
+from .drawing import Drawings, UserError, area_of, as_list, count_matching, etype, g, iter_space, length_of, r3, run_cmd, text_of
+from .tools import C, doc, done, editing, entities, tool
 
 WORKSPACE = os.path.join(os.path.expanduser("~"), "Steve-CAD-AI")
 LISP_DIR = os.path.join(WORKSPACE, "Lisp")
@@ -308,6 +308,64 @@ def quantities(layer: str = "", window: list[float] | None = None, selection_onl
             "rows": sorted(rows.values(), key=lambda r: (r["layer"], r["type"])),
             "blocks": [{"layer": k[0], "block": k[1], "count": v} for k, v in sorted(blocks.items())],
             "not_measured": skipped, "insunits": g(d, "Name") and d.GetVariable("INSUNITS")}
+
+
+def _blocks_with_attributes(d, block: str, limit: int):
+    """(space name, block reference) of every reference with attributes, in model space and all layouts."""
+    n = 0
+    for i in range(d.Layouts.Count):
+        lay = d.Layouts.Item(i)
+        space = lay.Block
+        name = "Model" if g(lay, "ModelType") else g(lay, "Name")
+        for k in range(space.Count):
+            e = space.Item(k)
+            if etype(e) != "BlockReference" or not g(e, "HasAttributes"):
+                continue
+            nm = g(e, "EffectiveName") or g(e, "Name") or ""
+            if block and nm.lower() != block.lower():
+                continue
+            yield name, nm, e
+            n += 1
+            if n >= limit:
+                return
+
+
+@tool()
+def list_attributes(block: str = "", max_blocks: int = 300) -> dict:
+    """Attributes of block references (e.g. title blocks) in model space AND in every layout, with handles. Filter by block
+    name; without it every block that has attributes is listed (slow in big drawings)."""
+    d = doc()
+    rows = []
+    for space, nm, e in _blocks_with_attributes(d, block, max_blocks):
+        rows.append({"space": space, "block": nm, "handle": g(e, "Handle"),
+                     "attributes": {a.TagString: a.TextString for a in as_list(e.GetAttributes())}})
+    return {"drawing": g(d, "Name"), "count": len(rows), "partial": len(rows) >= max_blocks, "items": rows}
+
+
+@tool("write")
+def set_attributes(changes: list[dict]) -> dict:
+    """Change attribute texts of block references. changes = [{"handle": "2F", "values": {"TAG": "new text"}}, ...].
+    Show the old -> new table to the user first. One undo step; nothing is changed if a handle or tag does not exist."""
+    plan = []
+    d = doc()   # checked before the undo group opens: a refused call must not leave an empty undo step
+    for c in changes:
+        h, vals = c.get("handle"), c.get("values")
+        if not h or not isinstance(vals, dict) or not vals:
+            raise UserError('Mỗi mục cần "handle" và "values": {"TAG": "chữ"}.')
+        e = entities(d, [h])[0]
+        if etype(e) != "BlockReference" or not g(e, "HasAttributes"):
+            raise UserError(f"Đối tượng {h} không phải block có thuộc tính.")
+        tags = {a.TagString.upper(): a for a in as_list(e.GetAttributes())}
+        for t, v in vals.items():
+            if t.upper() not in tags:
+                raise UserError(f"Block {h} không có thuộc tính '{t}'. Có: {', '.join(tags)}.")
+            plan.append((h, t, tags[t.upper()], str(v)))
+    with editing() as d:
+        out = []
+        for h, t, a, v in plan:
+            out.append({"handle": h, "tag": t, "old": a.TextString, "new": v})
+            a.TextString = v
+        return done(d, changed=out)
 
 
 def _col(n: int) -> str:

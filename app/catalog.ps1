@@ -18,7 +18,9 @@ $script:ToolCatalog = [ordered]@{
     @('find_duplicates', 'Tìm đối tượng vẽ trùng', 'Tìm các đường bị vẽ chồng'),
     @('quantities', 'Khối lượng theo layer và loại', 'Bóc khối lượng layer TUONG'),
     @('audit', 'Soát lỗi bản vẽ (chỉ đọc)', 'Kiểm tra bản vẽ này có lỗi gì'),
-    @('export_xlsx', 'Xuất bảng ra Excel (có hỏi trước)', 'Xuất bảng khối lượng ra Excel')
+    @('export_xlsx', 'Xuất bảng ra Excel (có hỏi trước)', 'Xuất bảng khối lượng ra Excel'),
+    @('list_attributes', 'Đọc thuộc tính block, khung tên (cả layout)', 'Liệt kê số bản vẽ trong các khung tên'),
+    @('set_attributes', 'Điền thuộc tính block (có hỏi trước)', 'Đổi tên dự án trong mọi khung tên')
   )
   'Vẽ' = @(
     @('line', 'Đường thẳng', 'Vẽ đoạn thẳng từ 0,0 đến 5000,0'),

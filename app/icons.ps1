@@ -48,6 +48,22 @@ function New-DrawnIcon([string]$name, [int]$size) {
       & $edge '#9A6F00' 1 '14,2 18,10.5 27,11.5 20.3,17.6 22.2,26.5 14,22 5.8,26.5 7.7,17.6 1,11.5 10,10.5'
       $g.FillEllipse((& $br '#16A34A'), 17, 17, 14, 14); & $line '#FFFFFF' 2.4 '24,20.5 24,27.5'; & $line '#FFFFFF' 2.4 '20.5,24 27.5,24'
     }
+    'chuan-layer' {   # three stacked sheets
+      & $poly '#3B82F6' '16,16 30,22 16,29 2,22'; & $edge '#1E4E9C' 1 '16,16 30,22 16,29 2,22'
+      & $poly '#F5B301' '16,9.5 30,15.5 16,22.5 2,15.5'; & $edge '#9A6F00' 1 '16,9.5 30,15.5 16,22.5 2,15.5'
+      & $poly '#22A45D' '16,3 30,9 16,16 2,9'; & $edge '#0F6B38' 1 '16,3 30,9 16,16 2,9'
+    }
+    'pdf-sang-cad' {   # red sheet, arrow, blue lines
+      & $poly '#DC3B3B' '2,2 13,2 18,7 18,22 2,22'; & $poly '#F4A6A6' '13,2 18,7 13,7'
+      & $line '#FFFFFF' 1.6 '5,11 14,11'; & $line '#FFFFFF' 1.6 '5,15 14,15'
+      & $line '#16A34A' 2.6 '10,27 19,27'; & $poly '#16A34A' '18,23 23,27 18,31'
+      & $line '#3B82F6' 2 '22,20 22,9 30,9 30,20 22,20'; & $line '#3B82F6' 1.4 '22,20 30,9'
+    }
+    'khung-ten' {   # sheet with a title block
+      & $poly '#F4F7FA' '2,4 30,4 30,28 2,28'; & $poly '#F5B301' '17,20 30,20 30,28 17,28'
+      & $edge '#4C6075' 1.4 '2,4 30,4 30,28 2,28'; & $edge '#4C6075' 1 '5,7 27,7 27,17 5,17'
+      & $line '#4C6075' 1 '17,28 17,20 30,20'; & $line '#4C6075' 1 '17,24 30,24'; & $line '#4C6075' 1 '23,20 23,28'
+    }
     'open' {   # chat bubble with a spark
       & $poly '#0068EC' '8,27 8,20 15,23'
       $q = New-Object Drawing.Drawing2D.GraphicsPath; $q.AddArc(1, 2, 10, 10, 180, 90); $q.AddArc(21, 2, 10, 10, 270, 90); $q.AddArc(21, 14, 10, 10, 0, 90); $q.AddArc(1, 14, 10, 10, 90, 90); $q.CloseFigure()
@@ -72,5 +88,5 @@ function New-DrawnIcon([string]$name, [int]$size) {
   $g.Dispose()
   return $bmp
 }
-$script:DrawnSkills = 'cong-3d', 'boc-khoi-luong', 'kiem-tra-ban-ve', 'viet-lisp', 'tao-skill'
+$script:DrawnSkills = 'cong-3d', 'boc-khoi-luong', 'kiem-tra-ban-ve', 'viet-lisp', 'tao-skill', 'chuan-layer', 'pdf-sang-cad', 'khung-ten'
 function New-SkillIcon([string]$skill, [int]$size) { return (New-DrawnIcon $(if ($skill -in $script:DrawnSkills) { $skill } else { 'skill' }) $size) }
