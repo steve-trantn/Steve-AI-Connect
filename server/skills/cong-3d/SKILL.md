@@ -136,6 +136,13 @@ Lưu ý khi dựng:
 - **Tách màu:** mặc định mỗi solid lấy màu hiển thị của đối tượng mặt cắt gốc. Có thể truyền `color` riêng cho từng bộ phận để dễ phân biệt. `layer` có thể chung, ví dụ `3D-CONG`.
 - **Một lần gọi tool = một bước UNDO.** Dựng sai thì gọi `undo`.
 
+### Quy ước thông tin (để tách cống và xuất IFC)
+
+- Mỗi đốt, mỗi bộ phận một khối. Ngay sau khi dựng xong một cống, gắn cho **mọi khối** bằng `tag_solids`: `structure` = mã cống không trùng (C01, C05-T...; hỏi người dùng), `station` = `Km8+423.31`, `type` = `Cống hộp 4x4`.
+- `part` bắt đầu bằng từ khoá: `Đốt cống 07`, `Móng cống`, `Lót móng cống`; bộ phận cửa cống luôn có `thượng lưu` hoặc `hạ lưu`.
+- `origin` là tim đáy trong cửa thượng lưu; đốt đánh số từ thượng về hạ lưu. Biết phương vị tim đường (độ, từ Bắc theo chiều kim đồng hồ) thì gắn `props.road_azimuth`.
+- Sao chép cống sang chỗ khác: đổi ngay `structure` và `station`.
+
 ## Bước 6. Kiểm tra và báo cáo
 
 1. `list_entities(type="3dSolid")` để lấy thể tích từng khối. `solid_extrude` trả `count` và `total_volume` cho mỗi nhóm.

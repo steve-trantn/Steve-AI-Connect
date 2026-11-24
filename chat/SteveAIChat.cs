@@ -362,7 +362,7 @@ class ChatForm : Form
     }
     void StopTools() { try { if (tools != null && !tools.HasExited) tools.Kill(); } catch { } }
     // "where to save": the person chooses in the usual Windows dialog (it also asks before replacing a file)
-    readonly HashSet<string> chosen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    readonly HashSet<string> chosen = new HashSet<string>(StringComparer.OrdinalIgnoreCase), chosenDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     void SaveDialog(Dictionary<string, object> m)
     {
         string path = "";
@@ -370,14 +370,14 @@ class ChatForm : Form
         {
             using (var f = new SaveFileDialog())
             {
-                f.Title = "Lưu file IFC"; f.Filter = "IFC (*.ifc)|*.ifc"; f.DefaultExt = "ifc"; f.AddExtension = true; f.OverwritePrompt = true;
+                f.Title = "Lưu file IFC"; f.Filter = "IFC (*.ifc)|*.ifc"; f.DefaultExt = "ifc"; f.AddExtension = true; f.OverwritePrompt = !(m.ContainsKey("many") && true.Equals(m["many"]));   // one file per culvert: the name is only the beginning
                 string n = m["name"] as string ?? "model";
                 foreach (char c in Path.GetInvalidFileNameChars()) n = n.Replace(c, '_');
                 f.FileName = n;
                 string dir = m.ContainsKey("dir") ? m["dir"] as string : "";
                 if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) dir = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
                 f.InitialDirectory = dir;
-                if (f.ShowDialog(this) == DialogResult.OK && f.FileName.EndsWith(".ifc", StringComparison.OrdinalIgnoreCase)) { path = Path.GetFullPath(f.FileName); chosen.Add(path); }
+                if (f.ShowDialog(this) == DialogResult.OK && f.FileName.EndsWith(".ifc", StringComparison.OrdinalIgnoreCase)) { path = Path.GetFullPath(f.FileName); chosen.Add(path); chosenDirs.Add(Path.GetDirectoryName(path)); }
             }
         }
         catch (Exception ex) { LogError(ex); }
@@ -392,7 +392,7 @@ class ChatForm : Form
             string full = Path.GetFullPath(path);
             // an IFC file is shown in its folder: which program opens it is the user's choice
             string ifc = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), @"Steve-CAD-AI\IFC") + "\\";
-            if ((chosen.Contains(full) || full.StartsWith(ifc, StringComparison.OrdinalIgnoreCase)) && full.EndsWith(".ifc", StringComparison.OrdinalIgnoreCase) && File.Exists(full)) { Process.Start("explorer.exe", "/select,\"" + full + "\""); return; }
+            if ((chosen.Contains(full) || chosenDirs.Contains(Path.GetDirectoryName(full)) || full.StartsWith(ifc, StringComparison.OrdinalIgnoreCase)) && full.EndsWith(".ifc", StringComparison.OrdinalIgnoreCase) && File.Exists(full)) { Process.Start("explorer.exe", "/select,\"" + full + "\""); return; }
             if (full.StartsWith(dir, StringComparison.OrdinalIgnoreCase) && full.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) && File.Exists(full)) Process.Start(full);
         }
         catch { }

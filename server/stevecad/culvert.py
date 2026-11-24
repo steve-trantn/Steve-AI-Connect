@@ -7,6 +7,8 @@ import math
 import re
 import statistics
 
+from . import culvert_geo as cg
+
 BARREL, FOUND, INLET, OUTLET, OTHER = "Thân cống", "Móng thân cống", "Cửa thượng lưu", "Cửa hạ lưu", "Bộ phận khác"
 ORDER = [BARREL, FOUND, INLET, OUTLET, OTHER]
 
@@ -85,13 +87,14 @@ def dims(geo, k: float) -> dict:
         d["outer_d"] = w * k
     else:
         d["outer_w"], d["outer_h"] = w * k, h * k
-    if len(e["loops"]) == 2:
+    if len(e["loops"]) >= 2:      # more than one opening: a multi-cell culvert, sizes of one cell
         iw, ih, ird = _size(e["loops"][1])
+        d["cells"] = len(e["loops"]) - 1
         if ird:
             d["inner_d"] = iw * k
         else:
             d["clear_w"], d["clear_h"] = iw * k, ih * k
-        d["wall"] = (w - iw) / 2 * k
+        d["wall"] = (min(p[0] for lp in e["loops"][1:] for p in lp) - min(p[0] for p in e["loops"][0])) * k
     return d
 
 
@@ -123,10 +126,10 @@ def num(v: float, n: int = 3) -> str:
 
 def build(solids: list[dict], k: float) -> list[dict]:
     """[{key, title, type, station, count, volume, by_material, barrel{...}, groups: [{name, count, volume, parts: [...]}]}]"""
-    out: dict[str, dict] = {}
+    out: dict[tuple, dict] = {}
     for s in solids:
-        key = " ".join(x for x in (s.get("structure"), s.get("station")) if x) or "Công trình"
-        c = out.setdefault(key, {"key": key, "structure": s.get("structure") or "", "type": "", "station": s.get("station") or "", "solids": []})
+        key = " ".join(x for x in (s.get("structure"), s.get("station")) if x) or "Chưa rõ công trình"
+        c = out.setdefault((cg.name_key(s.get("structure")), cg.station_key(s.get("station"))), {"key": key, "structure": s.get("structure") or "", "type": "", "station": s.get("station") or "", "solids": []})
         c["type"] = c["type"] or s.get("type") or ""
         c["solids"].append(s)
     for c in out.values():
@@ -170,24 +173,37 @@ def build(solids: list[dict], k: float) -> list[dict]:
             b.update({f: main[f] for f in ("clear_w", "clear_h", "inner_d", "outer_w", "outer_h", "outer_d", "wall") if f in main})
             b["volume"] = sum(p["volume"] for p in br)
             c["barrel"] = b
+        c["geo"] = cg.measure(c, k)
+        lanes = c["geo"].get("lanes", 1)
+        if c["barrel"].get("length") and lanes > 1:      # pipes side by side: the length of one row
+            c["barrel"]["length"] /= lanes
+        c["barrel"].update({f: c["geo"][f] for f in ("cells",) if c["barrel"] and c["geo"].get(f, 1) > 1})
+        if c["barrel"] and lanes > 1:
+            c["barrel"]["lanes"] = lanes
+        c["issues"] = cg.check(c)
         c["title"] = title(c)
-    return list(out.values())
+    big = float("inf")
+    return sorted(out.values(), key=lambda c: (not c["structure"] and not c["station"], cg.station_value(c["station"]) if cg.station_value(c["station"]) is not None else big, c["key"]))
 
 
 def title(c: dict) -> str:
     """'Cống hộp 4x4 Km8+423.31: 22 đốt x 2 m = 44 m, khẩu độ 4x4 m, thành 0,4 m'"""
     b, t = c["barrel"], []
     if b:
-        x = f"{b['segments']} đốt"
-        if b.get("segment_length"):
+        x = f"{b['segments']} đốt" + (f" ({b['lanes']} hàng)" if b.get("lanes") else "")
+        if b.get("lanes") and b.get("length"):
+            t.append(f"{x}, mỗi hàng {num(b['length'])} m")
+            x = ""
+        if x and b.get("segment_length"):
             x += f" x {num(b['segment_length'])} m"
-        if b.get("length"):
+        if x and b.get("length"):
             x += f" = {num(b['length'])} m"
-        t.append(x)
+        if x:
+            t.append(x)
         if "inner_d" in b:
             t.append(f"đường kính trong D{num(b['inner_d'])} m")
         elif "clear_w" in b:
-            t.append(f"khẩu độ {num(b['clear_w'])}x{num(b['clear_h'])} m")
+            t.append(f"khẩu độ {str(b['cells']) + ' khoang ' if b.get('cells') else ''}{num(b['clear_w'])}x{num(b['clear_h'])} m")
         if "wall" in b:
             t.append(f"thành {num(b['wall'])} m")
     return c["key"] + (": " + ", ".join(t) if t else "")
@@ -195,7 +211,8 @@ def title(c: dict) -> str:
 
 def slim(c: dict) -> dict:
     """For the table in the panel: the same tree with handles instead of solids."""
-    return {"title": c["title"], "key": c["key"], "type": c["type"], "station": c["station"], "count": c["count"], "volume": round(c["volume"], 3),
+    return {"title": c["title"], "key": c["key"], "structure": c["structure"], "geo": {f: round(v, 4) if isinstance(v, float) else v for f, v in c["geo"].items()}, "issues": c["issues"],
+            "handles": [s["handle"] for s in c["solids"]], "type": c["type"], "station": c["station"], "count": c["count"], "volume": round(c["volume"], 3),
             "by_material": {m: round(v, 3) for m, v in c["by_material"].items()}, "barrel": {f: round(v, 4) for f, v in c["barrel"].items()},
             "groups": [{"name": g["name"], "count": g["count"], "volume": round(g["volume"], 3),
                         "parts": [{"name": p["name"], "material": p["material"], "count": p["count"], "volume": round(p["volume"], 3),

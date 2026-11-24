@@ -18,6 +18,8 @@ Gọi `info` (đơn vị bản vẽ), rồi `export_ifc(path="IFC\\xem-truoc", p
 
 Cấu trúc file: công trình > nhóm (Thân cống, Móng thân cống, Cửa thượng lưu, Cửa hạ lưu) > bộ phận. `solid_info(units=...)` trả cây này kèm số đốt, chiều dài, khẩu độ hoặc đường kính, khối lượng: cho người dùng xem trước. `detail="part"` gộp bộ phận giống nhau thành một; `"solid"` tách từng khối. `unit_hint` khác đơn vị khai báo thì phải hỏi lại. Nhóm sai thì sửa bằng `props.group`.
 
+Mỗi cống trong `structures` có `geo` (cao độ đáy, độ dốc, phương vị, góc chéo, chiều dài thật; không tính được thì bỏ trống, lý do ở `notes`), `issues` (lỗi, cảnh báo) và `handles`. Nêu các cống có lỗi trước khi xuất. Nhiều cống: `groups=[handles của từng cống]` để chọn cống, `split=True` để mỗi cống một file. Khối chưa rõ cống: xem `suggestions`, hỏi rồi mới `tag_solids`.
+
 ## Bước 2. Thông tin phi hình học
 
 `solid_info` đọc tên, bộ phận, vật liệu, công trình, lý trình, loại và các thông tin thêm. Nêu ô còn trống; hỏi giá trị, không tự bịa. Cho xem bảng **cũ → mới**, đồng ý thì `tag_solids(rows=[...])` (một bước `UNDO`). `name` là Name trong IFC.

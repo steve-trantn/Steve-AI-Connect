@@ -8,7 +8,7 @@ import re
 import unicodedata
 import uuid
 
-from . import __version__, culvert, meta
+from . import __version__, culvert, culvert_geo, meta
 from .drawing import UserError, by_handle, ensure_layer, etype, g, iter_space, r3, vpt
 from .tools import C, done, editing, selection_handles, tool
 
@@ -89,8 +89,11 @@ def solid_info(handles: list[str] | None = None, from_layer: str = "", selection
     except Exception:
         hint = ""
     k = UNITS.get((hint or units).lower()) if units else None
-    return {"total": len(ents), "partial": len(ents) > len(items), "extra_fields": extra, "items": items, "unit_hint": hint,
-            "structures": [culvert.slim(c) for c in culvert.build([_record(e, k) for e in ents], k)] if k else []}
+    trees = culvert.build([_record(e, k) for e in ents], k) if k else []
+    lost = [c for c in trees if not c["structure"] and not c["station"]]
+    sug = culvert_geo.suggest([s for c in lost for s in c["solids"]], [c for c in trees if c not in lost], k) if lost else {}
+    return {"total": len(ents), "suggestions": sug, "partial": len(ents) > len(items), "extra_fields": extra, "items": items, "unit_hint": hint,
+            "structures": [culvert.slim(c) for c in trees]}
 
 
 @tool("write")
@@ -313,7 +316,7 @@ def _record(e, k) -> dict:
     return {"handle": g(e, "Handle"), "layer": g(e, "Layer") or "", "name": rec.get("name") or "", "part": part,
             "material": rec.get("material") or meta.guess_material(part) or "", "structure": str(props.pop("structure", "") or ""),
             "station": str(props.pop("station", "") or ""), "type": str(props.pop("type", "") or ""), "group": str(props.pop("group", "") or ""),
-            "extra": {str(a): v for a, v in props.items()}, "vol": (g(e, "Volume") or 0.0) * k ** 3, "geo": rec.get("geo"),
+            "extra": {str(a): v for a, v in props.items()}, "cen": [x * k for x in (g(e, "Centroid") or ())] or None, "vol": (g(e, "Volume") or 0.0) * k ** 3, "geo": rec.get("geo"),
             "near": not ("geo" in rec and meta.is_current(e, rec))}
 
 
@@ -379,7 +382,8 @@ def _geo(st: Step, node, k) -> tuple[str, str]:
 @tool()
 def export_ifc(path: str, schema: str = "IFC4", handles: list[str] | None = None, from_layer: str = "",
                units: str = "m", project: str = "", site: str = "", road: str = "", author: str = "",
-               selection_only: bool = False, preview: bool = False, detail: str = "part") -> dict:
+               selection_only: bool = False, preview: bool = False, detail: str = "part",
+               groups: list[list[str]] | None = None, split: bool = False) -> dict:
     """Export 3D solids to an IFC file with basic non-graphic data.
     schema: IFC4 or IFC4X3 (IFC 4.3: elements placed in an IfcRoad under the site).
     Geometry is exact (extrusions, booleans, clipping) for solids built with the Steve CAD tools; solids edited
@@ -390,7 +394,43 @@ def export_ifc(path: str, schema: str = "IFC4", handles: list[str] | None = None
     by material) > group (Thân cống, Móng thân cống, Cửa thượng lưu, Cửa hạ lưu; props.group overrides) > part.
     detail="part": equal parts are ONE element (e.g. 22 segments x 2 m); "solid": one element per solid. Elements are
     IfcPipeSegment(CULVERT), IfcWall, IfcSlab, IfcFooting or a proxy, with Pset_SteveCAD, Qto, material and colour.
+    Levels, slope, azimuth and skew of each culvert are computed from its solids (left out when they cannot be).
+    groups: export only these structures, each given by the handles of its solids (solid_info(...).structures[].handles).
+    split=True: one file per structure, named <path>_<structure>_<station>.ifc; existing files are never replaced.
     units = drawing units: m | mm | cm | ft | us-ft | inch."""
+    a = dict(schema=schema, units=units, project=project, site=site, road=road, author=author, detail=detail)
+    if preview or (not groups and not split):
+        return _export(path, handles=handles, from_layer=from_layer, selection_only=selection_only, preview=preview, **a)
+    if not split:
+        return _export(path, handles=[h for g_ in groups for h in g_], **a)
+    k = UNITS.get(units.lower())
+    if k is None:
+        raise UserError("units phải là m, mm, cm, ft, us-ft hoặc inch.")
+    d = C.drawings.target()
+    ents = [by_handle(d, h) for g_ in groups for h in g_] if groups else _scope(d, handles, from_layer, selection_only)
+    if not ents:
+        raise UserError("Không có khối 3D (solid) nào để xuất.")
+    full = os.path.abspath(path if os.path.isabs(path) else os.path.join(WORKSPACE, path))
+    stem = full[:-4] if full.lower().endswith(".ifc") else full
+    jobs, used = [], set()
+    for c in culvert.build([_record(e, k) for e in ents], k):
+        base = re.sub(r"[^A-Za-z0-9+._-]+", "-", ascii_name(c["key"])).strip("-.")[:80] or "cong"
+        nm, n = base, 2
+        while nm.lower() in used:
+            nm, n = f"{base}-{n}", n + 1
+        used.add(nm.lower())
+        jobs.append((f"{stem}_{nm}.ifc", [s["handle"] for s in c["solids"]]))
+    old = [os.path.basename(p) for p, _ in jobs if os.path.exists(p)]
+    if old:
+        raise UserError("Đã có file: " + ", ".join(old[:5]) + ". Chọn tên khác hoặc xoá file cũ.")
+    rs = [_export(p, handles=hs, **a) for p, hs in jobs]
+    return {"ok": True, "path": rs[0]["path"], "files": [r["path"] for r in rs], "schema": rs[0]["schema"], "elements": sum(r["elements"] for r in rs),
+            "exact": sum(r["exact"] for r in rs), "bounding_box_only": [h for r in rs for h in r["bounding_box_only"]],
+            "structures": {t: n for r in rs for t, n in r["structures"].items()}, "size_kb": round(sum(r["size_kb"] for r in rs), 1)}
+
+
+def _export(path, schema="IFC4", handles=None, from_layer="", units="m", project="", site="", road="", author="",
+            selection_only=False, preview=False, detail="part") -> dict:
     schema = schema.upper().replace(".", "").replace("_", "")
     sch = {"IFC4": "IFC4", "IFC43": "IFC4X3_ADD2", "IFC4X3": "IFC4X3_ADD2", "IFC4X3ADD2": "IFC4X3_ADD2"}.get(schema)
     if not sch:
@@ -474,7 +514,7 @@ def export_ifc(path: str, schema: str = "IFC4", handles: list[str] | None = None
             if v in (None, ""):
                 continue
             t = {"text": lambda: f"IFCLABEL({s_(str(v)[:255])})", "len": lambda: f"IFCLENGTHMEASURE({f_(v)})", "vol": lambda: f"IFCVOLUMEMEASURE({f_(v)})",
-                 "int": lambda: f"IFCINTEGER({int(v)})", "bool": lambda: f"IFCBOOLEAN({'.T.' if v else '.F.'})"}[kind]()
+                 "int": lambda: f"IFCINTEGER({int(v)})", "real": lambda: f"IFCREAL({f_(v)})", "bool": lambda: f"IFCBOOLEAN({'.T.' if v else '.F.'})"}[kind]()
             pv.append(st.add(f"IFCPROPERTYSINGLEVALUE({s_(n)},$,{t},$);"))
         if pv:
             ps = st.add(f"IFCPROPERTYSET('{ifc_guid()}',$,{s_(name)},$,({','.join(pv)}));")
@@ -542,7 +582,11 @@ def export_ifc(path: str, schema: str = "IFC4", handles: list[str] | None = None
         top = assembly(c["key"], c["title"], "CULVERT" if b else (c["type"] or "Công trình"), gels)
         pset(top, "Pset_SteveCAD_CongTrinh", [("Công trình", c["structure"], "text"), ("Loại", c["type"], "text"), ("Lý trình", c["station"], "text"), ("Số đốt", b.get("segments"), "int"),
              ("Chiều dài một đốt", b.get("segment_length"), "len"), ("Chiều dài thân cống", b.get("length"), "len"), ("Khẩu độ rộng", b.get("clear_w"), "len"), ("Khẩu độ cao", b.get("clear_h"), "len"),
-             ("Đường kính trong", b.get("inner_d"), "len"), ("Đường kính ngoài", b.get("outer_d"), "len"), ("Chiều dày thành", b.get("wall"), "len"), ("Tổng số khối", c["count"], "int"),
+             ("Đường kính trong", b.get("inner_d"), "len"), ("Đường kính ngoài", b.get("outer_d"), "len"), ("Chiều dày thành", b.get("wall"), "len"), ("Số khoang", c["geo"].get("cells"), "int"), ("Số hàng ống", c["geo"].get("lanes"), "int"),
+             ("Chiều dài thật", c["geo"].get("length_true"), "len"), ("Chiều dài trên mặt bằng", c["geo"].get("length_plan"), "len"),
+             ("Cao độ đáy trong thượng lưu", c["geo"].get("z_up"), "len"), ("Cao độ đáy trong hạ lưu", c["geo"].get("z_down"), "len"), ("Độ dốc (%)", c["geo"].get("slope"), "real"),
+             ("Phương vị trục cống (độ)", c["geo"].get("azimuth"), "real"), ("Góc chéo (độ)", c["geo"].get("skew"), "real"), ("Góc chéo tính theo", c["geo"].get("skew_from"), "text"),
+             ("Ghi chú tính toán", "; ".join(c["geo"]["notes"]), "text"), ("Tổng số khối", c["count"], "int"),
              ("Tổng thể tích", c["volume"], "vol")] + [("Thể tích " + m, v, "vol") for m, v in sorted(c["by_material"].items())])
         qto(top, c["volume"], None, b.get("length"))
         tops.append(top)

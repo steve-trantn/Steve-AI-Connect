@@ -1,6 +1,6 @@
-# Quy ước mô hình cống và phương án xuất IFC (dự kiến v1.8.7)
+# Quy ước mô hình cống và xuất IFC (từ v1.8.7)
 
-Trạng thái: **bản thiết kế, chưa lập trình.** Phần "Hiện tại" là hành vi đã chạy thử của v1.8.6.
+Phần 2 là hành vi cũ của v1.8.6, giữ lại để biết vì sao có quy ước.
 
 ## 1. Quy ước khi dựng mô hình
 
@@ -39,7 +39,7 @@ Trạng thái: **bản thiết kế, chưa lập trình.** Phần "Hiện tại"
 10. Sao chép cống sang vị trí khác thì **đổi ngay** Công trình và Lý trình cho cả bộ.
 11. Layer (không bắt buộc, để dễ chọn): `<CÔNG TRÌNH>_<LÝ TRÌNH>_<BỘ PHẬN>`, tạo bằng `organize_layers`.
 
-## 2. Hiện tại (v1.8.6, đã chạy thử)
+## 2. Trước đây (v1.8.6)
 
 | Trường hợp | Kết quả |
 |---|---|
@@ -49,7 +49,7 @@ Trạng thái: **bản thiết kế, chưa lập trình.** Phần "Hiện tại"
 | Hai cống cùng tên, quên lý trình | **Sai:** nhập thành một cống, số đốt và chiều dài cộng dồn |
 | Thứ tự trong file | Theo thứ tự khối, không theo lý trình |
 
-## 3. Phương án v1.8.7
+## 3. Cách làm từ v1.8.7
 
 ### 3.1 Số liệu tính từ khối, ghi ở cấp cống
 
@@ -86,8 +86,8 @@ Thiếu Công trình/Lý trình/Tên bộ phận; mã trùng; lý trình sai m�
 
 Cống dốc và cống chéo với số liệu biết trước; hai cống cùng khẩu độ; lý trình viết khác kiểu; copy cống quên đổi mã; thiếu cửa thượng lưu; thân gấp khúc; khối sửa tay; 100 cống; IFC4 và IFC4X3 đều 0 lỗi ifcopenshell.
 
-## 4. Chưa quyết
+## 4. Đã chốt
 
-1. Cống nhiều khoang (2x4x4): một cống, số khoang là thuộc tính, hay mỗi khoang một nhóm thân?
-2. Cống dọc và hố ga: cùng bảng này hay bảng riêng (mạng lưới)?
-3. Mặc định một file chung hay mỗi cống một file?
+1. Cống nhiều khoang: một cống, số khoang là thuộc tính. Nhiều hàng ống song song: một cống, có số hàng ống.
+2. Cống dọc và hố ga: bảng riêng, làm sau.
+3. Mặc định xuất một file chung.
