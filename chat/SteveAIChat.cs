@@ -48,7 +48,7 @@ class ChatForm : Form
     readonly string ps1;
     readonly IntPtr parent = IntPtr.Zero;
     readonly string startClient = "", startSkill = "", snap = "";
-    string docName = "";
+    string docName = "", cad = "zwcad"; int cadPid = 0; Process tools;
     Pty pty; int cols = 100, rows = 30, run = 0; bool closing;
 
     public ChatForm(string[] a)
@@ -59,6 +59,8 @@ class ChatForm : Form
             if (k == "-parent") parent = new IntPtr(long.Parse(v));
             else if (k == "-client") startClient = v;
             else if (k == "-skill") startSkill = v;
+            else if (k == "-cad") cad = v == "autocad" ? "autocad" : "zwcad";
+            else if (k == "-pid") { int n; if (int.TryParse(v, out n)) cadPid = n; }
             else if (k == "-snapshot") snap = v;      // tests: save a picture of the page and close
         }
         ps1 = Path.GetFullPath(Path.Combine(appDir, @"..\..\app\SteveAI.ps1"));
@@ -71,7 +73,7 @@ class ChatForm : Form
         if (parent != IntPtr.Zero) { FormBorderStyle = FormBorderStyle.None; ShowInTaskbar = false; }
         web.Dock = DockStyle.Fill; web.DefaultBackgroundColor = BackColor; Controls.Add(web);
         Load += delegate { Init(); };
-        FormClosing += delegate { closing = true; Stop(); };
+        FormClosing += delegate { closing = true; Stop(); StopTools(); };
     }
     protected override CreateParams CreateParams
     {
@@ -155,7 +157,7 @@ class ChatForm : Form
                 RunPs("-Info", (r, err) =>
                 {
                     if (err != null) { Post(new { t = "error", text = err }); return; }
-                    r["t"] = "info"; r["panel"] = parent != IntPtr.Zero; r["doc"] = docName; r["client"] = startClient; r["skill"] = startSkill; Post(r);
+                    r["t"] = "info"; r["panel"] = parent != IntPtr.Zero; r["doc"] = docName; r["tables"] = cadPid != 0; r["client"] = startClient; r["skill"] = startSkill; Post(r);
                 });
                 break;
             case "start": Begin((string)m["client"], (string)m["skill"], m.ContainsKey("resume") && true.Equals(m["resume"])); break;
@@ -172,6 +174,8 @@ class ChatForm : Form
                 { var p = pty; if (p != null) p.Resize(cols, rows); }
                 break;
             case "link": OpenLink((string)m["u"]); break;
+            case "tool": Tool(json.Serialize(new { id = m["id"], name = m["name"], args = m["args"] })); break;
+            case "open": OpenExcel((string)m["path"]); break;
             case "snap": SaveSnap(); break;
         }
     }
@@ -209,6 +213,62 @@ class ChatForm : Form
             try { if (!closing) BeginInvoke((Action)delegate { done(res, err); }); } catch { }
         });
         th.IsBackground = true; th.Start();
+    }
+
+    // ---------- tables without AI: server\panel.py on the CAD that hosts this panel ----------
+    readonly object toolGate = new object();
+    void Tool(string line)
+    {
+        ThreadPool.QueueUserWorkItem(delegate
+        {
+            try
+            {
+                lock (toolGate)
+                {
+                    if (tools == null || tools.HasExited) StartTools();
+                    byte[] b = new UTF8Encoding(false).GetBytes(line + "\n");
+                    tools.StandardInput.BaseStream.Write(b, 0, b.Length); tools.StandardInput.BaseStream.Flush();
+                }
+            }
+            catch (Exception ex) { ToolFail("Không chạy được phần xử lý: " + ex.Message); }
+        });
+    }
+    void ToolFail(string text) { try { if (!closing) BeginInvoke((Action)delegate { Post(new { t = "toolfail", text = text }); }); } catch { } }
+    void StartTools()
+    {
+        string home = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SteveCADConnect");
+        string py = Path.Combine(home, @"venv\Scripts\python.exe"), script = Path.Combine(home, @"server\panel.py");
+        if (!File.Exists(py) || !File.Exists(script)) throw new Exception("chưa kết nối. Mở Steve AI Connect, bước 1, bấm Kết nối tự động.");
+        var si = new ProcessStartInfo(py, "-I \"" + script + "\" --cad " + cad + " --pid " + cadPid);
+        si.UseShellExecute = false; si.CreateNoWindow = true; si.RedirectStandardInput = true; si.RedirectStandardOutput = true; si.StandardOutputEncoding = Encoding.UTF8;
+        var p = Process.Start(si); tools = p;
+        var th = new Thread(delegate()
+        {
+            try
+            {
+                string line; var big = new JavaScriptSerializer(); big.MaxJsonLength = int.MaxValue;
+                while ((line = p.StandardOutput.ReadLine()) != null)
+                {
+                    var o = big.Deserialize<Dictionary<string, object>>(line); o["t"] = "toolres"; string j = big.Serialize(o);
+                    if (!closing) BeginInvoke((Action)delegate { if (!closing && web.CoreWebView2 != null) web.CoreWebView2.PostWebMessageAsJson(j); });
+                }
+            }
+            catch { }
+            if (!closing) ToolFail("Phần xử lý đã dừng. Bấm lại để chạy lại.");
+        });
+        th.IsBackground = true; th.Start();
+    }
+    void StopTools() { try { if (tools != null && !tools.HasExited) tools.Kill(); } catch { } }
+    // only the Excel files these tables wrote
+    void OpenExcel(string path)
+    {
+        try
+        {
+            string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), @"Steve-CAD-AI\Excel") + "\\";
+            string full = Path.GetFullPath(path);
+            if (full.StartsWith(dir, StringComparison.OrdinalIgnoreCase) && full.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) && File.Exists(full)) Process.Start(full);
+        }
+        catch { }
     }
 
     void Begin(string client, string skill, bool resume)

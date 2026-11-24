@@ -9,7 +9,7 @@ import zipfile
 from xml.sax.saxutils import escape
 
 from . import tools
-from .drawing import Drawings, UserError, area_of, as_list, count_matching, etype, g, iter_space, length_of, r3, run_cmd, text_of
+from .drawing import Drawings, UserError, area_of, as_list, bbox, count_matching, etype, g, iter_space, length_of, r3, run_cmd, text_of
 from .tools import C, doc, done, editing, entities, tool
 
 WORKSPACE = os.path.join(os.path.expanduser("~"), "Steve-CAD-AI")
@@ -221,7 +221,7 @@ def lisp_test(path: str, run: str = "", allow_danger: bool = False) -> dict:
 
 # ---------------------------------------------------------------- audit / quantities
 @tool()
-def audit(max_objects: int = 2000) -> dict:
+def audit(max_objects: int = 2000, max_items: int = 40) -> dict:
     """Read-only health check of the drawing: objects on layer 0 / Defpoints, forced colours, zero-length or tiny lines,
     dimensions with typed-over values, empty text, layers with objects that are off / frozen, unused layers, missing xrefs, duplicated
     layer names differing only by case/spaces. Use find_duplicates for overlapping objects. Nothing is changed."""
@@ -258,7 +258,7 @@ def audit(max_objects: int = 2000) -> dict:
             base = g(d, "Path") or ""
             if pth and not os.path.exists(pth) and not os.path.exists(os.path.join(base, pth)):
                 xref.append({"name": g(b, "Name"), "path": pth})
-    cut = lambda a: {"count": len(a), "items": a[:40]}   # noqa: E731
+    cut = lambda a: {"count": len(a), "items": a[:max_items]}   # noqa: E731
     return {"drawing": g(d, "Name"), "objects": total, "scanned": min(total, max_objects), "partial": total > max_objects,
             "types": types, "on_layer_0": by_layer.get("0", 0), "on_defpoints": by_layer.get("Defpoints", 0) + by_layer.get("DEFPOINTS", 0),
             "forced_color": cut(forced), "zero_length": cut(zero), "dim_override": cut(dims), "empty_text": cut(empty),
@@ -266,6 +266,21 @@ def audit(max_objects: int = 2000) -> dict:
             "layers_without_model_objects": [n for n, _, _ in layers if n not in by_layer and n not in ("0", "Defpoints")][:80] if total <= max_objects else None,
             "similar_layer_names": [v for v in norm.values() if len(v) > 1], "missing_xrefs": xref,
             "note": "layers_without_model_objects chỉ tính không gian mô hình; layer có thể đang dùng trong block hoặc layout."}
+
+
+@tool()
+def zoom_to(handles: list[str]) -> dict:
+    """Zoom the active tab to these model-space objects (with some margin)."""
+    d = doc()
+    tools.need_active(d, "zoom")
+    boxes = [b for b in (bbox(e) for e in entities(d, handles)) if b]
+    if not boxes:
+        raise UserError("Không xác định được vị trí đối tượng.")
+    lo = [min(b["min"][i] for b in boxes) for i in (0, 1)]
+    hi = [max(b["max"][i] for b in boxes) for i in (0, 1)]
+    m = max(hi[0] - lo[0], hi[1] - lo[1], 1.0) * 0.6
+    C.conn.app().ZoomWindow(tools.vpt([lo[0] - m, lo[1] - m]), tools.vpt([hi[0] + m, hi[1] + m]))
+    return done(d)
 
 
 @tool()
@@ -313,12 +328,14 @@ def quantities(layer: str = "", window: list[float] | None = None, selection_onl
 def _blocks_with_attributes(d, block: str, limit: int):
     """(space name, block reference) of every reference with attributes, in model space and all layouts."""
     n = 0
-    for i in range(d.Layouts.Count):
-        lay = d.Layouts.Item(i)
-        space = lay.Block
-        name = "Model" if g(lay, "ModelType") else g(lay, "Name")
-        for k in range(space.Count):
-            e = space.Item(k)
+    def spaces():
+        yield "Model", iter_space(d, ["BlockReference"])   # filtered inside the CAD: model space can be huge
+        for i in range(d.Layouts.Count):
+            lay = d.Layouts.Item(i)
+            if not g(lay, "ModelType"):
+                yield g(lay, "Name"), (lay.Block.Item(k) for k in range(lay.Block.Count))
+    for name, ents in spaces():
+        for e in ents:
             if etype(e) != "BlockReference" or not g(e, "HasAttributes"):
                 continue
             nm = g(e, "EffectiveName") or g(e, "Name") or ""

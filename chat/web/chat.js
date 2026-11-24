@@ -1,7 +1,7 @@
 'use strict';
 const host = window.chrome.webview, $ = id => document.getElementById(id);
 const post = m => host.postMessage(m);
-let size = +(localStorage.font || 13), running = false, client = '', skills = [], inPanel = false, docName = '';
+let size = +(localStorage.font || 13), running = false, client = '', skills = [], inPanel = false, tables = false, docName = '';
 const term = new Terminal({ fontFamily: 'Cascadia Mono, Consolas, monospace', fontSize: size, cursorBlink: true, scrollback: 8000,
   theme: { background: '#0d1421', foreground: '#e6edf6', cursor: '#60a5fa', selectionBackground: '#2b4a7d' },
   linkHandler: { activate: (e, u) => post({ t: 'link', u }) } });
@@ -87,7 +87,8 @@ addEventListener('blur', () => { pop.hidden = true; });
 // prompts are put in the box so the person can finish the sentence before sending
 const fill = p => { box.value = p; grow(); box.focus(); box.setSelectionRange(p.length, p.length); };
 $('add').onclick = () => popup($('add'), [
-  { head: 'Skill' }, ...skills.map(s => ({ text: s.title || s.name, sub: s.description, act: () => runSkill(s.name) })),
+  ...(tables ? [{ head: 'Bảng (không tốn lượt AI)' }, ...skills.filter(s => Panels.has(s.name)).map(s => ({ text: s.title, act: () => Panels.open(s.name) }))] : []),
+  { head: 'Skill (nhờ AI)' }, ...skills.filter(s => !tables || !Panels.has(s.name)).map(s => ({ text: s.title || s.name, sub: s.description, act: () => runSkill(s.name) })),
   { head: 'Câu gợi ý' }, ...[['Với đối tượng đang chọn, hãy…', 'Với các đối tượng tôi đang chọn trong CAD, hãy '],
     ['Liệt kê layer', 'Bản vẽ đang mở có những layer nào, mỗi layer bao nhiêu đối tượng?'], ['Đếm block', 'Đếm số lượng từng loại block trong bản vẽ.'],
     ['Tổng chiều dài, diện tích', 'Tính tổng chiều dài và diện tích các polyline tôi đang chọn.'],
@@ -108,19 +109,24 @@ host.addEventListener('message', ev => {
   else if (m.t === 'info') {
     const ok = m.clients.filter(c => c.ok);
     $('client').replaceChildren(...m.clients.map(c => { const o = document.createElement('option'); o.value = c.id; o.textContent = c.label; o.disabled = !c.ok; return o; }));
-    skills = m.skills; inPanel = !!m.panel; docName = m.doc || '';
+    skills = m.skills; inPanel = !!m.panel; tables = !!m.tables; docName = m.doc || '';
     client = [m.client, m.default].find(x => ok.some(c => c.id === x)) || (ok[0] && ok[0].id) || '';
     $('client').value = client;
     if (!client) { state('Máy chưa có trợ lý AI. Mở Steve AI Connect để kết nối.', 'err'); return; }
-    start(m.skill); post({ t: 'snap' });
+    // a skill that has a table opens the table: instant, and no AI is used
+    if (tables && Panels.open(m.skill)) start(); else start(m.skill);
+    post({ t: 'snap' });
   }
   else if (m.t === 'started') { setRun(true); client = m.client; $('client').value = client; state(docName, 'on'); }
+  else if (m.t === 'toolres') Panels.reply(m);
+  else if (m.t === 'toolfail') Panels.fail(m.text);
   else if (m.t === 'doc') { docName = m.name; if (running) state(docName, 'on'); }
   else if (m.t === 'files') {   // dropped files: their paths go into the box
     const p = m.paths.map(x => '"' + x + '"').join(' ');
     if (p) { box.value = (box.value ? box.value.trimEnd() + ' ' : '') + p + ' '; grow(); box.focus(); }
   }
   else if (m.t === 'ask') {   // a command in the CAD asked for an assistant and / or a skill while the panel is open
+    if (tables && Panels.open(m.skill)) return;
     if (m.client && m.client !== client) { client = m.client; $('client').value = client; start(m.skill); }
     else if (m.skill) runSkill(m.skill);
     box.focus();
@@ -133,5 +139,3 @@ for (const n of ['dragover', 'drop']) addEventListener(n, e => {
   e.preventDefault(); e.stopPropagation();
   if (n === 'drop' && e.dataTransfer.files.length) host.postMessageWithAdditionalObjects({ t: 'files' }, [...e.dataTransfer.files].slice(0, 10));
 }, true);
-setRun(false);
-post({ t: 'ready', cols: term.cols, rows: term.rows });

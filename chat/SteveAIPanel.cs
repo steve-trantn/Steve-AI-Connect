@@ -31,6 +31,11 @@ namespace SteveAI
 {
     public class PanelCommands
     {
+#if ACAD
+        const string Cad = "autocad";
+#else
+        const string Cad = "zwcad";
+#endif
         static PaletteSet ps; static Panel host; static Process chat;
 
         [LispFunction("steveai-show")]
@@ -157,7 +162,7 @@ namespace SteveAI
             ps.KeepFocus = true;
             if (chat == null || chat.HasExited)
             {
-                var si = new ProcessStartInfo(Exe, "-Parent " + host.Handle.ToInt64() + (client != "" ? " -Client " + client : "") + (skill != "" ? " -Skill " + skill : ""));
+                var si = new ProcessStartInfo(Exe, "-Parent " + host.Handle.ToInt64() + " -Cad " + Cad + " -Pid " + Process.GetCurrentProcess().Id + (client != "" ? " -Client " + client : "") + (skill != "" ? " -Skill " + skill : ""));
                 si.UseShellExecute = false; si.RedirectStandardInput = true; si.RedirectStandardOutput = true;
                 chat = Process.Start(si);
                 chat.OutputDataReceived += delegate(object s, DataReceivedEventArgs e)

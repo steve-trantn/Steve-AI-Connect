@@ -53,8 +53,8 @@ Kết nối xong có thể đóng công cụ, khởi động lại máy cũng kh
 
 | CAD | MCP server | Yêu cầu | Chi tiết |
 |---|---|---|---|
-| **ZWCAD** | **Steve CAD MCP** (viết riêng, [server/](server)), 73 tool | ZWCAD 2020+; Python tự cài nếu thiếu | [CAD/ZWCAD](CAD/ZWCAD) |
-| **AutoCAD** | **Steve CAD MCP**, cùng 73 tool | AutoCAD 2018+ (bản đầy đủ, không phải LT) | [CAD/AutoCAD](CAD/AutoCAD) |
+| **ZWCAD** | **Steve CAD MCP** (viết riêng, [server/](server)), 74 tool | ZWCAD 2020+; Python tự cài nếu thiếu | [CAD/ZWCAD](CAD/ZWCAD) |
+| **AutoCAD** | **Steve CAD MCP**, cùng 74 tool | AutoCAD 2018+ (bản đầy đủ, không phải LT) | [CAD/AutoCAD](CAD/AutoCAD) |
 | **ADSCivil** | `AdsMcpServer.exe` có sẵn trong ADSCivil 2027, khoảng 290 tool nghiệp vụ | ADSCivil NW 2027 For ZWCAD 2026 | [CAD/ADSCivil](CAD/ADSCivil) |
 
 Máy có phần mềm nào thì ô đó mới bật. Nối nhiều CAD cùng lúc được: mỗi CAD là một server riêng (`zwcad`, `autocad`, `adscivil`).
@@ -81,6 +81,7 @@ Chi tiết: [server/README.md](server/README.md).
 
 - **Bước 2 trên thẻ Bắt đầu:** khởi động ZWCAD / AutoCAD / ADSCivil. Máy cài nhiều phiên bản thì chọn bản trong danh sách xổ xuống; công cụ nhớ bản đã chọn cho lần sau. Logo là logo thật lấy từ phần mềm đã cài; thẻ có viền xanh lá là CAD đang chạy.
 - **Khung chat:** trong ZWCAD, AutoCAD / Civil 3D (2021-2024, 2026-2027), gõ `AI` là khung Steve AI tự gắn cạnh bản vẽ (`STEVEAIPANEL` để ẩn/hiện). Từ công cụ, shortcut hoặc AutoCAD 2025 thì khung chat mở thành cửa sổ riêng. Cần Windows 10 1809+ và Microsoft Edge WebView2; thiếu thì dùng cửa sổ terminal như trước (hoặc tự chọn trong ⚙ Tùy chọn nâng cao).
+- **Bảng không cần AI:** *Kiểm tra bản vẽ*, *Bóc khối lượng*, *Khung tên* mở thành bảng ngay trong khung gắn vào CAD (ribbon hoặc nút **＋**): quét, zoom, sửa, xuất Excel, không tốn lượt AI. Việc khó hơn thì bấm **Nhờ AI** trong bảng.
 - **Mở Steve AI:** mở cửa sổ Claude Code / ChatGPT Codex / Gemini CLI đã nối sẵn với CAD, có thể chọn kèm một skill (ví dụ `cong-3d`).
 - **Trong ZWCAD / AutoCAD:** tab ribbon **Steve AI**, hoặc gõ lệnh `AI` (mở ngay trợ lý), `STEVEAI` (chọn trợ lý), `STEVEAI-SKILL` (chạy skill), `AI-CONG-3D`, `STEVECAD` (mở công cụ này). Lệnh được nạp tự động mỗi khi mở CAD.
 - Shortcut **Steve AI** trên Desktop mở thẳng cửa sổ AI.
