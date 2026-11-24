@@ -299,6 +299,12 @@ $miAuto = New-Object Windows.Forms.ToolStripMenuItem 'Tự động cập nhật 
 $miAuto.Checked = [bool](Get-Setting 'AutoUpdate' $false); [void]$menu.Items.Add($miAuto)
 $miAuto.add_Click({ Set-Setting 'AutoUpdate' ([bool]$miAuto.Checked) })
 $miAbout = New-Object Windows.Forms.ToolStripMenuItem 'Giới thiệu & ghi nguồn…'; $miAbout.ForeColor = $Pal.text; [void]$menu.Items.Add($miAbout)
+$miDiag = New-Object Windows.Forms.ToolStripMenuItem 'Chép thông tin chẩn đoán (gửi hỗ trợ)'; $miDiag.ForeColor = $Pal.text; [void]$menu.Items.Add($miDiag)
+$miDiag.add_Click({
+  $menu.Close(); $form.Cursor = 'WaitCursor'
+  try { [Windows.Forms.Clipboard]::SetText((Get-Diagnostics)); $t = 'Đã chép. Dán (Ctrl+V) vào Zalo hoặc email để gửi hỗ trợ. Không có thông tin cá nhân hay tên bản vẽ.' } catch { $t = $_.Exception.Message } finally { $form.Cursor = 'Default' }
+  [void][Windows.Forms.MessageBox]::Show($form, $t, $script:AppName, 'OK', 'Information')
+})
 $miAbout.add_Click({ $menu.Close(); Show-About })
 $bUninstall.ForeColor = $Pal.red; [void]$menu.Items.Add($bUninstall)
 $menu.add_Closing({ param($s, $e) if ($e.CloseReason -eq 'ItemClicked') { $e.Cancel = $true } })   # keep open while ticking options
@@ -989,7 +995,16 @@ $bUninstall.add_Click({
 
 # keep the running state on the launch cards current
 $timer = New-Object Windows.Forms.Timer; $timer.Interval = 3000
-$timer.add_Tick({ if (-not $script:Busy) { try { Update-RunState } catch {} } })
+$script:LiveTick = 0
+$timer.add_Tick({
+  if ($script:Busy) { return }
+  try { Update-RunState } catch {}
+  # every 15 s: a ZWCAD that runs without the Steve AI menu gets it
+  $script:LiveTick++
+  if (-not $env:STEVECAD_SELFTEST -and $script:LiveTick % 5 -eq 2) {
+    try { if ((Update-RunningZwcad) -eq 'ok') { Write-Log 'ZWCAD đang mở: đã nạp lệnh AI và tab ribbon Steve AI.' 'ok' } } catch {}
+  }
+})
 
 $form.add_HandleCreated({
   if ($script:Dark) { try { $v = 1; [void][SteveCad.Win]::DwmSetWindowAttribute($form.Handle, 20, [ref]$v, 4) } catch {} }

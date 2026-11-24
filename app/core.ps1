@@ -734,15 +734,14 @@ function Remove-CadAddon {
 # ZWCAD / AutoCAD write their in-memory Startup Suite back to the registry when they close, so an entry
 # added while the CAD was open is lost. Put it back when that CAD is not running (GUI start, before Start-Cad).
 function Repair-CadAddon {
-  if (-not (Test-Path $script:CadLisp)) { return }
+  # commands and ribbon for every CAD on this PC, also before anything is connected (the tables need no assistant)
+  if (-not (Test-Path $script:CadLisp)) { Write-CadLisp }
   # installs from before SteveAI.mnl existed: write it (with the current lsp / menu) so AI loads with the menu
   if (-not (Test-Path ($script:CadMenu -replace '\.cuix$', '.mnl'))) { try { Write-CadLisp } catch {} }
-  $cads = @(Get-Setting 'CadAddon' @() | Where-Object { $_ })
-  if (-not $cads) {   # the list was lost: every CAD that is connected to an assistant
-    $con = Get-Connections
-    $cads = @($script:ClientList | ForEach-Object { $con[$_] } | ForEach-Object { if ($_ -eq 'adscivil') { 'zwcad' } else { $_ } } | Where-Object { $_ -in 'zwcad', 'autocad' } | Select-Object -Unique)
-    if ($cads) { Set-Setting 'CadAddon' $cads }
-  }
+  $st = Get-CadStatus
+  $cads = @(@('zwcad', 'autocad') | Where-Object { $st[$_].ok })
+  if (-not $cads) { return }
+  Set-Setting 'CadAddon' $cads
   foreach ($cad in $cads) {
     if ($cad -eq 'autocad') {
       try {
@@ -762,6 +761,44 @@ function Repair-CadAddon {
     foreach ($k in $miss) { Set-StartupList $k (@(Get-StartupList $k) + $script:CadLisp) }
     Write-Log "Đã đăng ký lại lệnh AI cho $($script:CadLabel[$cad])." 'detail'
   }
+}
+# A running ZWCAD without the Steve AI menu: load it there, once per ZWCAD session. The CAD remembers the menu, and the menu loads
+# the commands (SteveAI.mnl), so this also works when the Startup Suite entry was lost. Returns '' (nothing to do), 'ok' or 'busy'.
+$script:LiveDone = @{}
+function Update-RunningZwcad {
+  if (-not (Test-Path $script:CadLisp)) { return '' }
+  foreach ($p in @(Get-CadProcess 'zwcad' | Where-Object { $_.MainWindowHandle -ne [IntPtr]::Zero })) {
+    if ($script:LiveDone[$p.Id] -or ((Get-Date) - $p.StartTime).TotalSeconds -lt 25) { continue }
+    try {
+      $app = [Runtime.InteropServices.Marshal]::GetActiveObject('ZWCAD.Application')
+      foreach ($mg in @($app.MenuGroups)) { if ($mg.Name -eq 'STEVEAI') { $script:LiveDone[$p.Id] = 'ok'; return '' } }
+      $doc = $app.ActiveDocument
+      if (-not $doc -or [string]$doc.GetVariable('CMDNAMES') -ne '') { return 'busy' }
+      $script:LiveDone[$p.Id] = 'ok'
+      $doc.SendCommand("(load `"$($script:CadLisp -replace '\\', '/')`") ")
+      return 'ok'
+    } catch { return 'busy' }
+  }
+  return ''
+}
+
+# what support needs to know; no personal data (no e-mail, name, phone, drawing names)
+function Get-Diagnostics {
+  $o = @("Steve AI Connect $($script:Version)", "Windows $([Environment]::OSVersion.Version) 64-bit=$([Environment]::Is64BitOperatingSystem)")
+  $st = Get-CadStatus; foreach ($c in $script:CadList) { $o += "CAD $c`: $($st[$c].info)" }
+  $con = Get-Connections; foreach ($c in $script:ClientList) { $o += "AI $c`: $(@($con[$c]) -join ',')" }
+  $o += "lisp=$(Test-Path $script:CadLisp) cuix=$(Test-Path $script:CadMenu) mnl=$(Test-Path ($script:CadMenu -replace '\.cuix$', '.mnl')) venv=$(Test-Path $script:VenvPy) server=$(Test-Path (Join-Path $script:ServerDir 'panel.py')) bundle=$(Test-Path $script:AcadBundle)"
+  $o += "chat=$(Test-ChatWindow) terminal=$(Get-Setting 'UseTerminal' $false) trust=$(Get-Setting 'TrustAcad' $null) registered=$([bool](Get-Setting 'Account'))"
+  foreach ($k in Get-StartupKeys 'zwcad') { $o += "ZW startup $(($k -replace '.*\\ZWSOFT\\', '') -replace '\\Dialogs.*', ''): $(@(Get-StartupList $k).Count) muc, SteveAI=$([bool](@(Get-StartupList $k) -match 'SteveAI\.lsp$'))" }
+  foreach ($p in @(Get-Process ZWCAD, acad -ErrorAction SilentlyContinue)) {
+    $dll = ''; try { $dll = @($p.Modules | Where-Object { $_.ModuleName -like 'SteveAI*' } | ForEach-Object { $_.ModuleName }) -join ',' } catch { $dll = 'khong doc duoc' }
+    $o += "dang chay: $($p.ProcessName) $($p.FileVersion) dll=[$dll]"
+  }
+  try {
+    $app = [Runtime.InteropServices.Marshal]::GetActiveObject('ZWCAD.Application')
+    $o += "ZWCAD COM $($app.Version) menu STEVEAI=$([bool](@($app.MenuGroups) | Where-Object { $_.Name -eq 'STEVEAI' })) workspace=$($app.ActiveDocument.GetVariable('WSCURRENT'))"
+  } catch { $o += "ZWCAD COM: $($_.Exception.Message)" }
+  return ($o -join "`r`n")
 }
 function Test-CadAddon([string]$cad) {
   if ($cad -eq 'autocad') { return (Test-Path (Join-Path $script:AcadBundle 'PackageContents.xml')) }
