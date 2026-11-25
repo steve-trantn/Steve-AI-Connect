@@ -103,6 +103,10 @@ function Find-Exe([string]$name) {
   Update-PathEnv
   $c = Get-Command $name -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
   if ($c) { return $c.Source }
+  # just installed: the folders of the official installers, before the new PATH reaches this session
+  foreach ($d in "$env:USERPROFILE\.local\bin", "$env:LOCALAPPDATA\Microsoft\WinGet\Links") {
+    $f = Join-Path $d "$name.exe"; if (Test-Path -LiteralPath $f) { return $f }
+  }
   return $null
 }
 
@@ -522,9 +526,33 @@ function Remove-FromClaudeCode([string]$name) {
   Invoke-Exe $cl @('mcp', 'remove', '-s', 'user', $name) -Quiet | Out-Null
 }
 
+# official packages only: winget (checks the publisher's SHA-256), else Anthropic's own installer. No admin rights.
+function Install-WithWinget([string]$id) {
+  $wg = Find-Exe 'winget'; if (-not $wg) { return $false }
+  Invoke-Exe $wg @('install', '--id', $id, '-e', '--source', 'winget', '--silent', '--disable-interactivity', '--accept-source-agreements', '--accept-package-agreements') | Out-Null
+  return $true
+}
+function Install-ClaudeCode {
+  if (Find-Exe 'claude') { return }
+  Write-Log '  Đang cài Claude Code (từ kho chính thức của Microsoft winget, khoảng 1-3 phút)...'
+  [void](Install-WithWinget 'Anthropic.ClaudeCode')
+  if (-not (Find-Exe 'claude')) {
+    Write-Log '  Thử bộ cài chính thức của Anthropic (claude.ai/install.ps1)...'
+    Invoke-Exe (Join-Path $PSHOME 'powershell.exe') @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', '[Net.ServicePointManager]::SecurityProtocol = 3072; Invoke-RestMethod https://claude.ai/install.ps1 | Invoke-Expression') | Out-Null
+  }
+  if (-not (Find-Exe 'claude')) { throw 'Chưa cài được Claude Code (kiểm tra Internet, phần mềm diệt virus). Tải tại claude.com/claude-code rồi mở lại công cụ.' }
+  Write-Log '  Đã cài Claude Code.' 'ok'
+}
+function Install-CodexCli {
+  if (Find-Codex) { return }
+  Write-Log '  Đang cài ChatGPT Codex (từ kho chính thức của Microsoft winget, khoảng 1-3 phút)...'
+  if (-not (Install-WithWinget 'OpenAI.Codex')) { throw 'Máy không có winget. Cài app Codex từ Microsoft Store rồi mở lại công cụ.' }
+  if (-not (Find-Codex)) { throw 'Chưa cài được Codex (kiểm tra Internet). Cài app Codex từ Microsoft Store rồi mở lại công cụ.' }
+  Write-Log '  Đã cài ChatGPT Codex.' 'ok'
+}
 function Install-GeminiCli {
   if (Find-Exe 'gemini') { return }
-  if (-not (Confirm-User "Máy chưa có Gemini CLI. Cài Gemini CLI (và Node.js nếu thiếu) ngay bây giờ?")) { throw "Bỏ qua Gemini." }
+  if (-not $script:NoAsk -and -not (Confirm-User "Máy chưa có Gemini CLI. Cài Gemini CLI (và Node.js nếu thiếu) ngay bây giờ?")) { throw "Bỏ qua Gemini." }
   if (-not (Find-Exe 'npm.cmd')) {
     $wg = Find-Exe 'winget'; if (-not $wg) { throw "Không có winget. Cài Node.js LTS từ nodejs.org rồi thử lại." }
     Write-Log "  Đang cài Node.js..."
@@ -677,8 +705,8 @@ function Remove-AcadStartup {
   }
 }
 
-# Options > Files > Trusted Locations (variable TRUSTEDPATHS): only with the user's consent (setting TrustAcad), only Steve AI's
-# own three folders, never their subfolders; other entries stay as they are. AutoCAD must be closed: it writes the list on exit.
+# Options > Files > Trusted Locations (variable TRUSTEDPATHS): added by default (the owner's decision, said in the README and the log;
+# setting TrustAcad = $false, the tick in the gear menu, keeps it off), only Steve AI's own three folders, never their subfolders; other entries stay as they are. AutoCAD must be closed: it writes the list on exit.
 function Get-AcadTrustDirs { return @($script:AppHome, (Join-Path $script:ToolDir 'chat\bin'), (Join-Path $script:AcadBundle 'Contents')) }
 function Set-AcadTrust([bool]$On) {
   if ($env:STEVECAD_DRYRUN) { return $true }   # tests
@@ -758,7 +786,7 @@ function Repair-CadAddon {
         # an older cuix run has no ribbon.txt yet
         if (-not (Test-Path (Join-Path $script:AppHome 'ribbon.txt'))) { Write-CadLisp }
         Write-AcadBundle; if (-not @(Get-CadProcess 'autocad').Count) { Remove-AcadStartup }
-        if (Get-Setting 'TrustAcad' $false) { [void](Set-AcadTrust $true) }
+        if (Get-Setting 'TrustAcad' $true) { [void](Set-AcadTrust $true) }
       } catch { Write-Log "Không ghi được plugin AutoCAD: $($_.Exception.Message)" 'warn' }
       continue
     }
@@ -1029,6 +1057,8 @@ function Invoke-Connect([string[]]$Cads, [string[]]$Clients, [bool]$Ads2026 = $f
   foreach ($cl in $Clients) {
     Write-Log "[$($script:ClientLabel[$cl])]"
     try {
+      if ($cl -eq 'claudecode') { Install-ClaudeCode }
+      if ($cl -eq 'codex') { Install-CodexCli }
       if ($cl -eq 'gemini') { Install-GeminiCli; Save-GeminiKey $GeminiKey }
       foreach ($c in $Cads) {
         switch ($cl) {

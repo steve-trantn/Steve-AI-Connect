@@ -295,7 +295,7 @@ $miConn.ForeColor = $Pal.text; [void]$menu.Items.Add($miConn); [void]$menu.Items
 $miConn.add_Click({ $menu.Close(); Show-Page 'conn' })
 foreach ($m in $mi26, $miScript) { $m.ForeColor = $Pal.text; [void]$menu.Items.Add($m) }
 $miTrust = New-Object Windows.Forms.ToolStripMenuItem 'AutoCAD / Civil 3D: thêm Steve AI vào Trusted Locations'; $miTrust.CheckOnClick = $true; $miTrust.ForeColor = $Pal.text
-$miTrust.Checked = [bool](Get-Setting 'TrustAcad' $false); [void]$menu.Items.Add($miTrust)
+$miTrust.Checked = [bool](Get-Setting 'TrustAcad' $true); [void]$menu.Items.Add($miTrust)
 $miTrust.add_Click({ Set-Trust ([bool]$miTrust.Checked) })
 function Set-Trust([bool]$on) {
   Set-Setting 'TrustAcad' $on; $miTrust.Checked = $on
@@ -403,7 +403,7 @@ function Show-Step([int]$n) {
   # "Tiếp tục" is the main button once the step is done; before that it is a quiet "Bỏ qua"
   if ($script:Done[$n]) { $bNext.Text = 'Tiếp tục  →'; Set-ButtonLook $bNext 'primary' } else { $bNext.Text = 'Bỏ qua  →'; Set-ButtonLook $bNext 'ghost' }
   Set-HomeNote $(switch ($n) {
-    1 { if ($script:Done[1]) { 'Đã kết nối. Bấm Tiếp tục.' } else { 'Bấm nút xanh “Kết nối tự động”. Lần đầu mất khoảng 1-3 phút.' } }
+    1 { if ($script:Done[1]) { 'Đã kết nối. Bấm Tiếp tục.' } else { 'Bấm nút xanh ở trên. Lần đầu mất khoảng 1-3 phút.' } }
     2 { if ($script:Done[2]) { 'CAD đã mở. Mở bản vẽ cần làm rồi bấm Tiếp tục.' } else { 'Bấm Khởi động ở phần mềm bạn muốn dùng.' } }
     3 { 'Bấm “Mở Steve AI”, rồi gõ yêu cầu vào cửa sổ chat.' }
   })
@@ -429,19 +429,26 @@ $s1Ai = New-ListCard $s1 'Trợ lý AI trên máy' 386 $script:ClientList $scrip
 $bAuto = Put (New-Button '⚡  Kết nối tự động' 'primary') 14 248 280 48; $bAuto.Font = $Fnt.big
 $tip.SetToolTip($bAuto, 'Nối mọi phần mềm CAD với mọi trợ lý AI có trên máy')
 $autoInfo = Put (New-Label '' $Fnt.s $Pal.muted) 308 248 438 48
-$autoLink = Put (New-Link '' $Fnt.s $Pal.accent) 308 250 438 44; $autoLink.Visible = $false
-$autoLink.add_LinkClicked({ Start-Process $Url.claudecode })
+# no assistant that can work inside the CAD: choose one, the button installs and connects it
+$instCb = Put (New-Combo) 308 272 438 28; $instCb.Visible = $false
+$script:InstallIds = 'claudecode', 'codex', 'gemini'
+foreach ($t in 'Claude Code (khuyên dùng) - cần tài khoản Claude trả phí', 'ChatGPT Codex - cần tài khoản ChatGPT', 'Gemini CLI - cần API key Google (có mức miễn phí)') { [void]$instCb.Items.Add($t) }
+$instCb.SelectedIndex = 0
+$tip.SetToolTip($instCb, 'Công cụ tải từ kho chính thức của nhà phát hành. Đăng nhập tài khoản ở lần mở đầu tiên.')
 $prog = Put (New-Object Windows.Forms.ProgressBar) 14 302 280 6; $prog.Style = 'Marquee'; $prog.MarqueeAnimationSpeed = 30; $prog.Visible = $false
 $advLink = Put (New-Link 'Muốn tự chọn từng phần mềm, kiểm tra hay xem nhật ký? Mở phần nâng cao' $Fnt.s $Pal.accent) 14 314 500 18
 $advLink.add_LinkClicked({ Show-Page 'conn' })
-$s1.Controls.AddRange(@($bAuto, $autoInfo, $autoLink, $prog, $advLink))
+$s1.Controls.AddRange(@($bAuto, $autoInfo, $instCb, $prog, $advLink))
 
 # what "Kết nối tự động" would connect: every CAD found, every assistant found (Gemini only with an API key)
 function Get-AutoPick {
   $cads = @($script:CadList | Where-Object { $cadTile[$_].ok })
   $clis = @($script:ClientList | Where-Object { $aiTile[$_].ok -and ($_ -ne 'gemini' -or (Test-GeminiKey)) })
-  return @{ cads = $cads; clis = $clis }
+  $inst = ''
+  if (-not $script:AiChoices) { $inst = $script:InstallIds[[Math]::Max(0, $instCb.SelectedIndex)]; $clis = @(@($clis | Where-Object { $_ -ne $inst }) + $inst) }
+  return @{ cads = $cads; clis = $clis; install = $inst }
 }
+$instCb.add_SelectedIndexChanged({ if (-not $script:Filling) { Update-Step1 } })
 function Update-Step1 {
   foreach ($c in $script:CadList) {
     $r = $s1Cad[$c]; $t = $cadTile[$c]
@@ -460,11 +467,11 @@ function Update-Step1 {
     else { $r.st.Text = 'chưa kết nối'; $r.st.ForeColor = $Pal.warn; $r.nm.ForeColor = $Pal.text }
   }
   $pick = Get-AutoPick
-  $autoLink.Visible = $false; $autoInfo.Visible = $true
+  $instCb.Visible = [bool]($pick.cads -and $pick.install); $autoInfo.Height = S $(if ($instCb.Visible) { 22 } else { 48 })
   if (-not $pick.cads) { $bAuto.Enabled = $false; $autoInfo.Text = '⚠  Máy chưa có ZWCAD, AutoCAD hoặc ADSCivil.'; $autoInfo.ForeColor = $Pal.warn }
-  elseif (-not $pick.clis) {
-    $bAuto.Enabled = $false; $autoInfo.Visible = $false; $autoLink.Visible = $true
-    $autoLink.Text = '⚠  Máy chưa có trợ lý AI. Bấm vào đây để tải Claude Code (khuyên dùng), cài xong mở lại công cụ này.'
+  elseif ($pick.install) {
+    $bAuto.Enabled = -not $script:Busy; $bAuto.Text = '⚡  Cài trợ lý và kết nối'; Set-ButtonLook $bAuto 'primary'
+    $autoInfo.Text = '⚠  Máy chưa có trợ lý AI chạy được trong CAD. Chọn loại cần cài:'; $autoInfo.ForeColor = $Pal.warn
   } else {
     $bAuto.Enabled = -not $script:Busy
     $todo = @(foreach ($cl in $pick.clis) { foreach ($c in $pick.cads) { if (@($script:Conn[$cl]) -notcontains $c) { 1 } } }).Count
@@ -477,10 +484,16 @@ function Update-Step1 {
 }
 $bAuto.add_Click({
   $pick = Get-AutoPick
-  $prog.Visible = $true; $script:AutoOk = $false
+  if ($pick.install -eq 'gemini' -and -not (Test-GeminiKey)) {
+    Show-GeminiKeyDialog
+    if (-not (Test-GeminiKey)) { Set-HomeNote 'Gemini cần API key. Dán key, hoặc chọn trợ lý khác.' 'warn'; return }
+  }
+  $prog.Visible = $true; $script:AutoOk = $false; $script:NoAsk = [bool]$pick.install
+  if ($pick.install) { Set-HomeNote "Đang tải và cài $($script:ClientLabel[$pick.install]), khoảng 1-3 phút…" 'ok'; Set-Setting 'DefaultAI' $pick.install }
   Invoke-Busy { $script:AutoOk = Invoke-Connect $pick.cads $pick.clis ([bool]$script:Ads26) '' }
-  $prog.Visible = $false
-  if ($script:AutoOk) { Set-HomeNote '✓ Kết nối xong. Trợ lý AI đang mở sẵn thì thoát hẳn rồi mở lại.' 'ok'; Show-Step 2 }
+  $prog.Visible = $false; $script:NoAsk = $false
+  if ($script:AutoOk -and $pick.install) { Set-HomeNote "✓ Đã cài và nối $($script:ClientLabel[$pick.install]). Lần mở đầu tiên cần đăng nhập tài khoản theo hướng dẫn trong khung chat." 'ok'; Show-Step 2 }
+  elseif ($script:AutoOk) { Set-HomeNote '✓ Kết nối xong. Trợ lý AI đang mở sẵn thì thoát hẳn rồi mở lại.' 'ok'; Show-Step 2 }
   else { Set-HomeNote 'Kết nối có lỗi. Xem nhật ký: ⚙ Tùy chọn nâng cao › Kết nối từng mục…, hoặc gọi hỗ trợ.' 'error' }
 })
 
@@ -646,11 +659,13 @@ foreach ($t in $ex) {
 $s3Tip = Put (New-Label 'Lần sau không cần mở công cụ này: trong ZWCAD / AutoCAD gõ lệnh AI rồi Enter, hoặc bấm tab Steve AI trên thanh ribbon.' $Fnt.s $Pal.faint) 16 314 728 20
 $s3.Controls.Add($s3Tip)
 
+$cs2.add_Click({ if (-not $script:AiChoices) { Show-Step 1 } })
 # can the chosen assistant work on a drawing right now?
 function Update-AiReady {
   if (-not $cs2) { return }
   $set = { param($text, $color) $cs2.Text = $text; $cs2.ForeColor = $color }
-  if (-not $script:AiChoices) { & $set '⚠  Chưa có Claude Code, Codex hoặc Gemini CLI. Xem bước 1.' $Pal.warn; return }
+  if (-not $script:AiChoices) { & $set '⚠  Chưa có trợ lý AI chạy được trong CAD. Bấm vào đây để cài.' $Pal.warn; $cs2.Cursor = 'Hand'; return }
+  $cs2.Cursor = 'Default'
   $cl = $script:AiPick
   if (-not $cl) { & $set 'Chọn một trợ lý.' $Pal.muted; return }
   if ($cl -eq 'gemini' -and -not (Test-GeminiKey)) { & $set '⚠  Gemini chưa có API key. Dán key ở bước 1 (dòng Gemini CLI).' $Pal.warn; return }
@@ -663,7 +678,8 @@ function Update-AiReady {
 
 # step state from the real state of the PC; the page opens on the first unfinished step
 function Update-Steps {
-  $script:Done[1] = @($script:ClientList | Where-Object { @($script:Conn[$_]).Count }).Count -gt 0
+  # done = an assistant that works inside the CAD is installed and connected (Claude Desktop alone cannot do that)
+  $script:Done[1] = @($script:AiChoices | Where-Object { @($script:Conn[$_]).Count }).Count -gt 0
   Update-Step1
   foreach ($n in 1, 2, 3) { $stepUi[$n].dot.Invalidate() }
   if ($script:Step) { Show-Step $script:Step }
@@ -904,6 +920,7 @@ function Update-View {
   $script:Filling = $true
   $cs = Get-CadStatus; $ks = Get-ClientStatus; $conn = Get-Connections
   if ($env:STEVECAD_FRESH) { foreach ($k2 in @($conn.Keys)) { $conn[$k2] = @() } }   # screenshots / tests: look like a new PC
+  if ($env:STEVECAD_FRESH -eq 'noai') { foreach ($k2 in $script:LaunchClients) { $ks[$k2].ok = $false } }   # tests: no assistant
   $script:Conn = $conn
   foreach ($c in $script:CadList) {
     $users = @($script:ClientList | Where-Object { $conn[$_] -contains $c } | ForEach-Object { $script:ClientLabel[$_] })
@@ -936,7 +953,7 @@ function Update-View {
   $script:AiChoices = @($script:LaunchClients | Where-Object { $ks[$_].ok })
   foreach ($c in $script:LaunchClients) {
     $segs[$c].Enabled = $c -in $script:AiChoices
-    $tip.SetToolTip($segs[$c], $(if ($c -in $script:AiChoices) { "Dùng $($script:ClientLabel[$c])" } else { "Chưa cài $($script:ClientLabel[$c]). Vào thẻ Kết nối." }))
+    $tip.SetToolTip($segs[$c], $(if ($c -in $script:AiChoices) { "Dùng $($script:ClientLabel[$c])" } else { "Chưa cài $($script:ClientLabel[$c]). Cài ở bước 1." }))
   }
   if ($script:AiPick -notin $script:AiChoices) {
     $want = [string](Get-Setting 'DefaultAI' '')
@@ -1062,10 +1079,10 @@ $form.add_Shown({
   if ($script:FirstRun -and -not $env:STEVECAD_SELFTEST) { Invoke-Busy { Update-Installed } }
   try { Repair-CadAddon } catch {}
   try { Fill-Launchers } catch { Write-Log "Lỗi tìm phiên bản CAD: $($_.Exception.Message)" 'error' }
-  # asked once, in plain words: a security setting is never changed silently
+  # added without a question (Repair-CadAddon above does it, AutoCAD must be closed); someone who said no before stays off
   if (-not ($env:STEVECAD_SELFTEST -or $env:STEVECAD_SNAPSHOT) -and (Test-CadAddon 'autocad') -and $null -eq (Get-Setting 'TrustAcad' $null)) {
-    $q = "AutoCAD / Civil 3D sẽ hỏi bảo mật khi nạp Steve AI.`n`nThêm 3 thư mục của Steve AI vào Trusted Locations (Options > Files) để không phải hỏi nữa?`n`n" + (@(Get-AcadTrustDirs) -join "`n") + "`n`nAutoCAD sẽ nạp mọi file chương trình trong các thư mục này mà không hỏi. Có thể tắt trong Tùy chọn nâng cao."
-    Set-Trust ([Windows.Forms.MessageBox]::Show($form, $q, $script:AppName, 'YesNo', 'Question') -eq 'Yes')
+    Set-Setting 'TrustAcad' $true
+    Write-Log "AutoCAD / Civil 3D: đã thêm 3 thư mục của Steve AI vào Trusted Locations (tắt trong Tùy chọn nâng cao): $(@(Get-AcadTrustDirs) -join '; ')" 'detail'
   }
   # one-time registration (email code). Not for self-tests and screenshots.
   if (-not ($env:STEVECAD_SELFTEST -or $env:STEVECAD_SNAPSHOT) -and $script:RegisterUrl -and -not (Test-Registered)) {

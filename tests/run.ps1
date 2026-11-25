@@ -35,6 +35,7 @@ try {
   if (-not $NoWindow) { & powershell -NoProfile -ExecutionPolicy Bypass -File "$copy\tests\orphan.ps1" "$copy\chat\bin\SteveAIChat.exe"; if ($LASTEXITCODE) { $fail++ } }
   $vpy = Join-Path $keep.LOCALAPPDATA 'SteveCADConnect\venv\Scripts\python.exe'
   if (Test-Path $vpy) { & $vpy -X utf8 "$copy\tests\ifc.py" $copy; if ($LASTEXITCODE) { $fail++ } } else { Write-Host 'SKIP  ifc.py (server not installed)' }
+  & powershell -NoProfile -ExecutionPolicy Bypass -File "$copy\tests\install.ps1" $copy; if ($LASTEXITCODE) { $fail++ }
   # 2. the work behind the panels inside the CAD
   $env:USERPROFILE = $hm
   & $py -X utf8 "$copy\tests\ui.py" $copy "$hm\Steve-CAD-AI"; if ($LASTEXITCODE) { $fail++ }
