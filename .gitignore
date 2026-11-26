@@ -20,3 +20,6 @@ dist/
 
 # chat panel build output
 chat/bin/
+
+# Kiểm tra KCS package: private, added to the payload by builduild-exe.ps1 -Kcs <folder>
+kcs/

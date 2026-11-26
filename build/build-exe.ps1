@@ -6,7 +6,8 @@
 .EXAMPLE
   powershell -ExecutionPolicy Bypass -File build\build-exe.ps1
 #>
-param([switch]$NoRegister)   # -NoRegister: test exe while $script:RegisterUrl is still empty
+param([switch]$NoRegister,   # -NoRegister: test exe while $script:RegisterUrl is still empty
+      [string]$Kcs = '')     # folder of the private Steve-AI-KCS repository: its stevekcs package goes into the payload as kcs\
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot
 $ver = (Get-Content (Join-Path $root 'VERSION') | Select-Object -First 1).Trim()   # v4.0.0
@@ -33,6 +34,15 @@ try {
         Copy-Item $f.FullName $to
       }
     } elseif (Test-Path $p) { Copy-Item $p $stage }
+  }
+  if ($Kcs) {
+    $pk = Join-Path $Kcs 'stevekcs'
+    if (-not (Test-Path (Join-Path $pk 'api.py'))) { throw "Không thấy gói KCS ở $pk" }
+    foreach ($f in Get-ChildItem $pk -File -Filter '*.py') {
+      New-Item -ItemType Directory -Force (Join-Path $stage 'kcs\stevekcs') | Out-Null
+      Copy-Item $f.FullName (Join-Path $stage "kcs\stevekcs\$($f.Name)")
+    }
+    Write-Host "  + gói Kiểm tra KCS ($((Get-ChildItem $pk -File -Filter '*.py').Count) file)"
   }
   $zip = Join-Path $work 'payload.zip'
   [IO.Compression.ZipFile]::CreateFromDirectory($stage, $zip, [IO.Compression.CompressionLevel]::Optimal, $false)

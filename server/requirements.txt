@@ -3,3 +3,5 @@ pywin32==312
 pillow==13.0.0
 pdfminer.six==20260107
 pypdfium2==5.15.2
+ezdxf==1.4.5
+openpyxl==3.1.5

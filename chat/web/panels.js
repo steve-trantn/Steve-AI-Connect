@@ -400,7 +400,77 @@ const Panels = typeof document === 'undefined' ? null : (() => {
     }
   }
 
-  const list = { 'xuat-ifc': ['Export IFC', ifc], 'chuan-layer': ['Chuẩn layer', layers], 'kiem-tra-ban-ve': ['Kiểm tra bản vẽ', audit], 'boc-khoi-luong': ['Bóc khối lượng', quantities], 'khung-ten': ['Khung tên', titles] };
+  // ---------------------------------------------------------------- Kiểm tra KCS (separate package, see server/panel.py kcs_check)
+  function kcsRoute() {
+    // the standard first, then the choices that standard asks for (class, speed, terrain...): the list comes from the package
+    const std = el('select', { title: 'Tiêu chuẩn' }), sp = el('select', { title: 'Cấp đường / tốc độ' }), go = btn('Kiểm tra', run, 'pri');
+    std.style.maxWidth = '210px'; go.disabled = true;   // until the list of standards has come
+    let cat = [];
+    bars.replaceChildren(std, sp, go);
+    function fill() {
+      const s = cat.find(x => x.id === std.value);
+      sp.replaceChildren(...(s ? s.options : []).map(o => el('option', { value: o.value, textContent: o.label, title: o.title || '', selected: String(o.value) === (localStorage['kcsV_' + s.id] || String(s.default)) })));
+      sp.hidden = !s || !s.options.length; go.disabled = !s || !s.ready;
+      if (s && !s.ready) say(`${s.name}: đang làm, chưa kiểm được.`); else say('Đọc file đã lưu của bản vẽ đang mở (tim tuyến, trắc dọc), không sửa bản vẽ. Chọn tiêu chuẩn, cấp đường rồi bấm Kiểm tra.');
+    }
+    std.onchange = () => { localStorage.kcsStd = std.value; fill(); };
+    job('Đang mở…', async () => {
+      cat = (await call('kcs_catalog')).standards;
+      std.replaceChildren(...cat.map(s => el('option', { value: s.id, textContent: s.name, title: s.title || '', selected: s.id === (localStorage.kcsStd || 'tcvn5729') })));
+      fill();
+    });
+    function run() {
+      localStorage['kcsV_' + std.value] = sp.value;
+      job('Đang đọc bản vẽ và kiểm tra… bản vẽ lớn mất khoảng 1 phút.', async () => { show(await call('kcs_check', { module: 'tuyen', standard: std.value, v: sp.value })); });
+    }
+    // what each level means for the person: red = must fix, orange = allowed with a written reason, yellow = advice
+    const tag = x => x.status !== 'Không đạt' ? ['Thiếu dữ liệu', 'mid'] : ({ 'Phải': ['Không đạt', 'bad'], 'Dữ liệu': ['Lệch số liệu', 'bad'], 'Giải trình': ['Cần giải trình', 'mid'], 'Nên': ['Khuyến nghị', 'mid'] }[x.level] || ['Không đạt', 'bad']);
+    function show(r) {
+      const dr = r._drawing;
+      const head = el('div', { className: 'chips' }, r.notice ? el('div', { className: 'cvnote', textContent: r.notice }) : null, el('div', { textContent: r.routes.map(a => `${a.name}: ${a.start} – ${a.end}, ${a.curves} đường cong nằm, ` + (a.profile ? `${a.vertical_curves} đường cong đứng` : 'không thấy trắc dọc')).join('\n') }));
+      const zoom = (box, what) => job('Đang zoom…', async () => { await call('kcs_zoom', { box, _drawing: dr }); say('Đã zoom tới ' + what); });
+      // the engineer's verdict on one line: kept on this PC, used to correct the rules
+      const verdict = (x, v, box) => job('Đang lưu…', async () => {
+        const cm = v === 'sai' ? (box.querySelector('input').value || '').trim() : '';
+        if (v === 'sai' && cm.length < 3) { say('Ghi ngắn lý do vì sao kết quả sai (ví dụ: dự án được duyệt châm chước, tiêu chuẩn hiểu khác...).', 'err'); return; }
+        await call('kcs_feedback', { item: x, verdict: v, comment: cm, standard: r.standard, option: r.option, _drawing: dr });
+        box.replaceChildren(el('span', { textContent: v === 'dung' ? '✓ Đã ghi: kết quả đúng.' : '✓ Đã ghi phản hồi: kết quả sai. Cảm ơn bạn.' }));
+      });
+      const rows = r.items.map(x => {
+        const [label, cls] = tag(x);
+        const d = el('details', { className: 'vrow ' + cls });
+        const acts = el('div', { className: 'chips' });
+        if (x.plan) acts.append(btn('Zoom bình đồ', () => zoom(x.plan, 'bình đồ: ' + x.where), 'chip'));
+        if (x.sheet) acts.append(btn('Zoom trắc dọc', () => zoom(x.sheet, 'trắc dọc: ' + x.where), 'chip'));
+        const fb = el('div', { className: 'chips' }), why = el('input', { placeholder: 'Nếu sai: vì sao?', maxLength: 300 });
+        fb.append(btn('Kết quả đúng', () => verdict(x, 'dung', fb), 'chip'), why, btn('Báo sai', () => verdict(x, 'sai', fb), 'chip'));
+        d.append(el('summary', {}, el('span', { textContent: `${x.criterion} · ${x.route} · ${x.where}` }), el('b', { textContent: label })),
+          el('div', { className: 'chips', textContent: `Thiết kế: ${x.design}\nYêu cầu: ${x.required}` + (x.clause ? `\n${x.clause}` : '') + (x.note ? `\n${x.note}` : '') }), acts, fb);
+        return d;
+      });
+      // marks on the drawing: own KCS-* layers, one UNDO; asked twice because it changes the drawing
+      // marks and the table go on the drawing as blocks on the KCS-* layers, one UNDO each
+      const mk = btn('Đánh dấu lỗi lên bản vẽ', () => job('Đang đánh dấu…', async () => {
+        if (!(r.marks || []).length) { say('Không có chỗ nào không đạt để đánh dấu.'); return; }
+        const w = await call('kcs_mark', { marks: r.marks, _drawing: dr });
+        say(`✓ Đã đánh dấu ${num(w.marked, 0)} chỗ, mỗi chỗ là một block trên layer KCS-… (đỏ: không đạt, cam: cần giải trình, vàng: khuyến nghị, tím: lệch số liệu). Sai thì gõ UNDO.`, 'ok');
+      }));
+      const tb = btn('Đưa bảng kết quả lên bản vẽ', () => job('Đang vẽ bảng…', async () => {
+        const w = await call('kcs_table', { table: r.table, _drawing: dr });
+        say('✓ Đã đặt bảng kết quả (một block, layer KCS-BANG-KET-QUA) bên phải trắc dọc; dời đi chỗ khác bằng MOVE. Sai thì gõ UNDO.', 'ok');
+        if (r.table.box) await call('kcs_zoom', { box: r.table.box, _drawing: dr });
+      }));
+      const un = btn('Xoá đánh dấu và bảng', () => job('Đang xoá…', async () => { const w = await call('kcs_unmark', { _drawing: dr }); say(`✓ Đã xoá ${num(w.removed, 0)} dấu / bảng trên các layer KCS-…. Sai thì gõ UNDO.`, 'ok'); }));
+      body.replaceChildren(head, el('div', { className: 'chips' }, mk, tb, un), ...rows, el('div', { className: 'vrow okk' }, el('summary', {}, el('span', { textContent: 'Các chỉ tiêu đạt' }), el('b', { textContent: num(r.ok, 0) }))));
+      say(`${r.standard || ''}, ${r.option || ''}: ${num(r.total, 0)} mục: ${num(r.ok, 0)} đạt · ${num(r.fail_must, 0)} không đạt · ${num(r.fail_reason || 0, 0)} cần giải trình · ${num(r.fail_should, 0)} khuyến nghị · ${num(r.fail_data, 0)} lệch số liệu · ${num(r.no_data, 0)} thiếu dữ liệu.` + (r.unsaved ? ' Bản vẽ có thay đổi chưa lưu: kết quả theo bản đã lưu.' : '') + (r.notes.length ? ' ' + r.notes.join(' ') : ''), r.fail_must || r.fail_data ? 'err' : 'ok');
+      if (r.excel) note.append(' ', btn('Mở Excel', () => post({ t: 'open', path: r.excel })));
+    }
+  }
+  const kcsSoon = what => () => { bars.replaceChildren(); say(`Phần kiểm tra ${what} đang làm, sẽ có trong bản sau. Hiện dùng được: Tuyến & trắc dọc.`); };
+
+  const list = { 'xuat-ifc': ['Export IFC', ifc], 'chuan-layer': ['Chuẩn layer', layers], 'kiem-tra-ban-ve': ['Kiểm tra bản vẽ', audit], 'boc-khoi-luong': ['Bóc khối lượng', quantities], 'khung-ten': ['Khung tên', titles],
+    'kcs-tuyen': ['Kiểm tra tuyến & trắc dọc', kcsRoute], 'kcs-sieu-cao': ['Kiểm tra siêu cao', kcsSoon('siêu cao, mở rộng')], 'kcs-trac-ngang': ['Kiểm tra trắc ngang', kcsSoon('trắc ngang')],
+    'kcs-vach-son': ['Kiểm tra vạch sơn', kcsSoon('vạch sơn theo QCVN 41')], 'kcs-bien-bao': ['Kiểm tra biển báo', kcsSoon('biển báo theo QCVN 41')] };
   function open(name) {
     if (!list[name]) return false;
     Ui.hide(); pop.hidden = true; view.hidden = false;

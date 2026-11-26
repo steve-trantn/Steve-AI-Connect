@@ -434,6 +434,11 @@ function Install-Server {
     Sync-Folder $src $script:ServerDir
     Get-ChildItem $script:ServerDir -Recurse -Directory -Filter '__pycache__' | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
   }
+  # Kiểm tra KCS: a separate package that the release build adds (not in the public repository); server\panel.py finds it here
+  $kcs = Join-Path $script:Root 'kcs'
+  if ((Test-Path (Join-Path $kcs 'stevekcs\api.py')) -and (Resolve-Path $kcs).Path.TrimEnd('\') -ne (Join-Path $script:AppHome 'kcs')) {
+    Sync-Folder $kcs (Join-Path $script:AppHome 'kcs')
+  }
   Write-Log "  Steve CAD MCP server sẵn sàng."
 }
 
@@ -606,7 +611,7 @@ function ConvertTo-Ascii([string]$s) {
 
 # skills shipped in server\skills\<name>\SKILL.md: @(@{ name; description })
 # ribbon groups by type of work, in this order; a skill says its own in SKILL.md (group:), anything else is the user's own
-$script:SkillGroups = 'Bản vẽ', 'Khối lượng', 'Mô hình 3D / BIM', 'Chuyển đổi', 'Skill của tôi'
+$script:SkillGroups = 'Bản vẽ', 'Khối lượng', 'Mô hình 3D / BIM', 'Kiểm tra KCS', 'Chuyển đổi', 'Skill của tôi'
 function Get-SkillList {
   $out = @()
   $sk = @((Join-Path $script:Root 'server\skills'), (Join-Path $script:Workspace 'skills'))   # built-in, then the user's own
@@ -620,9 +625,10 @@ function Get-SkillList {
     if ($t -match '(?m)^description:\s*(.+)$') { $desc = $Matches[1].Trim() }
     if ($name -notmatch '^[\w\-]+$' -or @($out | Where-Object { $_.name -eq $name }).Count) { continue }
     if (-not $title) { $title = ($name -replace '-', ' '); $title = $title.Substring(0, 1).ToUpper() + $title.Substring(1) }
-    $out += @{ name = $name; title = $title; description = $desc; group = $group }
+    $order = 50; if ($t -match '(?m)^order:\s*(\d+)\s*$') { $order = [int]$Matches[1] }   # place on the ribbon; else by name
+    $out += @{ name = $name; title = $title; description = $desc; group = $group; order = $order }
   }
-  return $out
+  return @($out | Sort-Object { $_.order }, { $_.name })
 }
 
 # Startup Suite keys (Dialogs\Appload\Startup) of every profile of the given CAD
@@ -940,7 +946,7 @@ function Install-Self {
     # copy over the old files instead of deleting the folder: the GUI (or a CAD-launched Steve AI)
     # may be running from it, and Windows will not delete a folder that is a process's current directory
     New-Item -ItemType Directory -Force $script:ToolDir | Out-Null
-    $items = 'app', 'CAD', 'server', 'templates', 'chat', 'VERSION', 'README.md', 'LICENSE', 'NOTICE', 'Uninstall.cmd', 'Steve AI Connect.cmd'
+    $items = 'app', 'CAD', 'server', 'kcs', 'templates', 'chat', 'VERSION', 'README.md', 'LICENSE', 'NOTICE', 'Uninstall.cmd', 'Steve AI Connect.cmd'   # kcs: only in the release build
     Get-ChildItem $script:ToolDir -Force | Where-Object { $items -notcontains $_.Name } | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
     foreach ($i in $items) {
       $p = Join-Path $script:Root $i

@@ -82,6 +82,7 @@ Chi tiết: [server/README.md](server/README.md).
 - **Bước 2 trên thẻ Bắt đầu:** khởi động ZWCAD / AutoCAD / ADSCivil. Máy cài nhiều phiên bản thì chọn bản trong danh sách xổ xuống; công cụ nhớ bản đã chọn cho lần sau. Logo là logo thật lấy từ phần mềm đã cài; thẻ có viền xanh lá là CAD đang chạy.
 - **Khung chat:** trong ZWCAD, AutoCAD / Civil 3D (2021-2024, 2026-2027), gõ `AI` là khung Steve AI tự gắn cạnh bản vẽ (`STEVEAIPANEL` để ẩn/hiện). Từ công cụ, shortcut hoặc AutoCAD 2025 thì khung chat mở thành cửa sổ riêng. Cần Windows 10 1809+ và Microsoft Edge WebView2; thiếu thì dùng cửa sổ terminal như trước (hoặc tự chọn trong ⚙ Tùy chọn nâng cao).
 - **Bảng không cần AI:** *Kiểm tra bản vẽ*, *Bóc khối lượng*, *Khung tên*, *Chuẩn layer* mở thành bảng ngay trong khung gắn vào CAD (ribbon hoặc nút **＋**): quét, zoom, sửa, xuất Excel, không tốn lượt AI. Việc khó hơn thì bấm **Nhờ AI** trong bảng.
+- **Kiểm tra KCS (bản thử, miễn phí):** nhóm nút *Kiểm tra KCS* trên ribbon. *Tuyến & trắc dọc* đọc file đã lưu của bản vẽ đang mở (hiện đọc được tim tuyến và trắc dọc vẽ bằng ADSCivil, không cần cài ADSCivil), so từng chỉ tiêu với **TCVN 5729:2012** (đường cao tốc) hoặc **TCVN 4054:2005** (đường ô tô) theo cấp đường bạn chọn, ghi *Không đạt / Cần giải trình / Khuyến nghị / Lệch số liệu*, zoom tới chỗ lỗi, đánh dấu lên bản vẽ (mỗi dấu một block trên layer `KCS-…`), đưa bảng kết quả lên bản vẽ và xuất Excel. Mỗi dòng có nút *Kết quả đúng / Báo sai* để góp ý (lưu trên máy bạn, `Steve-CAD-AI\KCS\phan-hoi.jsonl`). Kết quả là gợi ý kiểm tra, kỹ sư quyết định. Siêu cao, trắc ngang, vạch sơn, biển báo: đang làm.
 - **Mở Steve AI:** mở cửa sổ Claude Code / ChatGPT Codex / Gemini CLI đã nối sẵn với CAD, có thể chọn kèm một skill (ví dụ `cong-3d`).
 - **Trong ZWCAD / AutoCAD:** tab ribbon **Steve AI**, hoặc gõ lệnh `AI` (mở ngay trợ lý), `STEVEAI` (chọn trợ lý), `STEVEAI-SKILL` (chạy skill), `AI-CONG-3D`, `STEVECAD` (mở công cụ này). Lệnh được nạp tự động mỗi khi mở CAD.
 - Shortcut **Steve AI** trên Desktop mở thẳng cửa sổ AI.
@@ -99,7 +100,7 @@ ChatGPT bản web không dùng được vì chỉ nhận MCP server từ xa qua 
 
 ## Công cụ làm gì trên máy
 
-- **ZWCAD, AutoCAD:** chép Steve CAD MCP vào `%LOCALAPPDATA%\SteveCADConnect\server` và tạo môi trường Python riêng (thư viện `mcp`, `pywin32`, `pillow`). Server chỉ nói chuyện với CAD qua COM, không gửi dữ liệu ra ngoài.
+- **ZWCAD, AutoCAD:** chép Steve CAD MCP vào `%LOCALAPPDATA%\SteveCADConnect\server` và tạo môi trường Python riêng (thư viện `mcp`, `pywin32`, `pillow`, `ezdxf`, `openpyxl`). Server chỉ nói chuyện với CAD qua COM, không gửi dữ liệu ra ngoài.
 - **Cho AI chạy script (tuỳ chọn, mặc định tắt):** ô *"cho AI chạy script Python"* bật tool `run_script` để AI xử lý hàng loạt. AI sẽ tự chạy mã trên máy, nên chỉ bật khi cần.
 - **Đăng ký server** vào cấu hình của từng trợ lý AI đã chọn. Mọi file cấu hình được sao lưu trước khi sửa (`*.bak-<thời gian>`).
 - **Tạo thư mục làm việc** `%USERPROFILE%\Steve-CAD-AI` với lời dặn cho AI (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`): luôn đọc bản vẽ thật bằng tool, hỏi trước khi xóa, lưu hoặc đóng bản vẽ.
@@ -117,7 +118,7 @@ ChatGPT bản web không dùng được vì chỉ nhận MCP server từ xa qua 
 ## Dòng lệnh (cho IT, cài hàng loạt)
 
 ```bat
-Steve-AI-Connect-Setup-v1.8.8.exe -Connect                                           :: cai + ket noi, khong mo giao dien
+Steve-AI-Connect-Setup-v1.9.0.exe -Connect                                           :: cai + ket noi, khong mo giao dien
 powershell -ExecutionPolicy Bypass -File app\SteveCADConnect.ps1 -Connect                 :: moi CAD + moi tro ly co tren may
 powershell -ExecutionPolicy Bypass -File app\SteveCADConnect.ps1 -Connect -Cad zwcad -Client codex,claude -Test
 powershell -ExecutionPolicy Bypass -File app\SteveCADConnect.ps1 -Connect -Ads2026 -GeminiKey <key>

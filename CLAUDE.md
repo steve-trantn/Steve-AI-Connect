@@ -13,11 +13,12 @@ Việc nhỏ làm gọn, không lập kế hoạch dài, không dùng agent con 
 ## Lệnh
 
 - Thử tất cả: `powershell -ExecutionPolicy Bypass -File tests\run.ps1` (khoảng 2-5 phút, phải ra `ALL PASSED`)
-- Đóng gói: `build\build-exe.ps1` trên bản sạch (`git archive HEAD`), phải có đủ 3 file `SteveAIPanel.*.dll`
+- Đóng gói: `build\build-exe.ps1 -Kcs <thư mục repo riêng Steve-AI-KCS>` trên bản sạch (`git archive HEAD`), phải có đủ 3 file `SteveAIPanel.*.dll` và dòng `+ gói Kiểm tra KCS`
 - Phát hành: chỉ khi người dùng bảo. Nâng số phiên bản ở `VERSION`, `CITATION.cff`, `README.md`; sau khi đẩy phải tải lại file và đối chiếu SHA-256.
 
 ## Không được
 
+- Đưa mã gói Kiểm tra KCS (repo riêng `Steve-AI-KCS`, thư mục `kcs\`) vào repo công khai này. Ở đây chỉ có nút, bảng và cầu nối (`server/panel.py`, các hàm `kcs_*`).
 - Chạy `app\*.ps1` hay `SteveAIChat.exe` của repo để thử mà không đặt `STEVECAD_DRYRUN=1` (kể cả với thư mục tạm: registry và thư mục plugin vẫn là của máy thật).
 - Để bài thử đụng vào registry, thư mục cài đặt hay CAD thật của máy.
 - Nói "đã thử" khi chỉ mới thử với máy chủ giả lập. Bộ thử **không thay** việc bấm nút trong ZWCAD, AutoCAD và Civil 3D.
