@@ -445,7 +445,7 @@ const Panels = typeof document === 'undefined' ? null : (() => {
         const fb = el('div', { className: 'chips' }), why = el('input', { placeholder: 'Nếu sai: vì sao?', maxLength: 300 });
         fb.append(btn('Kết quả đúng', () => verdict(x, 'dung', fb), 'chip'), why, btn('Báo sai', () => verdict(x, 'sai', fb), 'chip'));
         d.append(el('summary', {}, el('span', { textContent: `${x.criterion} · ${x.route} · ${x.where}` }), el('b', { textContent: label })),
-          el('div', { className: 'chips', textContent: `Thiết kế: ${x.design}\nYêu cầu: ${x.required}` + (x.clause ? `\n${x.clause}` : '') + (x.note ? `\n${x.note}` : '') }), acts, fb);
+          el('div', { className: 'chips', textContent: `Thiết kế: ${x.design}` + (x.source ? `\nNguồn: ${x.source}` : '') + `\nYêu cầu: ${x.required}` + (x.clause ? `\n${x.clause}` : '') + (x.note ? `\n${x.note}` : '') }), acts, fb);
         return d;
       });
       // marks on the drawing: own KCS-* layers, one UNDO; asked twice because it changes the drawing
