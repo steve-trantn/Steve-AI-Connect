@@ -45,4 +45,11 @@ $j = $null; if ($done) { $j = $done[-1].Substring(7) | ConvertFrom-Json }
 Check '-Setup: tien trinh roi @@DONE' ($lines.Count -ge 3 -and $lines[-1] -like '@@DONE *' -and $lines[0] -match 'chép chương trình') $o
 Check '-Setup: bao CAD tim thay (co nhan de mo)' ($j -and $j.version -eq $script:Version -and @($j.cads).Count -ge 1 -and -not @($j.cads | Where-Object { -not $_.label -or -not $_.cad })) $o
 Check '-Setup: khong mo cua so, ma thoat 0' ($pr.ExitCode -eq 0) "exit $($pr.ExitCode)"
+# the "Mở <CAD>" buttons of Setup.exe pass the exact name: with several versions, that one (not the first) starts
+$multi = @(foreach ($c in $script:CadList) { $l = @(Get-CadLaunchers $c); if ($l.Count -ge 2) { @{ cad = $c; want = $l[-1].label } } })
+if ($multi) {
+  $m = $multi[0]
+  $r = & (Join-Path $PSHOME 'powershell.exe') -NoProfile -ExecutionPolicy Bypass -File (Join-Path $root 'app\SteveCADConnect.ps1') -Launch $m.cad -CadVersion $m.want
+  Check '-Launch dung ban theo ten chinh xac' ((@($r)[-1]) -like "*-> $($m.want)") "$r"
+} else { Write-Host 'SKIP  -Launch nhieu ban (may chi co mot ban moi CAD)' }
 exit $(if ($bad) { 1 } else { 0 })

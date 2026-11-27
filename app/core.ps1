@@ -1091,11 +1091,11 @@ function Invoke-Connect([string[]]$Cads, [string[]]$Clients, [bool]$Ads2026 = $f
   Update-Workspace
   Install-Self
   Remove-OldInstalls
-  Write-Log "[Steve AI] lệnh AI trong CAD + shortcut 'Steve AI' trên Desktop..."
+  Write-Log "[Steve AI] lệnh AI và tab Steve AI trong CAD..."
   try { Install-CadAddon $Cads; Write-Log "  Xong. Trong ZWCAD/AutoCAD gõ AI (mở trợ lý) hoặc STEVEAI-SKILL (chạy skill)." 'ok' }
   catch { Write-Log "  Lỗi: $($_.Exception.Message)" 'error'; $fail++ }
   Write-Log ""
-  if ($fail -eq 0) { Write-Log "XONG. Bấm 'Mở Steve AI' (hoặc shortcut 'Steve AI' / lệnh AI trong CAD) để bắt đầu làm việc. Trợ lý đang mở sẵn thì thoát hẳn rồi mở lại để nhận kết nối mới." 'ok' }
+  if ($fail -eq 0) { Write-Log "XONG. Trong CAD bấm Steve AI trên tab Steve AI (hoặc gõ AI) để bắt đầu làm việc. Trợ lý đang mở sẵn thì thoát hẳn rồi mở lại để nhận kết nối mới." 'ok' }
   else { Write-Log "Xong, có $fail lỗi - xem các dòng đỏ ở trên. Cần hỗ trợ: $($script:Contact)" 'warn' }
   return ($fail -eq 0)
 }
@@ -1127,7 +1127,8 @@ function Invoke-Setup {
   try { Repair-CadAddon } catch {}
   if (-not $env:STEVECAD_DRYRUN -and $null -eq (Get-Setting 'TrustAcad' $null) -and (Test-CadAddon 'autocad')) { Set-Setting 'TrustAcad' $true }
   if (-not $env:STEVECAD_DRYRUN) { try { [void](Update-RunningZwcad) } catch {} }
-  $res.cads = @(foreach ($c in $cads) { $l = @(Get-CadLaunchers $c)[0]; if ($l) { @{ cad = $c; label = [string]$l.label; id = [string]$l.id } } })
+  # each CAD with the version picked last time (else the first one found)
+  $res.cads = @(foreach ($c in $cads) { $l = Get-CadLauncher $c; if ($l) { @{ cad = $c; label = [string]$l.label; id = [string]$l.id } } })
   return $res
 }
 

@@ -63,7 +63,11 @@ if ($Connect -or $Disconnect -or $Test -or $Uninstall -or $Launch -or $ListVersi
     if ($Launch) {
       $c = $Launch.Trim().ToLower(); $list = @(Get-CadLaunchers $c)
       if (-not $list) { throw "Không tìm thấy $Launch trên máy." }
-      if ($CadVersion) { $list = @($list | Where-Object { $_.label -like "*$CadVersion*" }); if (-not $list) { throw "Không có bản nào khớp '$CadVersion'." } }
+      if ($CadVersion) {
+        $same = @($list | Where-Object { $_.label -eq $CadVersion })   # the exact name (Setup.exe) before a part of it
+        $list = @(if ($same) { $same } else { $list | Where-Object { $_.label -like "*$CadVersion*" } })   # @(): one hit stays a list
+        if (-not $list) { throw "Không có bản nào khớp '$CadVersion'." }
+      }
       $pick = $list[0]
       if ($list.Count -gt 1 -and [Environment]::UserInteractive -and -not [Console]::IsInputRedirected) {
         for ($i = 0; $i -lt $list.Count; $i++) { Write-Log "  $($i + 1). $($list[$i].label)" }
