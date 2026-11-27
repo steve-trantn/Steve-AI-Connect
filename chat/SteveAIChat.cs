@@ -206,6 +206,13 @@ class ChatForm : Form
                     r["t"] = "info"; r["panel"] = parent != IntPtr.Zero; r["doc"] = docName; r["tables"] = cadPid != 0; if (snap == "") RunPs("-SendErrors", (r2, e2) => { }); r["client"] = startClient; r["skill"] = ui ? "" : startSkill; Post(r);
                 });
                 break;
+            case "reinfo":   // after "Thiết lập": registered, assistant installed or connected
+                RunPs("-Info", (r, err) =>
+                {
+                    if (err != null) { Post(new { t = "error", text = err }); return; }
+                    r["t"] = "info"; r["panel"] = parent != IntPtr.Zero; r["doc"] = docName; r["tables"] = cadPid != 0; r["client"] = ""; r["skill"] = ""; r["again"] = true; Post(r);
+                });
+                break;
             case "start": Begin((string)m["client"], (string)m["skill"], m.ContainsKey("resume") && true.Equals(m["resume"])); break;
             case "undo": if (parent != IntPtr.Zero) try { Console.Out.WriteLine("undo"); Console.Out.Flush(); } catch { } break;
             case "files":
@@ -265,7 +272,8 @@ class ChatForm : Form
     }
 
     // ---------- help, report, share...: app\SteveAIUi.ps1, one request per process; the request goes through stdin, never the command line ----------
-    static readonly string[] UiOps = { "ctx", "diag", "draft", "feature", "skills", "pack", "share", "update", "qr" };
+    static readonly string[] UiOps = { "ctx", "diag", "draft", "feature", "skills", "pack", "share", "update", "qr",
+                                       "setup", "reg-send", "reg-verify", "trial", "connect", "upgrade" };
     void RunUi(Dictionary<string, object> m)
     {
         object id = m["id"]; string op = (string)m["op"];
@@ -273,7 +281,8 @@ class ChatForm : Form
         if (Array.IndexOf(UiOps, op) < 0) { Post(new { t = "uires", id = id, error = "Yêu cầu không hợp lệ." }); return; }
         q["op"] = op;
         byte[] body = new UTF8Encoding(false).GetBytes(json.Serialize(q));
-        int wait = op == "share" ? 300000 : 60000;
+        // installing an assistant (winget, Python) takes minutes; the update downloads the new Setup.exe
+        int wait = op == "connect" ? 1200000 : (op == "share" || op == "upgrade") ? 300000 : 60000;
         var th = new Thread(delegate()
         {
             string err = null; Dictionary<string, object> res = null;

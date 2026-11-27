@@ -51,7 +51,7 @@ function Write-CadMenu {
     $btn["SK$i"].draw = $s.name; $btn["SK$i"].group = $s.group
   }
   Add-Btn 'SKILL'  'Chọn skill…'     'Chọn một skill trong danh sách rồi mở AI chạy skill đó (STEVEAI-SKILL)' 'STEVEAI-SKILL' '≡' $gold $dark
-  Add-Btn 'CONN'   "Kết nối"         'Mở Steve AI Connect: kết nối CAD với AI, xem danh sách tool (STEVECAD)' 'STEVECAD' 'S' $blue $white
+  Add-Btn 'CONN'   "Thiết lập"       'Đăng ký, chọn hoặc cài trợ lý AI, kết nối lại, ngay trong khung chat (STEVECAD)' 'STEVECAD' 'S' $blue $white
   Add-Btn 'UPD'    'Cập nhật'        'Kiểm tra và cài bản mới của Steve AI Connect; cài xong cần đóng rồi mở lại CAD (STEVEAI-UPDATE)' 'STEVEAI-UPDATE' '^' $blue $white
   Add-Btn 'OPT'    'Tùy chọn'        'Mở Tùy chọn nâng cao của Steve AI Connect (STEVEAI-OPTIONS)' 'STEVEAI-OPTIONS' 'O' $blue $white
   Add-Btn 'SHARE'  'Chia sẻ skill'   'Gửi skill bạn tự tạo cho Steve duyệt (STEVEAI-SHARE)' 'STEVEAI-SHARE' 'S' $gold $dark

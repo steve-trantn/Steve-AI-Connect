@@ -11,18 +11,14 @@ Sau khi kết nối, bạn chỉ cần trò chuyện với trợ lý AI và nó 
 ## Dùng thế nào
 
 1. **Tải về:** vào trang [**Releases**](https://github.com/steve-trantn/Steve-AI-Connect/releases/latest), tải file **`Steve-AI-Connect-Setup-*.exe`** (một file duy nhất, có thể gửi qua Zalo, email, USB).
-2. **Bấm đúp file exe.** Công cụ tự cài (không cần quyền admin), tạo shortcut trên Desktop rồi mở ra ở thẻ **Bắt đầu**, dẫn bạn đi qua 3 bước. Bước nào xong có dấu ✓ xanh, lần sau mở công cụ sẽ vào thẳng bước còn dang dở.
+2. **Bấm đúp file exe.** Từ v1.10 file cài tự làm hết, không mở thêm ứng dụng nào: chép chương trình (không cần quyền admin), chuẩn bị Python, nạp tab **Steve AI** vào mọi ZWCAD / AutoCAD / ADSCivil có trên máy, nối với các trợ lý AI đã có. Cài xong có nút **Mở ZWCAD / AutoCAD…** để mở luôn.
+3. **Trong CAD:** sang tab **Steve AI** trên ribbon, bấm **Steve AI** (hoặc gõ `AI`). Lần đầu, khung chat tự mở trang **Thiết lập**:
    - **Đăng ký một lần** (miễn phí): nhập email, họ và tên, SĐT, nhận mã 6 số qua email rồi xác nhận. Máy khác chỉ cần **Đăng nhập** bằng email. Đăng ký xong dùng được cả khi không có mạng; nếu lúc đăng ký không kết nối được máy chủ thì được dùng tạm 7 ngày.
-   - **Bước 1 · Kết nối** (làm một lần): công cụ tự tìm phần mềm CAD và trợ lý AI có trên máy. Bấm **Kết nối tự động**. Máy chưa có trợ lý AI thì công cụ chỉ chỗ tải Claude Code.
-   - **Bước 2 · Mở phần mềm CAD:** chọn phiên bản (máy có nhiều bản, ví dụ ADSCivil 2026 và 2027, thì chọn trong danh sách xổ xuống) rồi bấm **Khởi động**. CAD mở xong, công cụ tự chuyển sang bước 3.
-   - **Bước 3 · Hỏi AI:** bấm **Mở Steve AI**, gõ yêu cầu bằng tiếng Việt, ví dụ *"Bản vẽ đang mở có những layer nào?"*. Chưa biết hỏi gì thì bấm một câu gợi ý để chép rồi dán (Ctrl+V).
-3. Lần sau không cần mở công cụ: trong ZWCAD / AutoCAD gõ `AI` rồi Enter, hoặc bấm tab **Steve AI** trên ribbon.
+   - **Trợ lý AI:** máy đã có Claude Code / ChatGPT Codex / Gemini CLI thì đã được nối sẵn. Chưa có thì bấm **Cài và kết nối** ở trợ lý muốn dùng (tải từ kho chính thức, khoảng 1-3 phút); Gemini cần dán API key miễn phí.
+   - Bấm **Bắt đầu chat**, gõ yêu cầu bằng tiếng Việt, ví dụ *"Bản vẽ đang mở có những layer nào?"*. Lần đầu, trợ lý hỏi đăng nhập tài khoản của hãng ngay trong khung chat.
+4. Mở lại trang Thiết lập bất cứ lúc nào: nút **Thiết lập** trên ribbon (lệnh `STEVECAD`) hoặc menu **⋯ → Thiết lập** trong khung chat.
 
-| Bước 2 | Bước 3 |
-|---|---|
-| ![Bước 2](docs/screenshot-step2.png) | ![Bước 3](docs/screenshot-step3.png) |
-
-Người dùng quen tay có thể vào thẻ **Kết nối (nâng cao)** để tự chọn từng cặp CAD ⇄ trợ lý, kiểm tra, ngắt kết nối và xem nhật ký.
+Cửa sổ **Steve AI Connect** cũ vẫn còn trong menu Start (và link *Tùy chọn nâng cao* ở cuối trang Thiết lập) cho người quen tay: tự chọn từng cặp CAD ⇄ trợ lý, kiểm tra, ngắt kết nối, xem nhật ký, gỡ cài đặt.
 
 Câu hỏi để thử (ZWCAD, AutoCAD):
 
@@ -39,7 +35,7 @@ Câu hỏi để thử (ZWCAD, AutoCAD):
 | IFC | "Đặt cống về toạ độ X=..., Y=..., góc 30°, đặt layer theo tên cống và lý trình rồi xuất IFC 4.3." |
 | PDF | "Đọc bản vẽ cống trong D:\cong.pdf và dựng mô hình 3D." |
 
-Kết nối xong có thể đóng công cụ, khởi động lại máy cũng không mất kết nối. Công cụ tạo shortcut **Steve AI Connect** trên Desktop và trong Start menu để mở lại khi cần.
+Khởi động lại máy cũng không mất kết nối. Từ v1.10 không còn shortcut trên Desktop (shortcut cũ được gỡ); **Steve AI Connect** và **Steve AI** nằm trong Start menu.
 
 | Muốn | Làm |
 |---|---|
@@ -72,20 +68,20 @@ Máy có phần mềm nào thì ô đó mới bật. Nối nhiều CAD cùng lú
 - **Toạ độ thật, layer tự động, xuất IFC4 / IFC4.3:** đưa mô hình về toạ độ công trình; đặt layer theo tên cống + lý trình + bộ phận; xuất IFC có thông tin phi hình học (công trình, lý trình, bộ phận, vật liệu, khối lượng).
 - **Đọc PDF:** xem trang PDF như ảnh, hoặc nhập nét vẽ vector vào bản vẽ.
 - **Đọc chữ font TCVN3/VNI:** chữ trong bản vẽ cũ được giải mã sang Unicode.
-- **Skill:** quy trình làm sẵn cho việc nhiều bước. `cong-3d` (dựng cống 3D từ DWG/PDF), `viet-lisp` (viết, kiểm tra và chạy thử AutoLISP trên bản vẽ nháp), `kiem-tra-ban-ve` (soát lỗi), `boc-khoi-luong` (bóc khối lượng, xuất Excel), `chuan-layer`, `pdf-sang-cad`, `khung-ten` (điền khung tên, danh mục bản vẽ), `xuat-ifc` (xuất khối 3D ra IFC4 / IFC4X3), `tao-skill` (biến quy trình của bạn thành skill riêng, lưu ở `Steve-CAD-AI\skills`).
+- **Skill:** quy trình làm sẵn cho việc nhiều bước. `cong-3d` (dựng cống 3D từ DWG/PDF), `viet-lisp` (viết, kiểm tra và chạy thử AutoLISP trên bản vẽ nháp), `kiem-tra-ban-ve` (soát lỗi), `boc-khoi-luong` (bóc khối lượng, xuất Excel), `chuan-layer`, `pdf-sang-cad`, `khung-ten` (điền khung tên, danh mục bản vẽ), `xuat-ifc` (xuất khối 3D ra IFC4 / IFC4X3), `tdtn2ntd` (chuyển số liệu trắc ngang TDT `.tdtn` sang NTD cho ADSCivil, giữ mã địa vật), `tao-skill` (biến quy trình của bạn thành skill riêng, lưu ở `Steve-CAD-AI\skills`).
 - **Báo lỗi tiếng Việt:** báo rõ khi CAD đang bận hoặc bị hộp thoại chặn.
 
 Chi tiết: [server/README.md](server/README.md).
 
 ## Steve AI: làm việc với AI ngay trong CAD
 
-- **Bước 2 trên thẻ Bắt đầu:** khởi động ZWCAD / AutoCAD / ADSCivil. Máy cài nhiều phiên bản thì chọn bản trong danh sách xổ xuống; công cụ nhớ bản đã chọn cho lần sau. Logo là logo thật lấy từ phần mềm đã cài; thẻ có viền xanh lá là CAD đang chạy.
 - **Khung chat:** trong ZWCAD, AutoCAD / Civil 3D (2021-2024, 2026-2027), gõ `AI` là khung Steve AI tự gắn cạnh bản vẽ (`STEVEAIPANEL` để ẩn/hiện). Từ công cụ, shortcut hoặc AutoCAD 2025 thì khung chat mở thành cửa sổ riêng. Cần Windows 10 1809+ và Microsoft Edge WebView2; thiếu thì dùng cửa sổ terminal như trước (hoặc tự chọn trong ⚙ Tùy chọn nâng cao).
 - **Bảng không cần AI:** *Kiểm tra bản vẽ*, *Bóc khối lượng*, *Khung tên*, *Chuẩn layer* mở thành bảng ngay trong khung gắn vào CAD (ribbon hoặc nút **＋**): quét, zoom, sửa, xuất Excel, không tốn lượt AI. Việc khó hơn thì bấm **Nhờ AI** trong bảng.
 - **Kiểm tra KCS (bản thử, miễn phí):** nhóm nút *Kiểm tra KCS* trên ribbon. *Tuyến & trắc dọc* đọc file đã lưu của bản vẽ đang mở (hiện đọc được tim tuyến và trắc dọc vẽ bằng ADSCivil, không cần cài ADSCivil), so từng chỉ tiêu với **TCVN 5729:2012** (đường cao tốc) hoặc **TCVN 4054:2005** (đường ô tô) theo cấp đường bạn chọn, ghi *Không đạt / Cần giải trình / Khuyến nghị / Lệch số liệu*, zoom tới chỗ lỗi, đánh dấu lên bản vẽ (mỗi dấu một block trên layer `KCS-…`), đưa bảng kết quả lên bản vẽ và xuất Excel. Mỗi dòng có nút *Kết quả đúng / Báo sai* để góp ý (lưu trên máy bạn, `Steve-CAD-AI\KCS\phan-hoi.jsonl`). Kết quả là gợi ý kiểm tra, kỹ sư quyết định. Siêu cao, trắc ngang, vạch sơn, biển báo: đang làm.
 - **Mở Steve AI:** mở cửa sổ Claude Code / ChatGPT Codex / Gemini CLI đã nối sẵn với CAD, có thể chọn kèm một skill (ví dụ `cong-3d`).
-- **Trong ZWCAD / AutoCAD:** tab ribbon **Steve AI**, hoặc gõ lệnh `AI` (mở ngay trợ lý), `STEVEAI` (chọn trợ lý), `STEVEAI-SKILL` (chạy skill), `AI-CONG-3D`, `STEVECAD` (mở công cụ này). Lệnh được nạp tự động mỗi khi mở CAD.
-- Shortcut **Steve AI** trên Desktop mở thẳng cửa sổ AI.
+- **Trong ZWCAD / AutoCAD:** tab ribbon **Steve AI**, hoặc gõ lệnh `AI` (mở ngay trợ lý), `STEVEAI` (chọn trợ lý), `STEVEAI-SKILL` (chạy skill), `AI-CONG-3D`, `STEVECAD` (trang Thiết lập trong khung chat). Lệnh được nạp tự động mỗi khi mở CAD.
+- **Cập nhật:** nút **Cập nhật** trên ribbon kiểm tra, tải (đối chiếu SHA-256) và cài bản mới ngay trong khung chat; cài xong đóng hẳn CAD rồi mở lại.
+- Shortcut **Steve AI** trong Start menu mở cửa sổ AI ngoài CAD.
 
 ## Trợ lý AI hỗ trợ
 
@@ -118,7 +114,8 @@ ChatGPT bản web không dùng được vì chỉ nhận MCP server từ xa qua 
 ## Dòng lệnh (cho IT, cài hàng loạt)
 
 ```bat
-Steve-AI-Connect-Setup-v1.9.2.exe -Connect                                           :: cai + ket noi, khong mo giao dien
+Steve-AI-Connect-Setup-v1.10.0.exe                                                   :: cai het, khong mo cong cu (bam dup cung vay)
+Steve-AI-Connect-Setup-v1.10.0.exe -Connect                                          :: cai + ket noi, ghi nhat ky ra man hinh
 powershell -ExecutionPolicy Bypass -File app\SteveCADConnect.ps1 -Connect                 :: moi CAD + moi tro ly co tren may
 powershell -ExecutionPolicy Bypass -File app\SteveCADConnect.ps1 -Connect -Cad zwcad -Client codex,claude -Test
 powershell -ExecutionPolicy Bypass -File app\SteveCADConnect.ps1 -Connect -Ads2026 -GeminiKey <key>
@@ -130,7 +127,7 @@ powershell -ExecutionPolicy Bypass -File app\SteveCADConnect.ps1 -Launch autocad
 powershell -ExecutionPolicy Bypass -File app\SteveCADConnect.ps1 -Uninstall
 ```
 
-Cài bằng dòng lệnh không cần đăng ký ngay: máy được dùng tạm 7 ngày, sau đó mở Steve AI Connect để đăng ký.
+Cài bằng `-Connect` không cần đăng ký ngay: máy được dùng tạm 7 ngày, sau đó đăng ký ở trang **Thiết lập** trong khung chat.
 
 ## Xử lý sự cố
 
@@ -142,7 +139,7 @@ Cài bằng dòng lệnh không cần đăng ký ngay: máy được dùng tạm
 | Kiểm tra báo "chưa đọc được bản vẽ" | Mở CAD và một bản vẽ, bấm Esc để thoát lệnh hoặc hộp thoại đang mở, rồi thử lại |
 | ADSCivil: "Cannot reach ADSCivil" | Mở ADSCivil (không phải ZWCAD thường) và một bản vẽ |
 | Mở nhiều phiên CAD cùng lúc | Server nối vào phiên mà Windows đăng ký trước. Nên chỉ mở một phiên |
-| Gõ `AI` báo *Unknown command* | Đóng hẳn CAD rồi mở lại từ bước 2 của thẻ **Bắt đầu** (công cụ tự đăng ký lại lệnh khi CAD đã đóng). Hoặc bấm **Kết nối lại** ở bước 1 |
+| Gõ `AI` báo *Unknown command* | Đóng hẳn CAD rồi chạy lại file cài (Setup.exe) và mở CAD từ nút trong cửa sổ cài xong. Hoặc mở **Steve AI Connect** trong Start menu |
 | AI báo CAD "bị chặn bởi hộp thoại" | Đóng hộp thoại đang mở trong CAD (ví dụ hộp thoại bản quyền của AutoCAD), rồi thử lại |
 | Vẫn chưa được | Liên hệ **Steve Tran, 0987 779 228** |
 

@@ -37,6 +37,7 @@ try {
   if (Test-Path $vpy) { & $vpy -X utf8 "$copy\tests\ifc.py" $copy; if ($LASTEXITCODE) { $fail++ } } else { Write-Host 'SKIP  ifc.py (server not installed)' }
   & powershell -NoProfile -ExecutionPolicy Bypass -File "$copy\tests\install.ps1" $copy; if ($LASTEXITCODE) { $fail++ }
   & powershell -NoProfile -ExecutionPolicy Bypass -STA -File "$copy\tests\notify.ps1" $copy; if ($LASTEXITCODE) { $fail++ }
+  & $py -X utf8 "$copy\tests\tdtn.py" $copy; if ($LASTEXITCODE) { $fail++ }
   if (Test-Path $vpy) { & $vpy -X utf8 "$copy\tests\kcs.py" $copy; if ($LASTEXITCODE) { $fail++ } } else { Write-Host 'SKIP  kcs.py (server not installed)' }
   # 2. the work behind the panels inside the CAD
   $env:USERPROFILE = $hm

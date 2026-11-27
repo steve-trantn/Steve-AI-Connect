@@ -86,7 +86,7 @@ try {
   $out = Join-Path $dist "Steve-AI-Connect-Setup-$ver.exe"
   $cscArgs = @('/nologo', '/target:winexe', '/optimize+', '/platform:anycpu', "/out:$out", "/win32icon:$ico",
                "/resource:$zip,payload.zip", "/reference:$fw\System.IO.Compression.dll", "/reference:$fw\System.IO.Compression.FileSystem.dll",
-               '/reference:System.Windows.Forms.dll', '/reference:System.Drawing.dll', $src)
+               '/reference:System.Windows.Forms.dll', '/reference:System.Drawing.dll', "/reference:$fw\System.Web.Extensions.dll", $src)
   & $csc @cscArgs
   if ($LASTEXITCODE -ne 0) { throw "csc báo lỗi ($LASTEXITCODE)" }
   $kb = [Math]::Round((Get-Item $out).Length / 1KB)

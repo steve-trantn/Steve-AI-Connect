@@ -13,17 +13,33 @@
     -AllowScript / -AllowScript:$false  (cho AI chạy script Python trong ZWCAD/AutoCAD - nâng cao)
     -Launch zwcad|autocad|adscivil [-CadVersion <chữ trong tên bản, ví dụ 2026>]   khởi động CAD; nhiều bản thì hỏi chọn
     -ListVersions                        liệt kê các bản CAD đã cài
+    -Setup                               cài không cần cửa sổ (Setup.exe dùng): nối mọi CAD với các trợ lý đã có;
+                                         đăng ký và chọn trợ lý làm trong khung chat của CAD
 #>
 param(
   [switch]$Connect, [switch]$Disconnect, [switch]$Test, [switch]$Uninstall,
   [string[]]$Cad, [string[]]$Client, [switch]$Ads2026, [string]$GeminiKey = '', [switch]$AllowScript,
-  [string]$Launch = '', [string]$CadVersion = '', [switch]$ListVersions, [switch]$FirstRun,
+  [string]$Launch = '', [string]$CadVersion = '', [switch]$ListVersions, [switch]$FirstRun, [switch]$Setup,
   [ValidateSet('', 'home', 'share', 'feature', 'diag', 'help', 'update', 'options')][string]$Open = ''   # used by the CAD ribbon
 )
 . (Join-Path $PSScriptRoot 'core.ps1')
 . (Join-Path $PSScriptRoot 'account.ps1')
 . (Join-Path $PSScriptRoot 'report.ps1')
 Get-ChildItem $script:Root -Recurse -File -ErrorAction SilentlyContinue | Unblock-File -ErrorAction SilentlyContinue
+
+# ======================= Setup.exe (no window) =======================
+# Every line on stdout is progress for the Setup window; the last one is "@@DONE {json}".
+if ($Setup) {
+  $out = New-Object IO.StreamWriter ([Console]::OpenStandardOutput()), (New-Object Text.UTF8Encoding $false)
+  $out.AutoFlush = $true
+  $script:LogSink = { param($m, $lvl) if ($m -and $lvl -ne 'detail') { $out.WriteLine(($m -replace '\s+', ' ').Trim()) } }
+  $code = 0; $res = @{ cads = @(); clients = @(); errors = 1 }
+  try { $res = Invoke-Setup; if ($res.errors) { $code = 1 } }
+  catch { Write-Log "LỖI: $($_.Exception.Message)" 'error'; Add-ErrorLog 'setup' $_.Exception.Message $_.ScriptStackTrace; $code = 1 }
+  $res.version = [string]$script:Version
+  $out.WriteLine('@@DONE ' + ($res | ConvertTo-Json -Depth 5 -Compress))
+  exit $code
+}
 
 # ======================= command line =======================
 if ($Connect -or $Disconnect -or $Test -or $Uninstall -or $Launch -or $ListVersions) {

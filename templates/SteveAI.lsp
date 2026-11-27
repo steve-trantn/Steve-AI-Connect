@@ -119,7 +119,8 @@
   )
   (princ)
 )
-;; help | diag | feature | share | update inside the CAD panel. No panel here, or an older plug-in is loaded: the window.
+;; help | diag | feature | share | update | setup inside the CAD panel. No panel here, or an older plug-in is loaded: the window
+;; ("setup" is the page "home" there).
 (defun steveai-open-in (part / dll r)
   (if (setq dll (steveai-dll))
     (progn
@@ -128,10 +129,10 @@
       (if (vl-catch-all-error-p r) (setq r nil))
     )
   )
-  (if (not r) (steveai-open-part part))
+  (if (not r) (steveai-open-part (if (= part "setup") "home" part)))
   (princ)
 )
-(defun c:STEVECAD () (steveai-open-part "home"))
+(defun c:STEVECAD () (steveai-open-in "setup"))
 (defun c:STEVEAI-SHARE () (steveai-open-in "share"))
 (defun c:STEVEAI-FEATURE () (steveai-open-in "feature"))
 (defun c:STEVEAI-DIAG () (steveai-open-in "diag"))

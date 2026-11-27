@@ -23,7 +23,9 @@ function Show-Msg([string]$m) {
 }
 
 try {
-  if (-not (Test-AccessOk)) {
+  # the chat window registers inside the CAD (view "Thiết lập"): it asks -Info first, and only -Prepare needs the account
+  if (-not (Test-AccessOk) -and -not $Info -and ($Prepare -or -not (Test-ChatWindow))) {
+    if ($Prepare) { Show-Msg 'Cần đăng ký một lần (miễn phí). Bấm ⚙ Thiết lập trong khung chat.'; exit 1 }
     Show-Msg "Cần đăng ký một lần (miễn phí) để dùng Steve AI. Bấm OK để mở cửa sổ đăng ký."
     if (-not $env:STEVECAD_DRYRUN) { Start-Process (Join-Path $PSHOME 'powershell.exe') -ArgumentList "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -STA -File `"$(Join-Path $PSScriptRoot 'SteveCADConnect.ps1')`"" -WindowStyle Hidden }
     exit 1
@@ -44,7 +46,7 @@ try {
   $exe = @{ claudecode = (Find-Exe 'claude'); codex = (Find-Codex); gemini = (Find-Exe 'gemini.cmd') }
   if (-not $exe.gemini) { $exe.gemini = Find-Exe 'gemini' }
   if ($Info) {
-    $o = @{ default = [string](Get-Setting 'DefaultAI' ''); skills = @(Get-SkillList | ForEach-Object { @{ name = $_.name; title = $_.title; description = $_.description } })
+    $o = @{ default = [string](Get-Setting 'DefaultAI' ''); access = [bool](Test-AccessOk); skills = @(Get-SkillList | ForEach-Object { @{ name = $_.name; title = $_.title; description = $_.description } })
       clients = @($script:LaunchClients | ForEach-Object { @{ id = $_; label = $script:ClientLabel[$_]; ok = ([bool]$exe[$_] -and ($_ -ne 'gemini' -or (Test-GeminiKey))) } }) }
     [Console]::Out.Write(($o | ConvertTo-Json -Depth 5 -Compress)); exit 0
   }

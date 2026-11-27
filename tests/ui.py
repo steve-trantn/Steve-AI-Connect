@@ -59,6 +59,44 @@ r = call('share', name='ui-thu', sha=p.get('sha'), email='a@b.vn', author='Tên'
 st = get('/state')
 check('gửi skill: có biên nhận, máy chủ nhận đúng SHA', 'SK-' in r.get('text', '') and hashlib.sha256(base64.b64decode(st['drive'][-1]['zip'])).hexdigest() == p.get('sha'), r)
 check('QR đọc được', base64.b64decode(call('qr').get('png', ''))[:4] == b'\x89PNG')
+# ---- v1.10 "Thiết lập" inside the CAD: state, registration by email code, trial, connect guard
+r = call('setup')
+check('setup: trạng thái', r.get('registered') is True and [c['id'] for c in r.get('clients', [])] == ['claudecode', 'codex', 'gemini']
+      and {c['id'] for c in r.get('cads', [])} == {'zwcad', 'autocad', 'adscivil'}, r)
+check('đăng ký: email sai bị chặn', 'error' in call('reg-send', email='x@', login=False, name='Thu', phone='0912345678', consent=True))
+check('đăng ký: chưa tích đồng ý bị chặn', 'error' in call('reg-send', email='moi@x.vn', login=False, name='Thu', phone='0912345678', consent=False))
+check('đăng ký: SĐT sai bị chặn', 'error' in call('reg-send', email='moi@x.vn', login=False, name='Thu', phone='12', consent=True))
+r = call('reg-send', email='Moi@X.vn', login=False, name='Thu Mới', phone='0912 345 678', consent=True)
+m = get('/mail')
+check('đăng ký: gửi mã', r.get('ok') is True and m.get('to') == 'moi@x.vn' and len(m.get('code') or '') == 6, (r, m))
+r = call('reg-verify', email='moi@x.vn', code='000000' if m.get('code') != '000000' else '111111', login=False, name='Thu Mới', phone='0912345678', consent=True)
+check('đăng ký: mã sai báo đúng lỗi, không ghi tài khoản', r.get('ok') is False and r.get('why') == 'code' and call('ctx').get('email') == 'thu@x.vn', r)
+r = call('reg-verify', email='moi@x.vn', code=m.get('code'), login=False, name='Thu Mới', phone='0912345678', consent=True, news=False)
+check('đăng ký: mã đúng thì lưu tài khoản', r.get('ok') is True and call('ctx').get('email') == 'moi@x.vn', r)
+check('đăng ký: máy chủ có dòng mới', 'moi@x.vn' in json.dumps(get('/reg'), ensure_ascii=False))
+r = call('reg-send', url='http://127.0.0.1:9/', email='khac@x.vn', login=True)
+check('mất mạng: gợi ý dùng tạm', r.get('ok') is False and r.get('why') == 'network' and r.get('trial') is True, r)
+r = call('trial')
+check('dùng tạm 7 ngày', r.get('ok') is True and r.get('left') == 7, r)
+r = call('reg-send', url='http://127.0.0.1:9/', email='khac@x.vn', login=True)
+check('dùng tạm chỉ một lần', r.get('trial') is False, r)
+check('connect: trợ lý lạ bị chặn', 'error' in call('connect', install='calc.exe'))
+check('connect: Gemini không key bị chặn', 'API key' in call('connect', install='gemini', key='').get('error', ''))
+# -Info no longer stops an unregistered PC: the panel shows "Thiết lập" itself
+lad = os.path.join(os.path.dirname(ws), 'lad-new')
+os.makedirs(os.path.join(lad, 'SteveCADConnect'), exist_ok=True)
+for sw, want in (('-Info', 'info'), ('-Prepare', 'prepare')):
+    p = subprocess.run(['powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', root + r'\app\SteveAI.ps1', sw],
+                       capture_output=True, env=dict(os.environ, LOCALAPPDATA=lad, STEVECAD_DRYRUN='1'), timeout=120)
+    try:
+        o = json.loads(p.stdout.decode('utf-8'))
+    except ValueError:
+        o = {'bad': p.stdout[:300]}
+    if want == 'info':
+        check('-Info khi chưa đăng ký: không lỗi, access=false', o.get('access') is False and 'error' not in o and o.get('skills'), o)
+    else:
+        check('-Prepare khi chưa đăng ký: báo cần đăng ký', 'đăng ký' in o.get('error', ''), o)
+
 t = time.time()
 call('ctx')
 print('      ctx %.1f s' % (time.time() - t))

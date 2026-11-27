@@ -35,4 +35,14 @@ Check 'khong co goi KCS van cai binh thuong' ($e -eq '' -and -not (Test-Path (Jo
 $script:Root = $keepRoot; Remove-Item $kroot -Recurse -Force
 $f = [IO.File]::ReadAllText((Join-Path $root 'app\gui.ps1'))
 Check 'khong con hoi Trusted Locations' (-not $f.Contains('Thêm 3 thư mục của Steve AI vào Trusted Locations (Options'))
+# v1.10 Setup.exe: app\SteveCADConnect.ps1 -Setup, no window, progress lines then "@@DONE {json}" (sandbox, DRYRUN)
+$p = New-Object Diagnostics.ProcessStartInfo (Join-Path $PSHOME 'powershell.exe'), "-NoProfile -ExecutionPolicy Bypass -STA -File `"$(Join-Path $root 'app\SteveCADConnect.ps1')`" -Setup"
+$p.UseShellExecute = $false; $p.RedirectStandardOutput = $true; $p.RedirectStandardInput = $true; $p.StandardOutputEncoding = New-Object Text.UTF8Encoding $false
+$pr = [Diagnostics.Process]::Start($p); $pr.StandardInput.Close(); $o = $pr.StandardOutput.ReadToEnd(); $pr.WaitForExit()
+$lines = @($o -split "`r?`n" | Where-Object { $_ })
+$done = @($lines | Where-Object { $_ -like '@@DONE *' })
+$j = $null; if ($done) { $j = $done[-1].Substring(7) | ConvertFrom-Json }
+Check '-Setup: tien trinh roi @@DONE' ($lines.Count -ge 3 -and $lines[-1] -like '@@DONE *' -and $lines[0] -match 'chép chương trình') $o
+Check '-Setup: bao CAD tim thay (co nhan de mo)' ($j -and $j.version -eq $script:Version -and @($j.cads).Count -ge 1 -and -not @($j.cads | Where-Object { -not $_.label -or -not $_.cad })) $o
+Check '-Setup: khong mo cua so, ma thoat 0' ($pr.ExitCode -eq 0) "exit $($pr.ExitCode)"
 exit $(if ($bad) { 1 } else { 0 })

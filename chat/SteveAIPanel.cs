@@ -68,7 +68,7 @@ namespace SteveAI
                 foreach (TypedValue v in args.AsArray())
                 {
                     string s = v.Value as string;
-                    if (s == null || Array.IndexOf(new[] { "help", "diag", "feature", "share", "update" }, s) < 0) continue;
+                    if (s == null || Array.IndexOf(new[] { "help", "diag", "feature", "share", "update", "setup" }, s) < 0) continue;
                     Open("", "ui-" + s); return true;
                 }
             }

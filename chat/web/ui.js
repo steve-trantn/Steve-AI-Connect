@@ -35,14 +35,14 @@ const Ui = typeof document === 'undefined' ? null : (() => {
   async function busy(buttons, text, fn) {
     for (const b of buttons) b.disabled = true;
     say(text, 'run');
-    try { await fn(); } catch (e) { say(e.message, 'err'); if (/đăng ký/.test(e.message)) note.append(' ', outside('home')); } finally { for (const b of buttons) b.disabled = false; }
+    try { await fn(); } catch (e) { say(e.message, 'err'); if (/đăng ký/.test(e.message) && cur !== 'ui-setup') note.append(' ', btn('Thiết lập', () => open('ui-setup'), 'pri')); } finally { for (const b of buttons) if (b.isConnected) b.disabled = false; }
   }
   // the account's email etc.; asked once, then known
   async function withCtx(then) { const g = gen; try { ctx = await call('ctx'); } catch (e) { if (g === gen) say(e.message, 'err'); return; } if (g === gen && then) then(ctx); }
 
   // ---------------------------------------------------------------- help
   function help() {
-    const rows = [['AI', 'Mở khung chat với trợ lý AI'], ['STEVEAI', 'Chọn trợ lý rồi mở'], ['STEVEAI-SKILL', 'Chạy một skill, ví dụ dựng cống 3D'], ['STEVECAD', 'Mở Steve AI Connect: kết nối, danh sách tool'], ['STEVEAI-UPDATE', 'Kiểm tra bản mới']];
+    const rows = [['AI', 'Mở khung chat với trợ lý AI'], ['STEVEAI', 'Chọn trợ lý rồi mở'], ['STEVEAI-SKILL', 'Chạy một skill, ví dụ dựng cống 3D'], ['STEVECAD', 'Thiết lập: đăng ký, chọn hoặc cài trợ lý AI, kết nối lại'], ['STEVEAI-UPDATE', 'Kiểm tra bản mới']];
     const who = el('p', { textContent: 'Steve Tran  ·  0987 779 228' });
     const qr = el('div', { className: 'uqr' });
     const cf = el('button', { className: 'ulink', textContent: '☕ Mời Steve ly cà phê' });
@@ -142,19 +142,111 @@ const Ui = typeof document === 'undefined' ? null : (() => {
     }
   }
 
-  // ---------------------------------------------------------------- update check (installing is done by the outside window)
+  // ---------------------------------------------------------------- update check and install (the new Setup.exe runs without a window of the tool)
   function update() {
     const g = gen; body.replaceChildren(); say('Đang kiểm tra bản mới…', 'run');
     call('update').then(r => {
       if (g !== gen) return;
       if (!r.tag) { say(`✓ Bạn đang dùng bản mới nhất (${r.current}).`, 'ok'); return; }
       say('');
-      body.replaceChildren(el('h3', { textContent: `Có bản mới ${r.tag}` }), el('p', { className: 'dim', textContent: `Bạn đang dùng ${r.current}. Cấu hình và đăng ký được giữ nguyên. Cập nhật xong hãy lưu bản vẽ, đóng hẳn CAD rồi mở lại.` }),
-        el('pre', { textContent: r.notes.replace(/[*`#>]/g, '').trim() }), el('div', { className: 'ubtn' }, btn('Cập nhật…', () => post({ t: 'connect', part: 'update' }), 'pri')));
+      const go = btn('Cập nhật ngay', () => busy([go], 'Đang tải bản mới (kiểm tra mã SHA-256)…', async () => {
+        await call('upgrade');
+        if (g === gen) say('✓ Đã tải. Cửa sổ cài đặt đang chạy; cài xong hãy lưu bản vẽ, đóng hẳn CAD rồi mở lại.', 'ok');
+      }), 'pri');
+      body.replaceChildren(el('h3', { textContent: `Có bản mới ${r.tag}` }), el('p', { className: 'dim', textContent: `Bạn đang dùng ${r.current}. Cấu hình và đăng ký được giữ nguyên.` }),
+        el('pre', { textContent: r.notes.replace(/[*`#>]/g, '').trim() }), el('div', { className: 'ubtn' }, go));
     }, e => { if (g === gen) say(e.message, 'err'); });
   }
 
-  const list = { 'ui-help': ['Hướng dẫn & hỗ trợ', help], 'ui-diag': ['Báo lỗi cho Steve', report], 'ui-feature': ['Đề xuất tính năng', feature], 'ui-share': ['Chia sẻ skill', share], 'ui-update': ['Cập nhật', update] };
+  // ---------------------------------------------------------------- set-up: registration, assistant, connection (v1.10: no outside window)
+  function setup() {
+    const g = gen; let st = null, login = false, sentTo = '', trialOffer = false, acts = [];
+    body.replaceChildren(el('p', { className: 'dim', textContent: 'Đang đọc trạng thái…' }));
+    const load = () => call('setup').then(r => { if (g !== gen) return; st = r; draw(); }, e => { if (g === gen) say(e.message, 'err'); });
+    // registration form, kept across redraws
+    const em = el('input', { type: 'email', maxLength: 120 }), nm = el('input', { type: 'text', maxLength: 80 }), ph = el('input', { type: 'tel', maxLength: 20 });
+    const c1 = el('input', { type: 'checkbox' }), c2 = el('input', { type: 'checkbox' }), cd = el('input', { type: 'text', maxLength: 6, inputMode: 'numeric', placeholder: '6 chữ số' });
+    const key = el('input', { type: 'password', maxLength: 200, placeholder: 'Dán Gemini API key' });
+    const regArgs = () => ({ email: em.value, login, name: nm.value, phone: ph.value, consent: c1.checked, news: c2.checked });
+    load();
+    function draw() {
+      const parts = [];
+      // ---- 1. registration
+      parts.push(el('h3', { textContent: '1. Đăng ký (miễn phí, một lần)' }));
+      if (st.registered) parts.push(el('p', { textContent: '✓ Đã đăng ký: ' + st.email }));
+      else {
+        if (st.access && st.trialLeft > 0) parts.push(el('p', { className: 'dim', textContent: `Đang dùng tạm, còn ${st.trialLeft} ngày. Đăng ký để dùng tiếp.` }));
+        parts.push(el('p', { className: 'dim', textContent: login ? 'Đã đăng ký trên máy khác: nhập email, nhận mã, xác nhận.' : 'Đăng ký xong, máy này dùng được cả khi không có mạng. Bản vẽ không bị gửi đi.' }));
+        parts.push(field('Email', em));
+        if (!login) parts.push(field('Họ và tên', nm), field('Số điện thoại', ph),
+          el('label', { className: 'uc' }, c1, ' Tôi đồng ý để Steve Tran lưu email, họ tên, SĐT để hỗ trợ và báo bản cập nhật (bắt buộc)'),
+          el('label', { className: 'uc' }, c2, ' Nhận giới thiệu sản phẩm, đào tạo BIM (không bắt buộc)'));
+        const send = btn(sentTo ? 'Gửi lại mã' : 'Gửi mã về email', () => reg('reg-send', [send, ok]), sentTo ? '' : 'pri');
+        const ok = btn('Xác nhận', () => reg('reg-verify', [send, ok]), sentTo ? 'pri' : '');
+        ok.disabled = !sentTo; cd.disabled = !sentTo;
+        parts.push(el('div', { className: 'ubtn' }, send), field('Mã trong email (xem cả mục Spam)', cd), el('div', { className: 'ubtn' }, ok));
+        const mode = el('button', { className: 'ulink', textContent: login ? 'Chưa có tài khoản? Đăng ký' : 'Đã đăng ký rồi? Đăng nhập' });
+        mode.onclick = () => { login = !login; say(''); draw(); };
+        parts.push(mode);
+        if (trialOffer) {
+          const t = el('button', { className: 'ulink', textContent: 'Không kết nối được máy chủ: dùng tạm 7 ngày' });
+          t.onclick = () => busy([t], 'Đang bật dùng tạm…', async () => { await call('trial'); trialOffer = false; await load(); say('✓ Đang dùng tạm. Nhớ đăng ký khi có mạng.', 'ok'); });
+          parts.push(t);
+        }
+      }
+      // ---- 2. assistant
+      parts.push(el('h3', { textContent: '2. Trợ lý AI' }));
+      const cads = st.cads.filter(c => c.ok).map(c => c.label);
+      if (!cads.length) parts.push(el('p', { className: 'dim', textContent: '⚠ Máy chưa có ZWCAD, AutoCAD hoặc ADSCivil.' }));
+      else parts.push(el('p', { className: 'dim', textContent: 'Nối với: ' + cads.join(', ') + '. Trợ lý cần tài khoản của hãng (Claude Pro, ChatGPT Plus, hoặc Gemini API key miễn phí); lần mở đầu sẽ hỏi đăng nhập ngay trong khung chat.' }));
+      acts = [];
+      for (const c of st.clients) {
+        const done = c.connected && c.key;
+        const s = done ? '✓ đã kết nối' : c.installed ? (c.key ? 'đã cài, chưa kết nối' : 'cần API key') : 'chưa cài';
+        const b = btn(done ? 'Kết nối lại' : c.installed ? 'Kết nối' : 'Cài và kết nối', () => connect(c), done ? '' : 'pri');
+        b.disabled = !st.access || !cads.length || (!c.installed && !st.winget && c.id !== 'gemini'); acts.push(b);
+        parts.push(el('div', { className: 'ubtn' }, el('span', { style: 'min-width:110px;align-self:center', textContent: c.label }), el('span', { className: 'dim', style: 'align-self:center;flex:1', textContent: s }), b));
+        if (c.id === 'gemini' && !c.key) parts.push(field('Gemini API key (lấy miễn phí tại aistudio.google.com/apikey)', key));
+      }
+      if (!st.access) parts.push(el('p', { className: 'dim', textContent: 'Đăng ký ở bước 1 trước.' }));
+      const ready = st.access && st.clients.some(c => c.installed && c.key && c.connected);
+      const go = btn('Bắt đầu chat', () => { hide(); post({ t: 'reinfo' }); }, ready ? 'pri' : '');
+      go.disabled = !ready;
+      parts.push(el('div', { className: 'ubtn' }, go));
+      const adv = el('button', { className: 'ulink', textContent: `Tùy chọn nâng cao (cửa sổ Steve AI Connect) · ${st.version}` });
+      adv.onclick = () => post({ t: 'connect', part: 'home' });
+      parts.push(adv);
+      body.replaceChildren(...parts);
+    }
+    function reg(op, buttons) {
+      busy(buttons.concat([em, nm, ph, c1, c2, cd]), 'Đang kết nối…', async () => {
+        const r = await call(op, Object.assign(regArgs(), op === 'reg-verify' ? { code: cd.value } : {}));
+        if (g !== gen) return;
+        if (!r.ok) {
+          if (r.trial) trialOffer = true;
+          if (r.why === 'profile') login = false;
+          if (r.why === 'expired') { sentTo = ''; cd.value = ''; }
+          draw(); say(r.text, 'err'); return;
+        }
+        if (op === 'reg-send') { sentTo = em.value.trim().toLowerCase(); draw(); say(`✓ Đã gửi mã tới ${sentTo}. Mã có hiệu lực 10 phút.`, 'ok'); cd.focus(); return; }
+        await load(); say('✓ Đã đăng ký. Sang bước 2: chọn trợ lý AI.', 'ok');
+      });
+    }
+    function connect(c) {
+      if (c.id === 'gemini' && !c.key && !key.value.trim()) { say('Dán Gemini API key vào ô trước.', 'err'); key.focus(); return; }
+      const what = c.installed ? 'Đang kết nối…' : `Đang tải và cài ${c.label} từ kho chính thức, khoảng 1-3 phút. Đừng đóng CAD…`;
+      busy(acts, what, async () => {
+        const r = await call('connect', { install: c.installed ? '' : c.id, key: c.id === 'gemini' ? key.value : '' });
+        if (g !== gen) return;
+        key.value = '';
+        await load();
+        if (r.ok) say(`✓ Xong. Bấm “Bắt đầu chat”. Lần đầu, ${c.label} sẽ hỏi đăng nhập tài khoản ngay trong khung chat.`, 'ok');
+        else say('Có lỗi: ' + (r.log || []).filter(x => /lỗi/i.test(x)).slice(-3).join(' · ') + ' Cần hỗ trợ: 0987 779 228', 'err');
+      });
+    }
+  }
+
+  const list = { 'ui-help': ['Hướng dẫn & hỗ trợ', help], 'ui-diag': ['Báo lỗi cho Steve', report], 'ui-feature': ['Đề xuất tính năng', feature], 'ui-share': ['Chia sẻ skill', share], 'ui-update': ['Cập nhật', update], 'ui-setup': ['Thiết lập Steve AI', setup] };
   function open(name) {
     if (!list[name]) return false;
     pop.hidden = true;

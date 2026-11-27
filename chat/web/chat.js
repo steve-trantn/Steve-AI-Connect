@@ -105,6 +105,7 @@ $('more').onclick = () => popup($('more'), [
   ...(inPanel ? [{ text: 'Hoàn tác bước cuối trong CAD (U)', sub: 'Kể cả thao tác bạn vừa làm tay', act: () => post({ t: 'undo' }) }] : []),
   { text: 'Dừng trợ lý', off: !running, act: () => { post({ t: 'stop' }); setRun(false); state('Đã dừng. Bấm ✚ để mở lại.'); } },
   { text: 'Chữ lớn hơn', keep: true, act: () => zoom(1) }, { text: 'Chữ nhỏ hơn', keep: true, act: () => zoom(-1) },
+  { text: 'Thiết lập', sub: 'Đăng ký, chọn hoặc cài trợ lý AI', act: () => Ui.open('ui-setup') },
   { text: 'Hướng dẫn & hỗ trợ', act: () => Ui.open('ui-help') }, { text: 'Báo lỗi cho Steve', act: () => Ui.open('ui-diag') },
   { head: 'AI có thể nhầm. Sai thì gõ UNDO trong CAD.' },
 ]);
@@ -118,11 +119,17 @@ host.addEventListener('message', ev => {
     skills = m.skills; inPanel = !!m.panel; tables = !!m.tables; docName = m.doc || '';
     client = [m.client, m.default].find(x => ok.some(c => c.id === x)) || (ok[0] && ok[0].id) || '';
     $('client').value = client;
-    if (!client) { state('Máy chưa có trợ lý AI. Mở Steve AI Connect để kết nối.', 'err'); return; }
+    post({ t: 'snap' });
+    // not registered, or no assistant yet: set it up right here (v1.10, nothing outside the CAD). The tables need neither.
+    if (m.access === false || !client) {
+      if (tables && Panels.open(m.skill)) { state('Trợ lý AI chưa sẵn sàng (bảng này không cần AI)'); return; }
+      state(m.access === false ? 'Cần đăng ký (miễn phí) một lần' : 'Chưa có trợ lý AI: chọn hoặc cài ở Thiết lập', 'err');
+      if (!Ui.isOpen()) Ui.open('ui-setup');
+      return;
+    }
     // a skill that has a table opens the table: instant, and no AI is used
     if (Ui.isOpen()) state('Trợ lý AI chưa mở');
     else if (tables && Panels.open(m.skill)) state('Trợ lý AI chưa mở (không cần cho bảng này)'); else start(m.skill);
-    post({ t: 'snap' });
   }
   else if (m.t === 'started') { setRun(true); client = m.client; $('client').value = client; state(docName, 'on'); }
   else if (m.t === 'uiopen') Ui.open(m.name);

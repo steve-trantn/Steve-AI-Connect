@@ -14,6 +14,7 @@ function New-DrawnIcon([string]$name, [int]$size) {
   $edge = { param($hex, $w, $s) $g.DrawPolygon((& $pn $hex $w), (& $pt $s)) }
   $line = { param($hex, $w, $s) $g.DrawLines((& $pn $hex $w), (& $pt $s)) }
   $sheet = { param($hex) & $poly $hex '5,2 20,2 27,9 27,30 5,30'; & $poly '#B9C6D6' '20,2 27,9 20,9' }
+  $kcsOk = { $g.FillEllipse((& $br '#FFFFFF'), 18, 18, 14, 14); $g.FillEllipse((& $br '#16A34A'), 19, 19, 12, 12); & $line '#FFFFFF' 2 '21.8,25 24.3,27.5 28.3,22.3' }   # Kiểm tra KCS badge
   switch ($name) {
     'cong-3d' {   # box culvert in perspective: front ring with the opening, top and side going back
       & $poly '#8FA3B8' '2,12 12,4 30,4 20,12'
@@ -58,6 +59,43 @@ function New-DrawnIcon([string]$name, [int]$size) {
       & $line '#FFFFFF' 1.6 '5,11 14,11'; & $line '#FFFFFF' 1.6 '5,15 14,15'
       & $line '#16A34A' 2.6 '10,27 19,27'; & $poly '#16A34A' '18,23 23,27 18,31'
       & $line '#3B82F6' 2 '22,20 22,9 30,9 30,20 22,20'; & $line '#3B82F6' 1.4 '22,20 30,9'
+    }
+    'tdtn2ntd' {   # cross-section (ground line with a road on it), arrow, text file
+      & $poly '#C98A3A' '1,15 5,10 9,12 12,8 17,8 20,12 23,9 23,18 1,18'; & $line '#6B4A1F' 1.6 '1,15 5,10 9,12 12,8 17,8 20,12 23,9'
+      & $line '#16A34A' 2.6 '4,25 11,25'; & $poly '#16A34A' '10,21 15,25 10,29'
+      & $poly '#3B82F6' '17,14 26,14 30,18 30,31 17,31'; & $poly '#8FC1F7' '26,14 30,18 26,18'
+      & $line '#FFFFFF' 1.4 '19.5,22 27.5,22'; & $line '#FFFFFF' 1.4 '19.5,25 27.5,25'; & $line '#FFFFFF' 1.4 '19.5,28 25,28'
+    }
+    'kcs-tuyen' {   # route in plan: curve between two straights, IP points, check badge
+      $q = & $pn '#3B82F6' 3.2; $g.DrawBezier($q, 2, 27, 12, 27, 12, 6, 26, 5)
+      $g.FillEllipse((& $br '#F5B301'), 0, 24.5, 5, 5); $g.FillEllipse((& $br '#F5B301'), 23.5, 2.5, 5, 5)
+      & $kcsOk
+    }
+    'kcs-sieu-cao' {   # road cross-section tilted on a curve, slope arrow, check badge
+      & $poly '#8A97A6' '2,13 26,5 26,9 2,17'; & $line '#F5B301' 1.4 '14,9.2 14.5,9'
+      & $poly '#C98A3A' '2,17 26,9 26,13 2,21'
+      & $line '#DC3B3B' 2 '4,5 13,2'; & $poly '#DC3B3B' '3,7.5 1,5.5 5,3'
+      & $kcsOk
+    }
+    'kcs-trac-ngang' {   # cross-section with crown and side slopes, width dimension above, check badge
+      & $poly '#C98A3A' '1,22 7,15 25,15 31,22'
+      & $poly '#5F6B78' '7,15 16,12.5 25,15 25,17 16,14.5 7,17'
+      & $line '#FFFFFF' 1.2 '16,12.8 16,14.2'
+      & $line '#3B82F6' 1.6 '7,6 25,6'; & $line '#3B82F6' 1.6 '7,3 7,9'; & $line '#3B82F6' 1.6 '25,3 25,9'
+      & $poly '#3B82F6' '7,6 10.5,4 10.5,8'; & $poly '#3B82F6' '25,6 21.5,4 21.5,8'
+      & $kcsOk
+    }
+    'kcs-vach-son' {   # road in perspective with edge and centre markings, check badge
+      & $poly '#4C5560' '11,2 21,2 31,30 1,30'
+      & $line '#F5B301' 1.4 '12,3 3,29'; & $line '#F5B301' 1.4 '20,3 29,29'
+      foreach ($y in @(@(3, 7), @(10, 15), @(18, 25))) { & $line '#FFFFFF' 1.8 "16,$($y[0]) 16,$($y[1])" }
+      & $kcsOk
+    }
+    'kcs-bien-bao' {   # warning sign on a post, check badge
+      & $line '#7C8FA5' 2.4 '14,24 14,31'
+      & $poly '#DC3B3B' '14,1 27,24 1,24'; & $poly '#FFD43B' '14,6.5 22.6,21.5 5.4,21.5'
+      & $line '#1F2933' 2.2 '14,10.5 14,16.5'; $g.FillEllipse((& $br '#1F2933'), 12.8, 18, 2.4, 2.4)
+      & $kcsOk
     }
     'xuat-ifc' {   # cube with an arrow out
       & $poly '#8FC1F7' '2,11 12,6 22,11 12,16'; & $poly '#3B82F6' '2,11 12,16 12,28 2,23'; & $poly '#1E4E9C' '22,11 12,16 12,28 22,23'
@@ -110,5 +148,6 @@ function New-DrawnIcon([string]$name, [int]$size) {
   $g.Dispose()
   return $bmp
 }
-$script:DrawnSkills = 'cong-3d', 'boc-khoi-luong', 'kiem-tra-ban-ve', 'viet-lisp', 'tao-skill', 'chuan-layer', 'pdf-sang-cad', 'khung-ten', 'xuat-ifc'
+$script:DrawnSkills = 'cong-3d', 'boc-khoi-luong', 'kiem-tra-ban-ve', 'viet-lisp', 'tao-skill', 'chuan-layer', 'pdf-sang-cad', 'khung-ten', 'xuat-ifc', 'tdtn2ntd',
+  'kcs-tuyen', 'kcs-sieu-cao', 'kcs-trac-ngang', 'kcs-vach-son', 'kcs-bien-bao'
 function New-SkillIcon([string]$skill, [int]$size) { return (New-DrawnIcon $(if ($skill -in $script:DrawnSkills) { $skill } else { 'skill' }) $size) }

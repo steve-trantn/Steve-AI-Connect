@@ -6,7 +6,7 @@ type: software
 authors:
   - family-names: "Tran"
     given-names: "Steve"
-version: "1.9.2"
+version: "1.10.0"
 date-released: "2026-11-27"
 license: Apache-2.0
 repository-code: "https://github.com/steve-trantn/Steve-AI-Connect"

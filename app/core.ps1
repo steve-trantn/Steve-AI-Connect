@@ -958,9 +958,13 @@ function Install-Self {
   $ico = Join-Path $script:AppHome 'app.ico'
   try { $icon = New-AppIcon; $fs = [IO.File]::Create($ico); $icon.Save($fs); $fs.Close() } catch {}
   $ps1 = Join-Path $script:ToolDir 'app\SteveCADConnect.ps1'
+  if ($env:STEVECAD_DRYRUN) { return }   # tests: the Start menu, Desktop and Apps list are the real ones of this PC
   $sh = New-Object -ComObject WScript.Shell
-  $lnks = @((Join-Path ([Environment]::GetFolderPath('Desktop')) "$($script:AppName).lnk"),
-            (Join-Path ([Environment]::GetFolderPath('Programs')) "$($script:AppName).lnk"))
+  # v1.10: everything is done inside the CAD, so nothing goes on the Desktop any more; the Start menu keeps both
+  # (repair, advanced options, AI outside the CAD). Shortcuts of earlier versions are taken off the Desktop.
+  $desk = [Environment]::GetFolderPath('Desktop')
+  foreach ($n in "$($script:AppName).lnk", 'Steve AI.lnk') { Remove-Item (Join-Path $desk $n) -Force -ErrorAction SilentlyContinue }
+  $lnks = @((Join-Path ([Environment]::GetFolderPath('Programs')) "$($script:AppName).lnk"))
   foreach ($l in $lnks) {
     $s = $sh.CreateShortcut($l)
     $s.TargetPath = Join-Path $PSHOME 'powershell.exe'
@@ -974,7 +978,7 @@ function Install-Self {
   Remove-Item (Join-Path ([Environment]::GetFolderPath('Desktop')) 'Gemini CAD AI.lnk') -Force -ErrorAction SilentlyContinue
   # the product was called "Steve CAD-AI Connect" in early builds: drop the shortcuts with the old name
   foreach ($d0 in [Environment]::GetFolderPath('Desktop'), [Environment]::GetFolderPath('Programs')) { Remove-Item (Join-Path $d0 'Steve CAD-AI Connect.lnk') -Force -ErrorAction SilentlyContinue }
-  foreach ($l in @((Join-Path ([Environment]::GetFolderPath('Desktop')) 'Steve AI.lnk'), (Join-Path ([Environment]::GetFolderPath('Programs')) 'Steve AI.lnk'))) {
+  foreach ($l in @((Join-Path ([Environment]::GetFolderPath('Programs')) 'Steve AI.lnk'))) {
     $s = $sh.CreateShortcut($l)
     $s.TargetPath = Join-Path $PSHOME 'powershell.exe'
     $s.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$($script:Launcher)`""
@@ -1094,6 +1098,37 @@ function Invoke-Connect([string[]]$Cads, [string[]]$Clients, [bool]$Ads2026 = $f
   if ($fail -eq 0) { Write-Log "XONG. Bấm 'Mở Steve AI' (hoặc shortcut 'Steve AI' / lệnh AI trong CAD) để bắt đầu làm việc. Trợ lý đang mở sẵn thì thoát hẳn rồi mở lại để nhận kết nối mới." 'ok' }
   else { Write-Log "Xong, có $fail lỗi - xem các dòng đỏ ở trên. Cần hỗ trợ: $($script:Contact)" 'warn' }
   return ($fail -eq 0)
+}
+
+# Setup.exe without arguments (v1.10): installs everything without a window. Registration and the choice of assistant
+# happen later inside the CAD panel (view "Thiết lập"), so the person never has to use this tool's own window.
+# Returns @{ cads = @(@{ cad; label; id }); clients; errors }
+function Invoke-Setup {
+  $script:NoAsk = $true; $script:ConfirmSink = { param($q) $true }   # running Setup.exe is the consent (e.g. Python from winget)
+  Write-Log 'Đang chép chương trình…' 'title'
+  Install-Self
+  $st = Get-CadStatus
+  $cads = @($script:CadList | Where-Object { $st[$_].ok })
+  $res = @{ cads = @(); clients = @(); errors = 0 }
+  if (-not $cads) { Write-Log 'Máy chưa có ZWCAD, AutoCAD hoặc ADSCivil.' 'warn'; return $res }
+  $ks = Get-ClientStatus
+  $clis = @($script:ClientList | Where-Object { $ks[$_].ok -and ($_ -ne 'gemini' -or (Test-GeminiKey)) })
+  # the server also runs the tables in the panel (no assistant needed), and ADSCivil runs on ZWCAD
+  Write-Log 'Đang chuẩn bị Python cho Steve CAD MCP (lần đầu khoảng 1-3 phút)…' 'title'
+  $res.clients = $clis
+  if ($env:STEVECAD_DRYRUN) { Write-Log "DRYRUN setup: $($cads -join ',') / $($clis -join ',')" 'ok' }   # tests: no Python, no assistant config
+  else { try { Install-Server } catch { Write-Log "Lỗi: $($_.Exception.Message)" 'error'; $res.errors++ } }
+  Write-Log 'Đang nạp tab Steve AI vào CAD…' 'title'
+  if ($env:STEVECAD_DRYRUN) {}
+  elseif ($clis) { if (-not (Invoke-Connect $cads $clis)) { $res.errors++ } }
+  else {
+    try { Update-Workspace; Install-CadAddon $cads } catch { Write-Log "Lỗi: $($_.Exception.Message)" 'error'; $res.errors++ }
+  }
+  try { Repair-CadAddon } catch {}
+  if (-not $env:STEVECAD_DRYRUN -and $null -eq (Get-Setting 'TrustAcad' $null) -and (Test-CadAddon 'autocad')) { Set-Setting 'TrustAcad' $true }
+  if (-not $env:STEVECAD_DRYRUN) { try { [void](Update-RunningZwcad) } catch {} }
+  $res.cads = @(foreach ($c in $cads) { $l = @(Get-CadLaunchers $c)[0]; if ($l) { @{ cad = $c; label = [string]$l.label; id = [string]$l.id } } })
+  return $res
 }
 
 function Invoke-Disconnect([string[]]$Cads, [string[]]$Clients, [bool]$Ads2026 = $false) {

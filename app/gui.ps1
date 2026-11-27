@@ -1078,7 +1078,7 @@ $form.add_HandleCreated({
 $form.add_Shown({
   Set-DarkScroll $lv; Set-DarkScroll $log
   try { Update-View } catch { Write-Log "Lỗi đọc trạng thái: $($_.Exception.Message)" 'error' }
-  if ($script:FirstRun) { try { Install-Self; Write-Log 'Đã tạo shortcut Steve AI Connect và Steve AI trên Desktop.' 'detail' } catch {} }
+  if ($script:FirstRun) { try { Install-Self; Write-Log 'Đã tạo shortcut Steve AI Connect và Steve AI trong menu Start.' 'detail' } catch {} }
   if ($script:FirstRun -and -not $env:STEVECAD_SELFTEST) { Invoke-Busy { Update-Installed } }
   try { Repair-CadAddon } catch {}
   try { Fill-Launchers } catch { Write-Log "Lỗi tìm phiên bản CAD: $($_.Exception.Message)" 'error' }

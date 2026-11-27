@@ -59,6 +59,72 @@ try {
       if (-not $r.ok) { throw $r.text }
       Out-Answer @{ ok = $true; text = $r.text }
     }
+    # ---------- "Thiết lập" inside the CAD (v1.10): registration, assistant, connection; no outside window ----------
+    'setup' {
+      $acc = Get-Setting 'Account'; $st = Get-CadStatus; $con = Get-Connections
+      $exe = @{ claudecode = (Find-Exe 'claude'); codex = (Find-Codex); gemini = (Find-Exe 'gemini') }
+      Out-Answer @{
+        registered = [bool](Test-Registered); email = $(if ($acc) { [string]$acc.email } else { '' }); access = [bool](Test-AccessOk)
+        trialLeft = [int](Get-TrialLeft); trialUsed = [bool](Get-Setting 'TrialStart' ''); version = [string]$script:Version
+        cads = @($script:CadList | ForEach-Object { @{ id = $_; label = $script:CadLabel[$_]; ok = [bool]$st[$_].ok } })
+        clients = @($script:LaunchClients | ForEach-Object { @{ id = $_; label = $script:ClientLabel[$_]; installed = [bool]$exe[$_]
+          connected = [bool](@($con[$_]).Count); key = ($_ -ne 'gemini' -or (Test-GeminiKey)) } })
+        default = [string](Get-Setting 'DefaultAI' ''); winget = [bool](Find-Exe 'winget')
+      }
+    }
+    { $_ -in 'reg-send', 'reg-verify' } {
+      $em = ([string]$q.email).Trim().ToLower(); $login = [bool]$q.login
+      if (-not (Test-EmailText $em)) { throw 'Email chưa đúng.' }
+      if (-not $login) {
+        if (([string]$q.name).Trim().Length -lt 2) { throw 'Vui lòng nhập họ và tên.' }
+        if (-not (Test-PhoneText ([string]$q.phone))) { throw 'Số điện thoại chưa đúng, ví dụ 0912 345 678.' }
+        if ($q.consent -ne $true) { throw 'Cần tích đồng ý lưu thông tin để đăng ký.' }
+      }
+      if ($q.op -eq 'reg-send') { $body = @{ action = 'send'; email = $em } }
+      else {
+        if (([string]$q.code).Trim() -notmatch '^\d{6}$') { throw 'Mã gồm 6 chữ số.' }
+        $body = @{ action = 'verify'; email = $em; code = ([string]$q.code).Trim(); version = [string]$script:Version }
+        if (-not $login) { $body.name = ([string]$q.name).Trim(); $body.phone = Get-PhoneText ([string]$q.phone); $body.consent = $true; $body.news = [bool]$q.news }
+      }
+      $r = Invoke-Register $body
+      if ($r.ok) {
+        if ($q.op -eq 'reg-verify') { Save-Account $em ([string]$r.name) }
+        Out-Answer @{ ok = $true }
+      } else {
+        # not the person's fault (no network, server...): the 7-day trial may start, once
+        Out-Answer @{ ok = $false; text = $script:RegErrors[[string]$r.error]; why = [string]$r.error
+          trial = ([string]$r.error -in $script:RegTrialErrors -and -not (Get-Setting 'TrialStart' '')) }
+      }
+    }
+    'trial' {
+      if (Get-Setting 'TrialStart' '') { if (-not (Test-AccessOk)) { throw 'Đã hết thời gian dùng tạm. Đăng ký (miễn phí) để dùng tiếp.' } }
+      else { Start-Trial }
+      Out-Answer @{ ok = $true; left = [int](Get-TrialLeft) }
+    }
+    'connect' {   # install the chosen assistant if needed, then connect every CAD on this PC with every usable assistant
+      Assert-Access
+      $inst = [string]$q.install; $key = ([string]$q.key).Trim()
+      if ($inst -and $script:LaunchClients -notcontains $inst) { throw 'Trợ lý không hợp lệ.' }
+      if ($inst -eq 'gemini' -and -not $key -and -not (Test-GeminiKey)) { throw 'Gemini cần API key. Lấy miễn phí tại aistudio.google.com/apikey rồi dán vào ô.' }
+      $st = Get-CadStatus; $cads = @($script:CadList | Where-Object { $st[$_].ok })
+      if (-not $cads) { throw 'Máy chưa có ZWCAD, AutoCAD hoặc ADSCivil.' }
+      $ks = Get-ClientStatus
+      $clis = @($script:ClientList | Where-Object { $ks[$_].ok -and $_ -ne $inst -and ($_ -ne 'gemini' -or $key -or (Test-GeminiKey)) })
+      if ($inst) { $clis += $inst }
+      if (-not $clis) { throw 'Chọn một trợ lý AI để cài.' }
+      $lines = New-Object Collections.ArrayList
+      $script:LogSink = { param($m, $lvl) if ($m -and $lvl -ne 'detail') { [void]$lines.Add(($m -replace '\s+', ' ').Trim()) } }
+      $script:NoAsk = $true; $script:ConfirmSink = { param($x) $true }   # the person pressed the button for exactly this
+      $ok = Invoke-Connect $cads $clis $false $key
+      if ($ok -and $inst) { Set-Setting 'DefaultAI' $inst }
+      Out-Answer @{ ok = [bool]$ok; log = @($lines | Select-Object -Last 12) }
+    }
+    'upgrade' {   # the new Setup.exe installs without a window, so the update needs nothing outside the CAD
+      $r = Get-NewRelease
+      if (-not $r) { throw "Bạn đang dùng bản mới nhất ($($script:Version))." }
+      Start-Release (Save-Release $r)
+      Out-Answer @{ ok = $true; tag = $r.tag }
+    }
     'update' { $r = Get-NewRelease; Out-Answer @{ current = [string]$script:Version; tag = $(if ($r) { $r.tag } else { '' }); notes = $(if ($r) { $r.notes } else { '' }) } }
     'qr' { Out-Answer @{ png = [Convert]::ToBase64String([IO.File]::ReadAllBytes((Join-Path $PSScriptRoot 'donate-qr.png'))) } }
     default { throw 'Yêu cầu không hợp lệ.' }
