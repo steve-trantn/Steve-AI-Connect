@@ -313,6 +313,9 @@ $miUpd.add_Click({ $menu.Close(); if (-not $script:Busy) { Invoke-UpdateCheckNow
 $miAuto = New-Object Windows.Forms.ToolStripMenuItem 'Tự động cập nhật khi có bản mới'; $miAuto.CheckOnClick = $true; $miAuto.ForeColor = $Pal.text
 $miAuto.Checked = [bool](Get-Setting 'AutoUpdate' $false); [void]$menu.Items.Add($miAuto)
 $miAuto.add_Click({ Set-Setting 'AutoUpdate' ([bool]$miAuto.Checked) })
+$miNotice = New-Object Windows.Forms.ToolStripMenuItem 'Báo bản mới khi mở CAD'; $miNotice.CheckOnClick = $true; $miNotice.ForeColor = $Pal.text
+$miNotice.Checked = [bool](Get-Setting 'UpdateNotice' $true); [void]$menu.Items.Add($miNotice)
+$miNotice.add_Click({ Set-Setting 'UpdateNotice' ([bool]$miNotice.Checked) })
 $miAbout = New-Object Windows.Forms.ToolStripMenuItem 'Giới thiệu & ghi nguồn…'; $miAbout.ForeColor = $Pal.text; [void]$menu.Items.Add($miAbout)
 $miErr = New-Object Windows.Forms.ToolStripMenuItem 'Tự gửi báo lỗi ẩn danh cho Steve'; $miErr.CheckOnClick = $true; $miErr.ForeColor = $Pal.text
 $miErr.Checked = ((Get-Setting 'SendErrors' $false) -eq $true); [void]$menu.Items.Add($miErr)

@@ -169,5 +169,19 @@
   (vl-catch-all-apply 'steveai-menu nil)
 )
 
+;; New version of Steve AI Connect: once per CAD session, a hidden check that shows a small notice when there is one
+;; (app\SteveAINotify.ps1 asks GitHub at most every 30 minutes and shows one notice at a time).
+(defun steveai-update-notice ( / f)
+  (if (and (not (and vl-bb-ref (vl-bb-ref '*steveai-notice*)))
+           (/= *steveai-connect* "")
+           (setq f (findfile (strcat (vl-filename-directory *steveai-connect*) "/SteveAINotify.ps1"))))
+    (progn
+      (if vl-bb-set (vl-bb-set '*steveai-notice* T))
+      (steveai-ps f (if (wcmatch (strcase (getvar "PROGRAM")) "*ZWCAD*") " -Cad zwcad" " -Cad autocad"))
+    )
+  )
+)
+(vl-catch-all-apply 'steveai-update-notice nil)
+
 (princ "\nSteve AI: go AI (hoac bam tab ribbon Steve AI) de mo tro ly AI.")
 (princ)

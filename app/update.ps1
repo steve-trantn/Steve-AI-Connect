@@ -62,6 +62,22 @@ function Update-Installed {
   if (Test-Path (Join-Path $script:Workspace 'AGENTS.md')) { Update-Workspace }
 }
 
+# ---------- notice when a CAD starts (app\SteveAINotify.ps1): most people never open this window again ----------
+# GitHub is asked at most once every 30 minutes, whatever number of CADs and drawings are opened
+function Test-NoticeCheckDue([datetime]$now = (Get-Date)) {
+  if (-not (Get-Setting 'UpdateNotice' $true)) { return $false }
+  $last = [string](Get-Setting 'NoticeChecked' '')
+  $t = [datetime]::MinValue
+  if ($last -and [datetime]::TryParse($last, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::RoundtripKind, [ref]$t) -and ($now - $t).TotalMinutes -lt 30 -and $t -le $now) { return $false }
+  Set-Setting 'NoticeChecked' $now.ToString('o')
+  return $true
+}
+# "Để sau" hides one version for the rest of the day
+function Test-NoticeDue([string]$tag, [datetime]$now = (Get-Date)) {
+  return ([string](Get-Setting 'NoticeLater' '')) -ne "$tag|$($now.ToString('yyyy-MM-dd'))"
+}
+function Set-NoticeLater([string]$tag, [datetime]$now = (Get-Date)) { Set-Setting 'NoticeLater' "$tag|$($now.ToString('yyyy-MM-dd'))" }
+
 # ---------- GUI ----------
 function Show-Update($rel) {
   $d = New-SmallDialog 'Cập nhật Steve AI Connect' 480 372
