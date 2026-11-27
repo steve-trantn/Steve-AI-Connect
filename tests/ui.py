@@ -82,6 +82,44 @@ r = call('reg-send', url='http://127.0.0.1:9/', email='khac@x.vn', login=True)
 check('dùng tạm chỉ một lần', r.get('trial') is False, r)
 check('connect: trợ lý lạ bị chặn', 'error' in call('connect', install='calc.exe'))
 check('connect: Gemini không key bị chặn', 'API key' in call('connect', install='gemini', key='').get('error', ''))
+# ---- a PC without Claude Code / Codex: the "Cài và kết nối" button in the CAD installs it (winget faked: tests\fake-ai.ps1)
+mock = {'STEVECAD_TESTMOCK': root + r'\tests\fake-ai.ps1', 'STEVECAD_MOCKSTATE': os.path.join(ws, 'mock-ai.json'), 'STEVECAD_DRYRUN': '1'}
+
+
+def mcall(op, **a):
+    keep = {k: os.environ.get(k) for k in mock}
+    os.environ.update(mock)
+    try:
+        return call(op, **a)
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+
+def mstate():
+    return json.load(open(mock['STEVECAD_MOCKSTATE'], encoding='utf-8-sig'))
+
+
+r = mcall('setup')
+cl = {c['id']: c for c in r.get('clients', [])}
+check('máy chưa có trợ lý: Claude Code, Codex hiện "chưa cài"', cl and not cl['claudecode']['installed'] and not cl['codex']['installed'] and r.get('winget') is True, r)
+r = mcall('connect', install='claudecode', key='')
+st = mstate() if os.path.exists(mock['STEVECAD_MOCKSTATE']) else {}
+check('bấm Cài: Claude Code cài qua winget, đúng gói, kho chính thức',
+      any('--id Anthropic.ClaudeCode -e --source winget' in x for x in st.get('calls', [])), (r, st))
+check('bấm Cài: nối Claude Code với mọi CAD trên máy', r.get('ok') is True and {'claudecode/zwcad', 'claudecode/autocad', 'claudecode/adscivil'} <= set(st.get('conn', [])), (r, st))
+r = mcall('setup')
+cl = {c['id']: c for c in r.get('clients', [])}
+check('sau khi cài: Claude Code "đã kết nối", Codex vẫn "chưa cài"', cl['claudecode']['installed'] and cl['claudecode']['connected'] and not cl['codex']['installed'], r)
+r = mcall('connect', install='codex', key='')
+st = mstate()
+check('bấm Cài Codex: qua winget, nối với CAD', r.get('ok') is True and any('--id OpenAI.Codex' in x for x in st['calls']) and 'codex/zwcad' in st['conn'], (r, st))
+s = json.load(open(os.path.join(os.environ['LOCALAPPDATA'], 'SteveCADConnect', 'settings.json'), encoding='utf-8-sig'))
+check('trợ lý vừa cài thành trợ lý mặc định', s.get('DefaultAI') == 'codex', s.get('DefaultAI'))
+
 # -Info no longer stops an unregistered PC: the panel shows "Thiết lập" itself
 lad = os.path.join(os.path.dirname(ws), 'lad-new')
 os.makedirs(os.path.join(lad, 'SteveCADConnect'), exist_ok=True)

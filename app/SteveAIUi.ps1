@@ -8,6 +8,8 @@ $ErrorActionPreference = 'Stop'
 $script:LogSink = { param($m, $lvl) }
 $utf8 = New-Object Text.UTF8Encoding $false
 if ($env:STEVECAD_TESTURL -like 'http://127.0.0.1:*') { $script:RegisterUrl = $env:STEVECAD_TESTURL }   # tests: only this PC
+# tests only (sandbox, DRYRUN): replace Find-Exe / Invoke-Exe... so "a PC without Claude Code" can be tried without installing anything
+if ($env:STEVECAD_DRYRUN -and $env:STEVECAD_TESTMOCK -and (Test-Path -LiteralPath $env:STEVECAD_TESTMOCK)) { . $env:STEVECAD_TESTMOCK }
 function Out-Answer($o) {
   $b = $utf8.GetBytes(($o | ConvertTo-Json -Depth 6 -Compress)); $s = [Console]::OpenStandardOutput(); $s.Write($b, 0, $b.Length); $s.Flush()
 }

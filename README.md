@@ -15,7 +15,8 @@ Sau khi kết nối, bạn chỉ cần trò chuyện với trợ lý AI và nó 
 3. **Trong CAD:** sang tab **Steve AI** trên ribbon, bấm **Steve AI** (hoặc gõ `AI`). Lần đầu, khung chat tự mở trang **Thiết lập**:
    - **Đăng ký một lần** (miễn phí): nhập email, họ và tên, SĐT, nhận mã 6 số qua email rồi xác nhận. Máy khác chỉ cần **Đăng nhập** bằng email. Đăng ký xong dùng được cả khi không có mạng; nếu lúc đăng ký không kết nối được máy chủ thì được dùng tạm 7 ngày.
    - **Trợ lý AI:** máy đã có Claude Code / ChatGPT Codex / Gemini CLI thì đã được nối sẵn. Chưa có thì bấm **Cài và kết nối** ở trợ lý muốn dùng (tải từ kho chính thức, khoảng 1-3 phút); Gemini cần dán API key miễn phí.
-   - Bấm **Bắt đầu chat**, gõ yêu cầu bằng tiếng Việt, ví dụ *"Bản vẽ đang mở có những layer nào?"*. Lần đầu, trợ lý hỏi đăng nhập tài khoản của hãng ngay trong khung chat.
+   - Bấm **Bắt đầu chat**. Lần đầu, trợ lý hỏi đăng nhập tài khoản của hãng ngay trong khung chat (màn hình tiếng Anh): để trống ô nhập, chọn bằng ↑ ↓ hoặc số 1-3 rồi Enter; trình duyệt mở ra để đăng nhập (Claude Code: tài khoản Claude; Codex: *Sign in with ChatGPT*).
+   - Gõ yêu cầu bằng tiếng Việt, ví dụ *"Bản vẽ đang mở có những layer nào?"*.
 4. Mở lại trang Thiết lập bất cứ lúc nào: nút **Thiết lập** trên ribbon (lệnh `STEVECAD`) hoặc menu **⋯ → Thiết lập** trong khung chat.
 
 Cửa sổ **Steve AI Connect** cũ vẫn còn trong menu Start (và link *Tùy chọn nâng cao* ở cuối trang Thiết lập) cho người quen tay: tự chọn từng cặp CAD ⇄ trợ lý, kiểm tra, ngắt kết nối, xem nhật ký, gỡ cài đặt.

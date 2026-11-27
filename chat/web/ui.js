@@ -202,9 +202,11 @@ const Ui = typeof document === 'undefined' ? null : (() => {
       acts = [];
       for (const c of st.clients) {
         const done = c.connected && c.key;
-        const s = done ? '✓ đã kết nối' : c.installed ? (c.key ? 'đã cài, chưa kết nối' : 'cần API key') : 'chưa cài';
+        let s = done ? '✓ đã kết nối' : c.installed ? (c.key ? 'đã cài, chưa kết nối' : 'cần API key') : 'chưa cài';
         const b = btn(done ? 'Kết nối lại' : c.installed ? 'Kết nối' : 'Cài và kết nối', () => connect(c), done ? '' : 'pri');
-        b.disabled = !st.access || !cads.length || (!c.installed && !st.winget && c.id !== 'gemini'); acts.push(b);
+        // without winget: Claude Code still has Anthropic's own installer, Codex has none (Microsoft Store)
+        b.disabled = !st.access || !cads.length || (!c.installed && !st.winget && c.id === 'codex'); acts.push(b);
+        if (!c.installed && !st.winget && c.id === 'codex') s += ' (cài app Codex từ Microsoft Store)';
         parts.push(el('div', { className: 'ubtn' }, el('span', { style: 'min-width:110px;align-self:center', textContent: c.label }), el('span', { className: 'dim', style: 'align-self:center;flex:1', textContent: s }), b));
         if (c.id === 'gemini' && !c.key) parts.push(field('Gemini API key (lấy miễn phí tại aistudio.google.com/apikey)', key));
       }
@@ -240,7 +242,9 @@ const Ui = typeof document === 'undefined' ? null : (() => {
         if (g !== gen) return;
         key.value = '';
         await load();
-        if (r.ok) say(`✓ Xong. Bấm “Bắt đầu chat”. Lần đầu, ${c.label} sẽ hỏi đăng nhập tài khoản ngay trong khung chat.`, 'ok');
+        if (r.ok) say(`✓ Xong. Bấm “Bắt đầu chat”. Lần đầu ${c.label} hỏi bằng tiếng Anh ngay trong khung chat: để trống ô nhập, chọn bằng ↑ ↓ (hoặc số 1, 2, 3) rồi Enter. ` +
+          (c.id === 'codex' ? 'Chọn “Sign in with ChatGPT”, trình duyệt mở ra để đăng nhập tài khoản ChatGPT.' :
+           c.id === 'claudecode' ? 'Kiểu chữ: Enter. Sau đó chọn đăng nhập bằng tài khoản Claude, trình duyệt mở ra để đăng nhập.' : ''), 'ok');
         else say('Có lỗi: ' + (r.log || []).filter(x => /lỗi/i.test(x)).slice(-3).join(' · ') + ' Cần hỗ trợ: 0987 779 228', 'err');
       });
     }
