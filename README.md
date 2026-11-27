@@ -108,7 +108,7 @@ ChatGPT bản web không dùng được vì chỉ nhận MCP server từ xa qua 
 - **AutoCAD / Civil 3D:** plugin nằm ở `%APPDATA%\Autodesk\ApplicationPlugins\SteveAI.bundle`. Công cụ tự thêm 3 thư mục của Steve AI (`%LOCALAPPDATA%\SteveCADConnect`, `...\tool\chat\bin` và `SteveAI.bundle\Contents`) vào *Trusted Locations* để AutoCAD không hỏi bảo mật mỗi lần mở; AutoCAD sẽ nạp file chương trình trong các thư mục này mà không hỏi. Tắt trong ⚙ Tùy chọn nâng cao là gỡ ra.
 - **Cài trợ lý AI:** máy chưa có trợ lý nào chạy được trong CAD thì nút *Cài trợ lý và kết nối* tải Claude Code, Codex hoặc Gemini CLI bạn chọn từ kho chính thức (winget, bộ cài của Anthropic, npm). Bạn tự đăng nhập tài khoản.
 - **Đăng ký:** công cụ chỉ gửi email, họ tên, SĐT, lựa chọn đồng ý và số phiên bản tới Google Sheet riêng của Steve Tran, dùng để hỗ trợ và báo bản cập nhật (giới thiệu sản phẩm chỉ khi bạn tích chọn). Công cụ không gửi bản vẽ về đó và không theo dõi việc sử dụng (báo lỗi là mục riêng, xem dưới). Muốn xem hoặc xoá thông tin: liên hệ 0987 779 228.
-- **Cập nhật:** mỗi lần mở, công cụ hỏi GitHub xem có bản mới không (không gửi thông tin cá nhân). Có bản mới thì hiện link ở góc trên; bấm **Cập nhật ngay** là xong, hoặc bật **Tự động cập nhật** trong ⚙ Tùy chọn nâng cao. File tải về phải khớp mã SHA-256 của GitHub mới được chạy.
+- **Cập nhật:** mỗi lần mở công cụ, và mỗi lần mở ZWCAD / ADSCivil / AutoCAD (tối đa 30 phút một lần), máy hỏi GitHub xem có bản mới không (không gửi thông tin cá nhân). Mở CAD mà có bản mới thì góc màn hình hiện khung nhỏ **Cập nhật ngay / Để sau**; tắt trong ⚙ Tùy chọn nâng cao → *Báo bản mới khi mở CAD*. Có bản mới thì hiện link ở góc trên; bấm **Cập nhật ngay** là xong, hoặc bật **Tự động cập nhật** trong ⚙ Tùy chọn nâng cao. File tải về phải khớp mã SHA-256 của GitHub mới được chạy.
 - **Chia sẻ skill:** ⚙ Tùy chọn nâng cao → *Chia sẻ skill của tôi*. Công cụ đóng gói nguyên thư mục skill (kể cả file LISP, Excel, ảnh kèm theo, tối đa 5 MB), cho bạn xem trước, đồng ý giấy phép Apache 2.0 rồi mới gửi, kèm email và tên ghi công. Máy chủ kiểm tra mã SHA-256 rồi lưu vào Google Drive riêng của Steve và trả mã biên nhận; bản sao nằm ở `Steve-CAD-AI\skills-da-gui`. Steve duyệt và đưa vào bản cập nhật, có ghi công.
 - **Báo lỗi ẩn danh (chỉ khi bạn đồng ý):** công cụ hỏi một lần. Chỉ gửi nội dung lỗi, vị trí trong mã, phiên bản Windows, CAD và công cụ; tên người dùng, tên máy, email, SĐT, đường dẫn và tên file được lọc bỏ trước khi gửi. Bật / tắt trong ⚙ Tùy chọn nâng cao.
 - **Báo lỗi cho Steve:** nút *Báo lỗi* trên ribbon hoặc trong ⚙. Bạn xem đúng nội dung sẽ gửi (mô tả, email, thông tin chẩn đoán đã lọc tên, đường dẫn, email, SĐT) rồi mới bấm gửi; không kèm bản vẽ.
@@ -118,7 +118,7 @@ ChatGPT bản web không dùng được vì chỉ nhận MCP server từ xa qua 
 ## Dòng lệnh (cho IT, cài hàng loạt)
 
 ```bat
-Steve-AI-Connect-Setup-v1.9.1.exe -Connect                                           :: cai + ket noi, khong mo giao dien
+Steve-AI-Connect-Setup-v1.9.2.exe -Connect                                           :: cai + ket noi, khong mo giao dien
 powershell -ExecutionPolicy Bypass -File app\SteveCADConnect.ps1 -Connect                 :: moi CAD + moi tro ly co tren may
 powershell -ExecutionPolicy Bypass -File app\SteveCADConnect.ps1 -Connect -Cad zwcad -Client codex,claude -Test
 powershell -ExecutionPolicy Bypass -File app\SteveCADConnect.ps1 -Connect -Ads2026 -GeminiKey <key>

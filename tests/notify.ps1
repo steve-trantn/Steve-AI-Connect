@@ -49,6 +49,24 @@ Set-Setting 'NoticeChecked' ''; Set-Setting 'NoticeLater' ''
 $rel.tag_name = 'v0.0.1'; [IO.File]::WriteAllText("$tmp\rel.json", ($rel | ConvertTo-Json -Depth 5), (New-Object Text.UTF8Encoding $false))
 & $ps
 Check 'thong bao: khong co ban moi thi khong hien' (-not (Test-Path "$tmp\out.txt"))
+# "Cập nhật ngay": the download is replaced, the Setup is not started (DRYRUN); the notice must close by itself
+Set-Setting 'NoticeChecked' ''; Set-Setting 'NoticeLater' ''
+$rel.tag_name = 'v9.9.9'; [IO.File]::WriteAllText("$tmp\rel.json", ($rel | ConvertTo-Json -Depth 5), (New-Object Text.UTF8Encoding $false))
+[IO.File]::WriteAllText("$tmp\probe2.ps1", @'
+function Save-Release($r) { return 'C:\x\Setup.exe' }
+$u = $script:NoticeUi
+$link = $u.more.Text
+$ea = (New-Object Windows.Forms.LinkLabelLinkClickedEventArgs $u.more.Links[0]).psobject.BaseObject
+[Windows.Forms.LinkLabel].GetMethod('OnLinkClicked', [Reflection.BindingFlags]'NonPublic,Instance').Invoke($u.more, [object[]]@($ea))
+[Windows.Forms.Button].GetMethod('OnClick', [Reflection.BindingFlags]'NonPublic,Instance').Invoke($u.go, @([EventArgs]::Empty))
+$out = "link=$link|opened=$($script:MoreOpened)|msg=$($u.msg.Text)|timer=$($u.timer.Enabled)|later=$(Get-Setting 'NoticeLater' '')"
+[IO.File]::WriteAllText($env:STEVECAD_NOTICEOUT, $out, (New-Object Text.UTF8Encoding $false))
+'@, (New-Object Text.UTF8Encoding $true))
+$env:STEVECAD_NOTICETEST = "$tmp\probe2.ps1"
+& $ps
+$o = if (Test-Path "$tmp\out.txt") { [IO.File]::ReadAllText("$tmp\out.txt") } else { '' }
+Check 'thong bao: co link Xem them mo trang cac ban phat hanh' ($o -match 'link=Xem thêm' -and $o -match 'opened=https://github\.com/steve-trantn/Steve-AI-Connect/releases\|') $o
+Check 'thong bao: cap nhat xong thi tu dong khung, het hom khong nhac' ($o -match 'Đã mở bộ cài v9\.9\.9' -and $o -match 'tự đóng' -and $o -match 'timer=True' -and $o -match 'later=v9\.9\.9\|') $o
 foreach ($n in 'NOTICEJSON', 'NOTICETEST', 'NOTICEOUT') { [Environment]::SetEnvironmentVariable("STEVECAD_$n", $null) }
 Remove-Item $tmp -Recurse -Force
 $l = [IO.File]::ReadAllText((Join-Path $root 'templates\SteveAI.lsp'))
